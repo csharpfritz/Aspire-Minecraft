@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/" />
+  <Folder Name="/samples/MinecraftAspireDemo/">
+    <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.ApiService/MinecraftAspireDemo.ApiService.csproj" />
+    <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost/MinecraftAspireDemo.AppHost.csproj" />
+    <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.Web/MinecraftAspireDemo.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Aspire.Hosting.Minecraft.Rcon/Aspire.Hosting.Minecraft.Rcon.csproj" />
+    <Project Path="src/Aspire.Hosting.Minecraft.Worker/Aspire.Hosting.Minecraft.Worker.csproj" />
+    <Project Path="src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj" />
+  </Folder>
+</Solution>

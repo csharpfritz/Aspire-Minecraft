@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Aspire.Hosting.Minecraft</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bluemap\core.conf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="otel\opentelemetry-javaagent.jar" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

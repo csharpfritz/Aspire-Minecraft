@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.1.0" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MinecraftAspireDemo.AppHost</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="*" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Aspire.Hosting.Minecraft\Aspire.Hosting.Minecraft.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\..\src\Aspire.Hosting.Minecraft.Worker\Aspire.Hosting.Minecraft.Worker.csproj" />
+    <ProjectReference Include="..\MinecraftAspireDemo.ApiService\MinecraftAspireDemo.ApiService.csproj" />
+    <ProjectReference Include="..\MinecraftAspireDemo.Web\MinecraftAspireDemo.Web.csproj" />
+  </ItemGroup>
+
+</Project>
