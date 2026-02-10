@@ -104,3 +104,19 @@
 - **Recommendation:** Polling for v1 (matches existing `AspireResourceMonitor` pattern, no extra Azure infrastructure needed). Event Grid for v2 if sub-second latency needed.
 - **Package separation:** Azure monitoring should be a separate NuGet package (`Fritz.Aspire.Hosting.Minecraft.Azure`) — ~5 MB of Azure SDK deps shouldn't be forced on all users.
 - **Research doc created:** `docs/epics/azure-sdk-research.md`
+
+### Sprint 3: World Border Pulse on Critical Failure (Issue #28)
+
+- **Created `WorldBorderService.cs`** — aggregate health feature that adjusts the Minecraft world border based on fleet health ratio.
+- **RCON commands used:**
+  - `worldborder center 0 0` — sets border center at world origin (initialization)
+  - `worldborder set {diameter}` — sets border size instantly (initialization)
+  - `worldborder set {diameter} {seconds}` — animates border size change over time
+  - `worldborder warning distance {blocks}` — red tint when player is within N blocks of border edge (0 = disabled, 5 = visible warning)
+- **Thresholds:** >50% healthy = Normal (200 blocks), ≤50% healthy = Critical (100 blocks, shrinks over 10s). Restore expands over 5s.
+- **State tracking:** Uses `BorderState` enum (Unknown/Normal/Critical) — only sends RCON commands on state transitions to avoid command spam.
+- **Initialization:** On startup, sets center to 0,0, diameter to 200, and warning distance to 0. Called from `MinecraftWorldWorker` after RCON connects and resources are discovered.
+- **Feature gate:** `ASPIRE_FEATURE_WORLDBORDER` env var, set by `WithWorldBorderPulse()` extension method. Follows established opt-in pattern.
+- **Extension method:** `WithWorldBorderPulse()` added to `MinecraftServerBuilderExtensions.cs` with full XML docs.
+- **Demo wiring:** Added `.WithWorldBorderPulse()` to sample AppHost.
+- **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
