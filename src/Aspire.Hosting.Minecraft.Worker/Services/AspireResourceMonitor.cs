@@ -24,27 +24,27 @@ public sealed class AspireResourceMonitor
 
     /// <summary>
     /// Discovers resources from environment variables.
-    /// Convention: ASPIRE_RESOURCE_{NAME}_URL and ASPIRE_RESOURCE_{NAME}_TYPE
+    /// Convention: ASPIRE_RESOURCE_{NAME}_TYPE and optionally ASPIRE_RESOURCE_{NAME}_URL.
+    /// Resources without a URL are still tracked but won't have HTTP health polling.
     /// </summary>
     public void DiscoverResources()
     {
         var envVars = Environment.GetEnvironmentVariables();
+
+        // First pass: find all resources by _TYPE suffix
         foreach (System.Collections.DictionaryEntry entry in envVars)
         {
             var key = entry.Key?.ToString() ?? "";
-            if (key.StartsWith("ASPIRE_RESOURCE_") && key.EndsWith("_URL"))
+            if (key.StartsWith("ASPIRE_RESOURCE_") && key.EndsWith("_TYPE"))
             {
-                var name = key["ASPIRE_RESOURCE_".Length..^"_URL".Length].ToLowerInvariant();
-                var url = entry.Value?.ToString() ?? "";
-                var typeKey = $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE";
-                var type = Environment.GetEnvironmentVariable(typeKey) ?? "Unknown";
+                var name = key["ASPIRE_RESOURCE_".Length..^"_TYPE".Length].ToLowerInvariant();
+                var type = entry.Value?.ToString() ?? "Unknown";
+                var urlKey = $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL";
+                var url = Environment.GetEnvironmentVariable(urlKey) ?? "";
 
-                if (!string.IsNullOrEmpty(url))
-                {
-                    _resources[name] = new ResourceInfo(name, type, url, ResourceStatus.Unknown);
-                    _logger.LogInformation("Discovered Aspire resource: {ResourceName} ({ResourceType}) at {Url}",
-                        name, type, url);
-                }
+                _resources[name] = new ResourceInfo(name, type, url, ResourceStatus.Unknown);
+                _logger.LogInformation("Discovered Aspire resource: {ResourceName} ({ResourceType}) at {Url}",
+                    name, type, string.IsNullOrEmpty(url) ? "(no endpoint)" : url);
             }
         }
     }
@@ -60,7 +60,17 @@ public sealed class AspireResourceMonitor
         foreach (var (name, info) in _resources)
         {
             var oldStatus = info.Status;
-            var newStatus = await CheckHealthAsync(info.Url, ct);
+            ResourceStatus newStatus;
+
+            if (string.IsNullOrEmpty(info.Url))
+            {
+                // No HTTP endpoint — assume healthy if we got this far
+                newStatus = ResourceStatus.Healthy;
+            }
+            else
+            {
+                newStatus = await CheckHealthAsync(info.Url, ct);
+            }
 
             if (newStatus != oldStatus)
             {
