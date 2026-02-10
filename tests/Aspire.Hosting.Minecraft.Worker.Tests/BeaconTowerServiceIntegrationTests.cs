@@ -152,20 +152,53 @@ public class BeaconTowerServiceIntegrationTests : IAsyncLifetime
         Assert.Contains(cmds, c => c.Contains("red_stained_glass"));
     }
 
-    // Unit tests for GetGlassBlock (internal static method)
-    [Theory]
-    [InlineData("Project", ResourceStatus.Healthy, "blue_stained_glass")]
-    [InlineData("Container", ResourceStatus.Healthy, "purple_stained_glass")]
-    [InlineData("Executable", ResourceStatus.Healthy, "cyan_stained_glass")]
-    [InlineData("Unknown", ResourceStatus.Healthy, "light_blue_stained_glass")]
-    [InlineData("Project", ResourceStatus.Unhealthy, "red_stained_glass")]
-    [InlineData("Container", ResourceStatus.Unhealthy, "red_stained_glass")]
-    [InlineData("Project", ResourceStatus.Unknown, "yellow_stained_glass")]
-    public void GetGlassBlock_ReturnsCorrectBlock(string type, ResourceStatus status, string expectedGlass)
+    [Fact]
+    public void GetGlassBlock_HealthyProject_ReturnsBlue()
     {
-        var info = new ResourceInfo("test", type, "", "", 0, status);
-        var glass = BeaconTowerService.GetGlassBlock(info);
-        Assert.Equal(expectedGlass, glass);
+        var info = new ResourceInfo("test", "Project", "", "", 0, ResourceStatus.Healthy);
+        Assert.Equal("blue_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_HealthyContainer_ReturnsPurple()
+    {
+        var info = new ResourceInfo("test", "Container", "", "", 0, ResourceStatus.Healthy);
+        Assert.Equal("purple_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_HealthyExecutable_ReturnsCyan()
+    {
+        var info = new ResourceInfo("test", "Executable", "", "", 0, ResourceStatus.Healthy);
+        Assert.Equal("cyan_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_HealthyUnknownType_ReturnsLightBlue()
+    {
+        var info = new ResourceInfo("test", "Unknown", "", "", 0, ResourceStatus.Healthy);
+        Assert.Equal("light_blue_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_UnhealthyProject_ReturnsRed()
+    {
+        var info = new ResourceInfo("test", "Project", "", "", 0, ResourceStatus.Unhealthy);
+        Assert.Equal("red_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_UnhealthyContainer_ReturnsRed()
+    {
+        var info = new ResourceInfo("test", "Container", "", "", 0, ResourceStatus.Unhealthy);
+        Assert.Equal("red_stained_glass", BeaconTowerService.GetGlassBlock(info));
+    }
+
+    [Fact]
+    public void GetGlassBlock_UnknownStatus_ReturnsYellow()
+    {
+        var info = new ResourceInfo("test", "Project", "", "", 0, ResourceStatus.Unknown);
+        Assert.Equal("yellow_stained_glass", BeaconTowerService.GetGlassBlock(info));
     }
 
     [Fact]
