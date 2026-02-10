@@ -35,3 +35,6 @@
 
 📌 FluentAssertions removed — replaced with xUnit built-in Assert (2026-02-10). Zero new dependencies added. Chose xUnit Assert over Shouldly/TUnit because all 62 tests used straightforward assertion patterns (equality, boolean, null, empty, contains, throws) that map 1:1 to Assert.*. No licensing concerns.
 📌 Migration patterns: `.Should().Be(x)` → `Assert.Equal(x, actual)`, `.Should().BeTrue/BeFalse()` → `Assert.True/False()`, `.Should().BeNull()` → `Assert.Null()`, `.Should().BeEmpty()` → `Assert.Empty()`, `.Should().Contain(x)` → `Assert.Contains(x, actual)`, `.Should().BeEquivalentTo([...])` → `Assert.Equivalent(expected, actual)`, `.Should().HaveCount(n)` → `Assert.Equal(n, actual.Length)`, `.Should().ThrowAsync<T>()` → `await Assert.ThrowsAsync<T>(...)`, `.Should().BePositive()` → `Assert.True(x > 0)`, `.Should().BeGreaterThan(x)` → `Assert.True(a > x)`.
+
+📌 Team update (2026-02-10): Single NuGet package consolidation — Rcon embedded into Aspire.Hosting.Minecraft, Worker stays separate but IsPackable=false. All 62 tests still pass. — decided by Jeffrey T. Fritz, Shuri
+📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz

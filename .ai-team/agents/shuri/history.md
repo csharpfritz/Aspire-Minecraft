@@ -66,3 +66,5 @@
 - **Worker kept separate:** Worker uses `Microsoft.NET.Sdk.Worker` and runs as a standalone process — cannot be a DLL inside the hosting package. Consumers reference it as a `ProjectReference` via the `WithAspireWorldDisplay<TWorkerProject>()` generic type parameter.
 - **Test projects unchanged:** Both test projects still reference their source projects directly. All 62 tests (45 Rcon + 17 Hosting) pass.
 - **Pack output:** Single `Aspire.Hosting.Minecraft.0.1.0.nupkg` (39.6 MB). Contains both DLLs, XML docs, content files (bluemap, otel jar), and README.
+
+📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula

@@ -38,3 +38,7 @@
 📌 Team update (2026-02-10): Sprint 1 — Nebula completed test infrastructure (62 tests, 0 failures, InternalsVisibleTo pattern) — decided by Nebula
 📌 Team update (2026-02-10): FluentAssertions v8 licensing concern flagged — needs resolution before v0.1.0 release — decided by Nebula
 📌 Team update (2026-02-10): All sprint work tracked as 34 GitHub issues with team member and sprint labels, 6 Sprint 1 issues closed — decided by Jeffrey T. Fritz
+
+📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula
+📌 Team update (2026-02-10): Single NuGet package consolidation — only Aspire.Hosting.Minecraft is packable now — decided by Jeffrey T. Fritz, Shuri
+📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz

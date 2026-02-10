@@ -40,3 +40,5 @@
 📌 Team update (2026-02-10): NuGet hardening completed — 6 floating deps pinned, SourceLink/deterministic builds added to Directory.Build.props — decided by Shuri
 📌 Team update (2026-02-10): Test infrastructure created — 62 tests (45 RCON + 17 hosting) now available for CI execution — decided by Nebula
 📌 Team update (2026-02-10): All sprint work tracked as GitHub issues with team member and sprint labels — decided by Jeffrey T. Fritz
+
+📌 Team update (2026-02-10): Single NuGet package consolidation — only Aspire.Hosting.Minecraft is packable, CI/CD should build/pack accordingly — decided by Jeffrey T. Fritz, Shuri
