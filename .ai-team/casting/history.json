@@ -1,0 +1,23 @@
+{
+  "universe_usage_history": [
+    {
+      "assignment_id": "2026-02-10-aspire-minecraft",
+      "universe": "Marvel Cinematic Universe",
+      "timestamp": "2026-02-10T14:43:37Z"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "2026-02-10-aspire-minecraft": {
+      "universe": "Marvel Cinematic Universe",
+      "agent_map": {
+        "rhodey": "Rhodey",
+        "shuri": "Shuri",
+        "rocket": "Rocket",
+        "nebula": "Nebula",
+        "mantis": "Mantis",
+        "wong": "Wong"
+      },
+      "created_at": "2026-02-10T14:43:37Z"
+    }
+  }
+}

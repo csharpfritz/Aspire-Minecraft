@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "rhodey": {
+      "persistent_name": "Rhodey",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:43:37Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "shuri": {
+      "persistent_name": "Shuri",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:43:37Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "rocket": {
+      "persistent_name": "Rocket",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:43:37Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "nebula": {
+      "persistent_name": "Nebula",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:43:37Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "mantis": {
+      "persistent_name": "Mantis",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:45:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "wong": {
+      "persistent_name": "Wong",
+      "universe": "Marvel Cinematic Universe",
+      "created_at": "2026-02-10T14:45:00Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
