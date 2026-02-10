@@ -145,3 +145,26 @@
 - **Scale handling:** 1–15 resources = 3×5 grid. 16–30 = 3×10. 50+ = multiple Z-offset planes. Progress boss bar during initial build.
 - **RCON budget:** 15–35 commands per Azure structure (comparable to Aspire's 15–25). 15 resources ≈ 94s build time. 50 resources ≈ 5.2 min (needs progress indicator).
 - **Beacon color palette for Azure:** Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta. Unhealthy=red, Starting=yellow (consistent with Aspire).
+
+### Village Fence Perimeter and Cobblestone Pathways (2026-02-10)
+
+**What:** Added oak fence perimeter around the entire village and enhanced cobblestone pathway network between buildings.
+
+**Fence perimeter:**
+- `VillageLayout.GetVillageBounds(resourceCount)` computes the bounding box of all structures.
+- `VillageLayout.GetFencePerimeter(resourceCount)` returns coordinates 1 block outside bounds (2 blocks on south/entrance side for the entry path).
+- Oak fence placed at `BaseY + 1` (on top of ground level) on all four sides.
+- 3-wide `oak_fence_gate[facing=south]` centered on the main boulevard on the south side.
+- Fence is built BEFORE structures and paths so structures can overlap if needed.
+
+**Cobblestone pathways:**
+- Main boulevard: 3-wide cobblestone strip between the two columns along Z axis (enhanced from existing single strip).
+- Cross paths: 2-wide cobblestone paths from each structure's entrance (`z-1`) connecting to the main boulevard. Left column paths run east, right column paths run west.
+- Entry path: 3-wide cobblestone from the fence gate to the start of the main boulevard.
+- All paths at `BaseY` level (ground level).
+
+**Key coordinate decisions:**
+- Fence perimeter: `minZ = BaseZ - 2` (south side gets 2-block offset for entry path + gate), other sides 1-block offset.
+- Boulevard X starts at `BaseX + StructureSize` (X=17), which is the 3-block gap between columns.
+- Cross path entrance X is at `structureOriginX + 3` (center of the 7-wide structure front face).
+- Gate aligned with boulevard center for seamless entry path connection.
