@@ -70,3 +70,18 @@
 - **Scale is the biggest unknown.** A production Azure RG can have 200+ resources. The current 2-column village layout at 10-block spacing would stretch 1,000+ blocks — well beyond beacon render distance (256 blocks) and the configured `MAX_WORLD_SIZE` (256). A `MaxResources` cap and default resource type exclusion list are mandatory for v1.
 - **RCON throughput is a hidden constraint for Azure.** 50 resources × ~15 fill commands × 250ms throttle = ~3 minutes for initial world build. The Aspire path typically has 3–8 resources, so this never surfaced. May need batch mode or throttle bypass for initial construction.
 - **`DefaultAzureCredential` is the right default but first-run DX will be rough.** The credential chain's error messages are notoriously confusing for devs who haven't done `az login`. A connectivity pre-check in the worker before building structures would save support headaches.
+
+### 2026-02-10: API Surface Freeze & Demo Review for v0.2.0
+
+- **API surface is frozen at 31 public methods** across `MinecraftServerBuilderExtensions`, plus 4 public types (`MinecraftServerResource`, `ServerProperty`, `MinecraftGameMode`, `MinecraftDifficulty`) and 6 RCON types. Full listing committed to `docs/api-surface.md`.
+- **All 13 feature methods (5 Sprint 1 + 5 Sprint 2 + 3 Sprint 3) follow identical patterns:** same signature shape, guard clause, env var naming, fluent return, XML docs. `WithRedstoneDependencyGraph` (Sprint 3, in progress by Rocket) also follows the pattern.
+- **No internal type leakage detected.** `WorkerBuilder`, `MonitoredResourceNames`, annotations, and all Worker service types are properly `internal`.
+- **XML documentation is complete** on all public types and methods — no gaps found.
+- **Demo AppHost cleaned up:** features now grouped by sprint with clear comment headers. `WithWorldBorderPulse` moved from Sprint 2 group to Sprint 3 where it belongs. Server config, integrations, and monitored resources each have their own section.
+- **README updated** with 3 missing Sprint 3 features (World Border Pulse, Heartbeat, Achievements) in both the feature list and the code sample.
+- **Build passes:** 0 errors, 1 pre-existing warning (CS8604 nullable in MinecraftServerResource).
+
+📌 Team update (2026-02-10): API surface frozen for v0.2.0 — 31 methods, 4 types, 6 RCON types documented in docs/api-surface.md, demo cleaned up, README updated — decided by Rhodey
+
+📌 Team update (2026-02-10): Azure SDK research completed — separate package recommended, polling for v1 — decided by Shuri
+📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz

@@ -38,3 +38,7 @@
 📌 README overhaul (2026-02-10): Overhauled README.md with categorized feature list (World Building, Health Monitoring, Audio & Effects, Gamification, Configuration), added Quick Start with minimal 10-line code example, added Full Feature Demo section with all 13 features, updated architecture diagram to reflect worker capabilities, and added link to Behind the Build deep-dive. Removed sprint references from code examples — features are now organized by category, not implementation timeline. — Mantis
 📌 Learning (2026-02-10): The README needs to lead with the simplest possible code example (6 lines to a working Minecraft server) before showing the full feature demo. Conference audiences need a "this is easy" moment before the "this is powerful" moment. The same applies to blog posts. — Mantis
 📌 Learning (2026-02-10): HeartbeatService has a subtle RCON deduplication workaround — it varies the volume by tick count (0.001 increments) to make each playsound command unique. This is a great anecdote for architecture talks about working with constraints. — Mantis
+
+📌 Team update (2026-02-10): Azure RG epic designed — separate NuGet package Fritz.Aspire.Hosting.Minecraft.Azure, polling for v1, DefaultAzureCredential — decided by Rhodey, Shuri
+📌 Team update (2026-02-10): Azure citadel is new demo material — 'The Pan' from village to citadel is conference money shot — decided by Rocket
+📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz

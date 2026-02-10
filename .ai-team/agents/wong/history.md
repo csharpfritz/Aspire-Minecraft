@@ -91,3 +91,8 @@
 - `dotnet build -c Release` passes (packable project builds clean).
 - `dotnet test --no-build -c Release` passes (62 tests: 45 RCON + 17 hosting).
 - `dotnet pack` produces both `.nupkg` and `.snupkg` files.
+
+📌 Team update (2026-02-10): Azure RG epic designed — separate NuGet package Fritz.Aspire.Hosting.Minecraft.Azure, polling for v1, DefaultAzureCredential — decided by Rhodey, Shuri
+📌 Team update (2026-02-10): CI/CD needed for second NuGet package (Fritz.Aspire.Hosting.Minecraft.Azure) — decided by Rhodey
+📌 Team update (2026-02-10): API surface frozen for v0.2.0 — any additions require explicit review — decided by Rhodey
+📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz

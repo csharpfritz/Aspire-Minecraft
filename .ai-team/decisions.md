@@ -240,3 +240,194 @@
 **What:** Updated `.github/workflows/release.yml` to extract the semantic version from the git tag (`v0.2.1` → `0.2.1`) and pass it to `dotnet build` and `dotnet pack` via `-p:Version=`. GitHub Release name now includes the version. CI workflow (`build.yml`) intentionally unchanged.
 **Why:** Previously every tag-triggered release produced `0.1.0` packages regardless of the actual tag. The tag is now the single source of truth for release versions.
 **Status:** ✅ Resolved.
+
+### 2026-02-10: User directive — sprint branches with PRs
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Each sprint's work should be done in a dedicated branch named after that sprint, then pushed and merged via PR to main on GitHub.
+**Why:** User request — captured for team memory
+
+### 2026-02-10: E2E cascade failure scenario + 25-resource performance tests
+
+**By:** Nebula
+**Issue:** #31
+
+**What:** Added comprehensive test coverage for Sprint 2 features and beyond:
+
+1. **Sprint 2 feature integration tests** — GuardianMobService (8 tests), BeaconTowerService (16 tests including `GetGlassBlock` unit tests), FireworksService (7 tests), DeploymentFanfareService (7 tests), ActionBarTickerService (5 tests). All follow the established MockRconServer integration test pattern.
+
+2. **E2E cascade failure scenario** (`Scenarios/CascadeFailureScenarioTests.cs`) — 4 tests exercising multi-service interaction: 5 resources healthy → 1 fails → 2 more cascade → boss bar drops to red → guardians switch to zombies → all recover → fireworks launch → golems return.
+
+3. **25-resource performance tests** (`Performance/LargeResourceSetTests.cs`) — 10 tests proving StructureBuilder, BeaconTowerService, HologramManager, BossBarService, GuardianMobService, and ParticleEffectService all handle 25 resources without exceptions.
+
+**Verified:** 303 tests across 3 projects, 0 failures.
+**Status:** ✅ Complete.
+
+### 2026-02-10: API Surface Freeze for v0.2.0
+
+**By:** Rhodey
+**Issue:** #24
+
+**What:** Froze the public API surface for the v0.2.0 release. Created `docs/api-surface.md` documenting all 31 public extension methods on `MinecraftServerBuilderExtensions`, 4 public types in `Aspire.Hosting.Minecraft`, and 6 public RCON types.
+
+**Key findings:**
+- All 13 feature methods (Sprint 1–3) follow identical patterns: guard clause → env var → fluent return. No deviations.
+- No internal types leak through the public API.
+- XML documentation is complete on every public type and method.
+- `WithWorldBorderPulse` was incorrectly grouped under Sprint 2 in the demo — moved to Sprint 3.
+
+**Status:** ✅ Resolved. Any API additions beyond this point require explicit review before release.
+
+### 2026-02-10: Azure Resource Group Integration — Epic Design
+
+**By:** Rhodey
+**Date:** 2026-02-10
+**Scope:** New epic — Azure Resource Group → Minecraft integration
+**Document:** `docs/epics/azure-resource-group-integration.md`
+
+**Decisions Made:**
+1. Separate NuGet package: `Fritz.Aspire.Hosting.Minecraft.Azure` — isolates Azure SDK dependencies.
+2. Azure monitor is a new resource discovery source, not a new rendering pipeline.
+3. Polling for v1, Event Grid deferred. 30-second default interval.
+4. Aspire-only for v1. Standalone mode is Phase 5.
+5. `MaxResources = 50` default with auto-exclude of infrastructure noise.
+6. `DefaultAzureCredential` as the default auth.
+
+**Open Questions for Jeff:**
+- Package naming: `Fritz.Aspire.Hosting.Minecraft.Azure` vs `Fritz.Azure.Minecraft`?
+- Should mixed mode (Aspire + Azure resources in same world) be supported in v1?
+- Default exclude list for infrastructure resource types?
+
+**Team Impact:**
+- Shuri: Owns Phases 1 and 3 (ARM client, auth, options, NuGet package scaffold)
+- Rocket: Owns Phase 2 (Azure type → Minecraft structure mapping)
+- Nebula: Owns Phase 4 (mocked ARM client tests, options validation)
+
+### 2026-02-10: Advancement Achievements use RCON titles instead of datapacks
+
+**By:** Rocket
+**Issue:** #32
+**What:** `AdvancementService` grants four infrastructure achievements using RCON `title @a title/subtitle` with JSON text components and `playsound`. No Minecraft datapack advancements are used.
+**Why:** Mounting custom advancement JSON datapacks into the Minecraft container is complex and fragile. Title + subtitle + sound gives equivalent player feedback without container filesystem changes. Achievements tracked per-session via `HashSet<string>`.
+**Status:** ✅ Implemented. Follows opt-in pattern (`ASPIRE_FEATURE_ACHIEVEMENTS`, `WithAchievements()`).
+
+### 2026-02-10: Azure Resource Visualization Design
+
+**By:** Rocket
+**Date:** 2026-02-10
+**Document:** `docs/epics/azure-minecraft-visuals.md`
+
+**What:** Designed the complete visual language for rendering Azure resources in Minecraft. Covers 15 Azure resource types mapped to unique Minecraft structures.
+
+**Key Decisions:**
+1. Azure district visually distinct from Aspire village (prismarine/quartz/end stone palette).
+2. 3-column tiered layout grouping resources by functional tier.
+3. District starts at X=60 with prismarine boulevard connecting to Aspire village.
+4. Azure beacon colors: Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta.
+5. Azure health states: Stopped=cobwebs, Deallocated=soul sand ring, Failed=netherrack fire on roof.
+
+**Status:** 📐 Design complete — no implementation yet.
+
+### 2026-02-10: Heartbeat service uses BackgroundService pattern
+
+**By:** Rocket
+**Issue:** #27
+
+**What:** `HeartbeatService` uses `BackgroundService` (via `AddHostedService`) for independent timing loop (1–4 second pulse intervals depending on health).
+
+**Why:** Main worker loop runs on 10-second intervals — too slow for a heartbeat. Independent loop creates audible rhythm at 1-second intervals when healthy.
+
+**Implications:**
+- Future features needing their own timing can follow this pattern.
+- `HeartbeatService` runs independently but shares `RconService` and `AspireResourceMonitor` singletons.
+- RCON throttle deduplication handled by micro-varying volume (0.001 increments per tick).
+
+**Status:** ✅ Implemented. Build passes, 303 tests pass.
+
+### 2026-02-10: Redstone Dependency Graph Implementation
+
+**By:** Rocket
+**Issue:** #36
+
+**What:** `RedstoneDependencyService` (BackgroundService) visualizes Aspire resource dependencies as redstone wire circuits. L-shaped routing (X then Z), repeaters every 15 blocks, redstone lamps at entrances, health-reactive circuit breaking/restoring.
+
+**Key decisions:**
+1. BackgroundService pattern — 5s health check loop, 15s initial wait for structures.
+2. L-shaped routing avoids complex A* pathfinding.
+3. Circuit breaking — remove redstone block + break wire every 5th position on unhealthy.
+4. CommandPriority.Low for building to avoid starving higher-priority commands.
+5. Wire positions at BaseY, Z-1 — paths run in front of structures.
+
+**Status:** ✅ Implemented. Build passes, 303 tests pass.
+
+### 2026-02-10: Resource Village Layout & Themed Structures
+
+**By:** Rocket
+**Issue:** #25
+
+**What:** Themed mini-buildings per Aspire resource type in a 2×N grid with 10-block spacing. Project=Watchtower, Container=Warehouse, Executable=Workshop, Unknown=Cottage. `VillageLayout` static class centralizes position calculations. Health indicator via redstone lamp in front wall.
+
+### 2026-02-10: Service Switches — visual-only levers representing resource status
+
+**By:** Rocket
+**Issue:** #35
+
+**What:** `ServiceSwitchService` (BackgroundService) with `WithServiceSwitches()` and `ASPIRE_FEATURE_SWITCHES` env var. Levers and lamps on each resource structure. Healthy=lever ON + glowstone, Unhealthy=lever OFF + unlit redstone lamp.
+
+**Key decision:** Visual only — levers reflect state, they do not control Aspire resources.
+
+**Status:** ✅ Implemented. Build passes, 303 tests pass.
+
+### 2026-02-10: Village fence perimeter and pathway coordinate conventions
+
+**By:** Rocket
+**What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence perimeter is 1 block outside village bounds (2 on south/entrance side). Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
+**Status:** ✅ Implemented.
+
+### 2026-02-10: Azure SDK Research — Separate Package Recommendation
+
+**By:** Shuri
+**Date:** 2026-02-10
+
+**What:** Azure monitoring should ship as a separate NuGet package (`Fritz.Aspire.Hosting.Minecraft.Azure`), not bundled with the core package. Azure SDK adds ~5 MB of dependencies most users don't need.
+
+**For v1:** Polling approach, layered health (provisioning state + Resource Health API), `DefaultAzureCredential` for auth.
+
+**Reference:** `docs/epics/azure-sdk-research.md`
+
+### 2026-02-10: Resource Dependency Placement + RCON Rate-Limiting
+
+**By:** Shuri
+**Issue:** #29
+
+**What:**
+1. **RCON rate-limiting:** `CommandPriority` enum, token bucket rate limiter (default 10 commands/sec). High-priority commands bypass limits; low-priority commands queue in bounded channel (100, DropOldest).
+2. **Dependency placement:** `ResourceInfo` carries `Dependencies` list from `ASPIRE_RESOURCE_{NAME}_DEPENDS_ON` env vars. `VillageLayout.ReorderByDependency()` uses BFS topological sort.
+3. **Hosting integration:** `WithMonitoredResource()` accepts `params string[] dependsOn` and auto-detects `IResourceWithParent`.
+
+**Status:** ✅ Resolved. Build passes, 303 tests pass.
+
+### 2026-02-10: Ephemeral Minecraft world by default, WithPersistentWorld() opt-in
+
+**By:** Shuri (requested by Jeffrey T. Fritz)
+**What:** Removed the default named Docker volume from `AddMinecraftServer()`. World data is now ephemeral. Added `WithPersistentWorld()` for opt-in persistence.
+**Why:** Persistent worlds cause confusion during development — old structures remain from previous sessions.
+**Status:** ✅ Resolved.
+
+### 2026-02-10: World Border Pulse on Critical Failure
+
+**By:** Shuri
+**Issue:** #28
+**What:** `WorldBorderService` and `WithWorldBorderPulse()`. World border shrinks from 200→100 blocks over 10s when >50% of resources are unhealthy, restores to 200 over 5s on recovery. Red warning tint at 5 blocks from border edge.
+**Why:** Dramatic visual/physical feedback for critical failures. Follows opt-in pattern (`ASPIRE_FEATURE_WORLDBORDER`).
+**Status:** ✅ Implemented.
+
+### 2026-02-10: Changelog, Symbol Packages, CodeQL Scanning
+
+**By:** Wong
+**Issue:** #26
+
+**What:**
+1. Changelog generation uses GitHub's built-in `generate_release_notes: true`.
+2. NuGet symbol packages enabled via `IncludeSymbols`/`SymbolPackageFormat`. Release workflow pushes `.snupkg` explicitly.
+3. CodeQL security scanning added as `.github/workflows/codeql.yml` — C# only, default query suite, weekly + push/PR triggers.
+4. GitHub Pages/docfx deferred to a future sprint.

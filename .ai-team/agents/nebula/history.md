@@ -58,3 +58,7 @@
 📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — new tests may be needed — decided by Rocket
 📌 Team update (2026-02-10): Hologram line-add bug fixed (unique text per command to avoid RCON throttle) — decided by Rocket
 📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added — tests needed — decided by Shuri
+
+📌 Team update (2026-02-10): Azure RG epic designed — separate NuGet package Fritz.Aspire.Hosting.Minecraft.Azure, polling for v1, DefaultAzureCredential — decided by Rhodey, Shuri
+📌 Team update (2026-02-10): Nebula owns Phase 4 of Azure epic — mocked ARM client tests, options validation — decided by Rhodey
+📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz
