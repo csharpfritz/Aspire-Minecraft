@@ -72,3 +72,22 @@
 - Without `-p:Version=`, every release produced `0.1.0` packages regardless of the tag. This was a silent bug — the pipeline appeared to work but published wrong versions.
 - The `GITHUB_REF_NAME` variable gives the tag name directly (e.g., `v0.2.1`), and `${GITHUB_REF_NAME#v}` strips the `v` prefix in bash. This is simpler than parsing `GITHUB_REF` (which includes `refs/tags/`).
 - Version is passed to both build and pack to ensure assembly version and package version are consistent.
+
+### Sprint 3 — Changelog, Symbol Packages, CodeQL (Issue #26)
+
+**Changes:**
+- **Changelog generation:** Already handled — `release.yml` uses `generate_release_notes: true` in `softprops/action-gh-release@v2`, which auto-generates release notes from PRs and commits. No additional tooling or workflow needed.
+- **Symbol packages (.snupkg):** Added `<IncludeSymbols>true</IncludeSymbols>` and `<SymbolPackageFormat>snupkg</SymbolPackageFormat>` to `src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj`. Updated `release.yml` with a separate `dotnet nuget push "nupkgs/*.snupkg"` step and attached snupkg files to GitHub Release. Updated `build.yml` to upload snupkg alongside nupkg in CI artifacts.
+- **CodeQL scanning:** Created `.github/workflows/codeql.yml` — triggers on push/PR to main + weekly schedule (Monday 06:25 UTC). Uses `github/codeql-action/init@v3` and `github/codeql-action/analyze@v3` with `csharp` language and default query suite. Permissions: `security-events: write` + `contents: read`.
+- **GitHub Pages docs:** Deferred — too heavy for this sprint per task description.
+
+**Key decisions:**
+- Changelog: No extra workflow or tooling. GitHub's built-in release notes generation is sufficient for this project's scale.
+- Symbol packages pushed as a separate `dotnet nuget push` step (not relying on `.nupkg` push to auto-detect `.snupkg`) for explicitness and debuggability.
+- CodeQL uses a full `dotnet build` step (not autobuild) because the project requires .NET 10 SDK setup.
+- CodeQL schedule uses a non-default minute offset (`25`) to avoid GitHub Actions cron congestion at :00.
+
+**Verified:**
+- `dotnet build -c Release` passes (packable project builds clean).
+- `dotnet test --no-build -c Release` passes (62 tests: 45 RCON + 17 hosting).
+- `dotnet pack` produces both `.nupkg` and `.snupkg` files.
