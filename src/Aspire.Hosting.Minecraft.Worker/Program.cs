@@ -78,13 +78,13 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
     builder.Services.AddSingleton<WorldBorderService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"]))
-    builder.Services.AddHostedService<HeartbeatService>();
+    builder.Services.AddSingleton<HeartbeatService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
     builder.Services.AddSingleton<AdvancementService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"]))
-    builder.Services.AddHostedService<RedstoneDependencyService>();
+    builder.Services.AddSingleton<RedstoneDependencyService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SWITCHES"]))
-    builder.Services.AddHostedService<ServiceSwitchService>();
+    builder.Services.AddSingleton<ServiceSwitchService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -133,7 +133,10 @@ file sealed class MinecraftWorldWorker(
     GuardianMobService? guardianMobs = null,
     DeploymentFanfareService? deploymentFanfare = null,
     WorldBorderService? worldBorder = null,
-    AdvancementService? achievements = null) : BackgroundService
+    AdvancementService? achievements = null,
+    HeartbeatService? heartbeat = null,
+    RedstoneDependencyService? redstoneGraph = null,
+    ServiceSwitchService? serviceSwitches = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -155,6 +158,8 @@ file sealed class MinecraftWorldWorker(
         // Initialize opt-in features that need startup commands
         if (worldBorder is not null)
             await worldBorder.InitializeAsync(stoppingToken);
+        if (redstoneGraph is not null)
+            await redstoneGraph.InitializeAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -186,6 +191,8 @@ file sealed class MinecraftWorldWorker(
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
                     if (achievements is not null)
                         await achievements.CheckAchievementsAsync(changes, stoppingToken);
+                    if (redstoneGraph is not null)
+                        await redstoneGraph.UpdateAsync(stoppingToken);
                 }
 
                 // Achievement checks that run every cycle (e.g., Night Shift needs time query)
@@ -210,6 +217,10 @@ file sealed class MinecraftWorldWorker(
                     await guardianMobs.UpdateGuardianMobsAsync(stoppingToken);
                 if (worldBorder is not null)
                     await worldBorder.UpdateWorldBorderAsync(stoppingToken);
+                if (heartbeat is not null)
+                    await heartbeat.PulseAsync(stoppingToken);
+                if (serviceSwitches is not null)
+                    await serviceSwitches.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

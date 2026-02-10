@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aspire.Hosting.Minecraft.Worker.Services;
@@ -8,11 +7,12 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Draws L-shaped redstone paths between dependent structures, with repeaters every 15 blocks
 /// and redstone lamps at structure entrances. Health-reactive: breaks circuits when resources
 /// go unhealthy and restores them on recovery.
+/// Called by MinecraftWorldWorker after RCON is connected and resources are discovered.
 /// </summary>
 internal sealed class RedstoneDependencyService(
     RconService rcon,
     AspireResourceMonitor monitor,
-    ILogger<RedstoneDependencyService> logger) : BackgroundService
+    ILogger<RedstoneDependencyService> logger)
 {
     private bool _wiresBuilt;
     private readonly Dictionary<string, bool> _connectionState = new(StringComparer.OrdinalIgnoreCase);
@@ -25,46 +25,32 @@ internal sealed class RedstoneDependencyService(
 
     private readonly List<WireSegment> _segments = new();
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// One-time initialization: builds the dependency wire layout. Called after DiscoverResources.
+    /// </summary>
+    public async Task InitializeAsync(CancellationToken ct = default)
     {
-        logger.LogInformation("Redstone dependency service starting, waiting for resources...");
+        if (_wiresBuilt) return;
 
-        // Wait until resources are discovered and structures are built
-        while (monitor.TotalCount == 0 && !stoppingToken.IsCancellationRequested)
+        logger.LogInformation("Redstone dependency service initializing wires...");
+        await BuildDependencyWiresAsync(ct);
+        _wiresBuilt = true;
+        logger.LogInformation("Redstone dependency service initialized");
+    }
+
+    /// <summary>
+    /// Updates wire health state based on current resource status. Called each worker cycle.
+    /// </summary>
+    public async Task UpdateAsync(CancellationToken ct = default)
+    {
+        try
         {
-            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+            await UpdateWireHealthAsync(ct);
         }
-
-        // Extra delay to let structures finish building
-        await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
-
-        logger.LogInformation("Redstone dependency service active");
-
-        while (!stoppingToken.IsCancellationRequested)
+        catch (Exception ex)
         {
-            try
-            {
-                if (!_wiresBuilt)
-                {
-                    await BuildDependencyWiresAsync(stoppingToken);
-                    _wiresBuilt = true;
-                }
-
-                await UpdateWireHealthAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in redstone dependency loop");
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
+            logger.LogError(ex, "Error updating redstone dependency wires");
         }
-
-        logger.LogInformation("Redstone dependency service stopping");
     }
 
     private async Task BuildDependencyWiresAsync(CancellationToken ct)

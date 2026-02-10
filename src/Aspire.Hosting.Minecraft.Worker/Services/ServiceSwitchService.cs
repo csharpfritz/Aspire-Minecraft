@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aspire.Hosting.Minecraft.Worker.Services;
@@ -8,55 +7,36 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// service status. When a resource is healthy the lever is ON and the lamp is lit; when unhealthy
 /// the lever flips OFF and the lamp goes dark. This is visual only — levers reflect state,
 /// they do not control Aspire resources.
+/// Called by MinecraftWorldWorker after RCON is connected and resources are discovered.
 /// </summary>
 internal sealed class ServiceSwitchService(
     RconService rcon,
     AspireResourceMonitor monitor,
-    ILogger<ServiceSwitchService> logger) : BackgroundService
+    ILogger<ServiceSwitchService> logger)
 {
     private bool _switchesPlaced;
     private readonly Dictionary<string, ResourceStatus> _lastKnownStatus = new(StringComparer.OrdinalIgnoreCase);
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>
+    /// Updates switch states. Places switches on first call, then tracks health transitions.
+    /// Called each worker cycle.
+    /// </summary>
+    public async Task UpdateAsync(CancellationToken ct = default)
     {
-        logger.LogInformation("Service switch service starting, waiting for resources...");
-
-        // Wait until resources are discovered and structures are built
-        while (monitor.TotalCount == 0 && !stoppingToken.IsCancellationRequested)
+        try
         {
-            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+            if (!_switchesPlaced)
+            {
+                await PlaceAllSwitchesAsync(ct);
+                _switchesPlaced = true;
+            }
+
+            await UpdateSwitchStatesAsync(ct);
         }
-
-        // Extra delay to let structures finish building
-        await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
-
-        logger.LogInformation("Service switch service active");
-
-        while (!stoppingToken.IsCancellationRequested)
+        catch (Exception ex)
         {
-            try
-            {
-                if (!_switchesPlaced)
-                {
-                    await PlaceAllSwitchesAsync(stoppingToken);
-                    _switchesPlaced = true;
-                }
-
-                await UpdateSwitchStatesAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in service switch loop");
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
+            logger.LogError(ex, "Error updating service switches");
         }
-
-        logger.LogInformation("Service switch service stopping");
     }
 
     private async Task PlaceAllSwitchesAsync(CancellationToken ct)
