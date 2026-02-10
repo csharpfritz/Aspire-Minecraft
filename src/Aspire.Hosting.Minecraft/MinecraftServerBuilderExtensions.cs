@@ -340,16 +340,20 @@ public static class MinecraftServerBuilderExtensions
     /// Adds a persistent boss bar showing overall Aspire fleet health percentage.
     /// Green = all healthy, yellow = degraded, red = majority down.
     /// Value 0–100 based on healthy/total resource count.
+    /// The boss bar title includes the Aspire application name if configured.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
     public static IResourceBuilder<MinecraftServerResource> WithBossBar(
-        this IResourceBuilder<MinecraftServerResource> builder)
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string? appName = null)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithBossBar() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_BOSSBAR", "true");
+        if (!string.IsNullOrEmpty(appName))
+            workerBuilder.WithEnvironment("ASPIRE_APP_NAME", appName);
         return builder;
     }
 
@@ -366,6 +370,38 @@ public static class MinecraftServerBuilderExtensions
                 "WithSoundEffects() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_SOUNDS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables an action bar ticker that cycles through key metrics (TPS, MSPT, healthy count, RCON latency).
+    /// Metrics rotate every poll cycle on the player's HUD above the hotbar.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithActionBarTicker(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithActionBarTicker() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_ACTIONBAR", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables beacon towers per monitored resource. Each resource gets an iron base with a beacon
+    /// and stained glass on top. Green glass = healthy, red glass = unhealthy.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithBeaconTowers(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithBeaconTowers() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_BEACONS", "true");
         return builder;
     }
 }

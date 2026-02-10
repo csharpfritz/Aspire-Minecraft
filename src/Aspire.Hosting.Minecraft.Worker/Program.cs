@@ -35,14 +35,16 @@ builder.Services.AddSingleton(sp =>
     if (!string.IsNullOrEmpty(connectionString))
     {
         var parts = ParseConnectionString(connectionString);
-        return new RconService(parts.host, parts.port, parts.password, logger);
+        return new RconService(parts.host, parts.port, parts.password, logger,
+            minCommandInterval: TimeSpan.FromMilliseconds(250));
     }
 
     // Fall back to explicit config
     var host = config["Minecraft:RconHost"] ?? "localhost";
     var port = int.Parse(config["Minecraft:RconPort"] ?? "25575");
     var password = config["Minecraft:RconPassword"] ?? "";
-    return new RconService(host, port, password, logger);
+    return new RconService(host, port, password, logger,
+        minCommandInterval: TimeSpan.FromMilliseconds(250));
 });
 
 // Services
@@ -63,6 +65,10 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BOSSBAR"]))
     builder.Services.AddSingleton<BossBarService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SOUNDS"]))
     builder.Services.AddSingleton<SoundEffectService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"]))
+    builder.Services.AddSingleton<ActionBarTickerService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BEACONS"]))
+    builder.Services.AddSingleton<BeaconTowerService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -104,7 +110,9 @@ file sealed class MinecraftWorldWorker(
     TitleAlertService? titleAlerts = null,
     WeatherService? weather = null,
     BossBarService? bossBar = null,
-    SoundEffectService? sounds = null) : BackgroundService
+    SoundEffectService? sounds = null,
+    ActionBarTickerService? actionBarTicker = null,
+    BeaconTowerService? beaconTowers = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -159,6 +167,10 @@ file sealed class MinecraftWorldWorker(
                     await weather.UpdateWeatherAsync(stoppingToken);
                 if (bossBar is not null)
                     await bossBar.UpdateBossBarAsync(stoppingToken);
+                if (actionBarTicker is not null)
+                    await actionBarTicker.TickAsync(stoppingToken);
+                if (beaconTowers is not null)
+                    await beaconTowers.UpdateBeaconTowersAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

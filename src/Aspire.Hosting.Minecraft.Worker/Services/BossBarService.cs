@@ -12,6 +12,7 @@ internal sealed class BossBarService(
     ILogger<BossBarService> logger)
 {
     private const string BossBarId = "aspire:fleet_health";
+    private readonly string _appName = Environment.GetEnvironmentVariable("ASPIRE_APP_NAME") ?? "Aspire";
     private bool _created;
     private int _lastValue = -1;
     private bool _nameSet;
@@ -27,7 +28,7 @@ internal sealed class BossBarService(
         if (!_created)
         {
             await rcon.SendCommandAsync(
-                $"""bossbar add {BossBarId} "Aspire Fleet Health" """, ct);
+                $"bossbar add {BossBarId} \"{_appName} Fleet Health\"", ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} max 100", ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} visible true", ct);
             _created = true;
@@ -48,7 +49,7 @@ internal sealed class BossBarService(
         {
             await rcon.SendCommandAsync($"bossbar set {BossBarId} value {value}", ct);
             await rcon.SendCommandAsync(
-                $"bossbar set {BossBarId} name \"Aspire Fleet Health: {value} percent\"", ct);
+                $"bossbar set {BossBarId} name \"{_appName} Fleet Health: {value} percent\"", ct);
             _lastValue = value;
             _nameSet = true;
         }
