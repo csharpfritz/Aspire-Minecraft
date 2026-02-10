@@ -56,4 +56,31 @@ internal static class VillageLayout
         var (cx, _, cz) = GetStructureCenter(index);
         return (cx, BaseY + heightAboveBase, cz);
     }
+
+    /// <summary>
+    /// Gets the bounding box of the entire village area (all structure footprints).
+    /// Returns (minX, minZ, maxX, maxZ) covering all structures in the grid.
+    /// </summary>
+    public static (int minX, int minZ, int maxX, int maxZ) GetVillageBounds(int resourceCount)
+    {
+        var rows = (resourceCount + Columns - 1) / Columns;
+        var cols = resourceCount >= Columns ? Columns : resourceCount;
+
+        var minX = BaseX;
+        var minZ = BaseZ;
+        var maxX = BaseX + ((cols - 1) * Spacing) + StructureSize - 1;
+        var maxZ = BaseZ + ((rows - 1) * Spacing) + StructureSize - 1;
+
+        return (minX, minZ, maxX, maxZ);
+    }
+
+    /// <summary>
+    /// Gets the fence perimeter coordinates (1 block outside the village bounds).
+    /// Returns (minX, minZ, maxX, maxZ) for fence placement.
+    /// </summary>
+    public static (int minX, int minZ, int maxX, int maxZ) GetFencePerimeter(int resourceCount)
+    {
+        var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
+        return (minX - 1, minZ - 2, maxX + 1, maxZ + 1);
+    }
 }

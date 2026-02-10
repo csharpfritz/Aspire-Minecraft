@@ -40,6 +40,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithFireworks()
     .WithGuardianMobs()
     .WithDeploymentFanfare()
+    .WithWorldBorderPulse()
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
     .WithMonitoredResource(redis)

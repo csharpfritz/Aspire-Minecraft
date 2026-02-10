@@ -13,6 +13,7 @@ internal sealed class StructureBuilder(
     ILogger<StructureBuilder> logger)
 {
     private bool _pathsBuilt;
+    private bool _fenceBuilt;
 
     /// <summary>
     /// Builds or updates structures for all monitored resources.
@@ -23,6 +24,12 @@ internal sealed class StructureBuilder(
 
         try
         {
+            if (!_fenceBuilt && monitor.TotalCount > 0)
+            {
+                await BuildFencePerimeterAsync(monitor.TotalCount, ct);
+                _fenceBuilt = true;
+            }
+
             if (!_pathsBuilt && monitor.TotalCount > 0)
             {
                 await BuildPathsAsync(monitor.TotalCount, ct);
@@ -59,19 +66,85 @@ internal sealed class StructureBuilder(
         };
     }
 
+    private async Task BuildFencePerimeterAsync(int resourceCount, CancellationToken ct)
+    {
+        var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
+        var fenceY = VillageLayout.BaseY + 1;
+
+        // South side (low Z) — two segments with a gate gap in the center
+        var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
+        await rcon.SendCommandAsync(
+            $"fill {fMinX} {fenceY} {fMinZ} {gateX - 1} {fenceY} {fMinZ} minecraft:oak_fence", ct);
+        await rcon.SendCommandAsync(
+            $"fill {gateX + 2} {fenceY} {fMinZ} {fMaxX} {fenceY} {fMinZ} minecraft:oak_fence", ct);
+        // Gate (3-wide to match the boulevard width)
+        await rcon.SendCommandAsync(
+            $"fill {gateX} {fenceY} {fMinZ} {gateX + 2} {fenceY} {fMinZ} minecraft:oak_fence_gate[facing=south]", ct);
+
+        // North side (high Z)
+        await rcon.SendCommandAsync(
+            $"fill {fMinX} {fenceY} {fMaxZ} {fMaxX} {fenceY} {fMaxZ} minecraft:oak_fence", ct);
+
+        // West side (low X) — skip south and north corners (already placed)
+        await rcon.SendCommandAsync(
+            $"fill {fMinX} {fenceY} {fMinZ + 1} {fMinX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
+
+        // East side (high X) — skip south and north corners
+        await rcon.SendCommandAsync(
+            $"fill {fMaxX} {fenceY} {fMinZ + 1} {fMaxX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
+    }
+
     private async Task BuildPathsAsync(int resourceCount, CancellationToken ct)
     {
         var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
 
-        // Cobblestone path between the two columns (runs along Z axis between columns)
-        var pathX = VillageLayout.BaseX + VillageLayout.StructureSize; // gap between col 0 and col 1
+        // Main boulevard: 3-wide cobblestone path between the two columns along Z axis
+        var boulevardX = VillageLayout.BaseX + VillageLayout.StructureSize; // gap between col 0 and col 1
         var pathZ1 = VillageLayout.BaseZ;
         var pathZ2 = VillageLayout.BaseZ + ((rows - 1) * VillageLayout.Spacing) + VillageLayout.StructureSize - 1;
 
         if (rows > 0)
         {
             await rcon.SendCommandAsync(
-                $"fill {pathX} {VillageLayout.BaseY} {pathZ1} {pathX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
+        }
+
+        // Cross paths: 2-wide cobblestone from each structure's entrance to the main boulevard
+        for (var i = 0; i < resourceCount; i++)
+        {
+            var (sx, _, sz) = VillageLayout.GetStructureOrigin(i);
+            var col = i % VillageLayout.Columns;
+            // Entrance is at z-1 of structure, centered on x+3
+            var entranceZ = sz - 1;
+            var entranceX = sx + 3;
+
+            if (col == 0)
+            {
+                // Left column: path runs from entrance (x+3) east to the boulevard (boulevardX - 1)
+                if (entranceX < boulevardX)
+                {
+                    await rcon.SendCommandAsync(
+                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
+                }
+            }
+            else
+            {
+                // Right column: path runs from boulevard east end (boulevardX + 3) to entrance (x+3)
+                var boulevardEnd = boulevardX + 3;
+                if (boulevardEnd <= entranceX)
+                {
+                    await rcon.SendCommandAsync(
+                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
+                }
+            }
+        }
+
+        // Entry path: from fence gate to the start of the main boulevard
+        var (fMinX, fMinZ, _, _) = VillageLayout.GetFencePerimeter(resourceCount);
+        if (fMinZ < pathZ1)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
         }
     }
 

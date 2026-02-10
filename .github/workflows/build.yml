@@ -44,5 +44,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: nupkgs
-          path: nupkgs/*.nupkg
+          path: |
+            nupkgs/*.nupkg
+            nupkgs/*.snupkg
           if-no-files-found: error

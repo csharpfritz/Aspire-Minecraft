@@ -531,6 +531,26 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables world border pulse on critical fleet health failure.
+    /// When more than 50% of monitored resources are unhealthy, the world border shrinks
+    /// from 200 to 100 blocks over 10 seconds with a red warning tint.
+    /// When health recovers, the border expands back to 200 blocks over 5 seconds.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithWorldBorderPulse(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithWorldBorderPulse() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_WORLDBORDER", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Sets an arbitrary Minecraft <c>server.properties</c> value via the itzg/minecraft-server
     /// environment variable convention. The property name is converted to UPPER_SNAKE_CASE
     /// (e.g., <c>max-players</c> becomes <c>MAX_PLAYERS</c>).

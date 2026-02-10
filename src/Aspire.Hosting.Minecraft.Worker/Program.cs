@@ -75,6 +75,8 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_GUARDIANS"]))
     builder.Services.AddSingleton<GuardianMobService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
     builder.Services.AddSingleton<DeploymentFanfareService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
+    builder.Services.AddSingleton<WorldBorderService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -121,7 +123,8 @@ file sealed class MinecraftWorldWorker(
     BeaconTowerService? beaconTowers = null,
     FireworksService? fireworks = null,
     GuardianMobService? guardianMobs = null,
-    DeploymentFanfareService? deploymentFanfare = null) : BackgroundService
+    DeploymentFanfareService? deploymentFanfare = null,
+    WorldBorderService? worldBorder = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -139,6 +142,10 @@ file sealed class MinecraftWorldWorker(
 
         // Discover Aspire resources
         resourceMonitor.DiscoverResources();
+
+        // Initialize opt-in features that need startup commands
+        if (worldBorder is not null)
+            await worldBorder.InitializeAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -186,6 +193,8 @@ file sealed class MinecraftWorldWorker(
                     await beaconTowers.UpdateBeaconTowersAsync(stoppingToken);
                 if (guardianMobs is not null)
                     await guardianMobs.UpdateGuardianMobsAsync(stoppingToken);
+                if (worldBorder is not null)
+                    await worldBorder.UpdateWorldBorderAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)
