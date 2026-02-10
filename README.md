@@ -2,6 +2,8 @@
 
 A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry instrumentation, BlueMap web maps, and live in-world visualization of your Aspire resources.
 
+![Aspire resources visualized in Minecraft — emerald block structures with health signs, floating hologram dashboard, scoreboard sidebar, and player chat alerts](img/sample-1.png)
+
 ## ✨ Features
 
 - **Minecraft Server as an Aspire Resource** — `builder.AddMinecraftServer("minecraft")` with full lifecycle management
@@ -45,13 +47,20 @@ using Aspire.Hosting.Minecraft;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var mc = builder.AddMinecraftServer("minecraft")
-    .WithBlueMap()              // Adds BlueMap web map on port 8100
-    .WithOpenTelemetry()        // Injects OTEL Java agent for JVM telemetry
-    .WithAspireWorldDisplay();  // Enables in-world resource visualization
+var redis = builder.AddRedis("cache");
+var api = builder.AddProject<Projects.MyApi>("api");
+
+var mc = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
+    .WithBlueMap(port: 8100)           // Adds BlueMap web map
+    .WithOpenTelemetry()               // Injects OTEL Java agent for JVM telemetry
+    .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    .WithMonitoredResource(api)        // Each monitored resource gets a cube,
+    .WithMonitoredResource(redis);     // hologram line, and scoreboard entry
 
 builder.Build().Run();
 ```
+
+The worker service is created internally by `WithAspireWorldDisplay` — it appears as a child of the Minecraft resource in the Aspire dashboard. Add as many `.WithMonitoredResource()` calls as you like; each one dynamically gets its own in-world representation.
 
 ## 📊 Telemetry
 
