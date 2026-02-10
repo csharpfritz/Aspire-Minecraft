@@ -5,7 +5,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <summary>
 /// Builds beacon-powered towers for each monitored Aspire resource.
 /// 3x3 iron block base, beacon on top, stained glass above for color indication.
-/// Green glass = healthy, red glass = unhealthy.
+/// Beam color matches Aspire dashboard resource type colors when healthy.
 /// </summary>
 internal sealed class BeaconTowerService(
     RconService rcon,
@@ -16,6 +16,19 @@ internal sealed class BeaconTowerService(
     private const int BaseY = -60;
     private const int BaseZ = 8; // Offset from main structures to avoid overlap
     private const int Spacing = 6;
+
+    // Maps Aspire resource types to stained glass colors matching the Aspire dashboard palette
+    private static readonly Dictionary<string, string> ResourceTypeGlassColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Project"] = "blue_stained_glass",
+        ["Container"] = "purple_stained_glass",
+        ["Executable"] = "cyan_stained_glass",
+    };
+
+    private const string DefaultHealthyGlass = "light_blue_stained_glass";
+    private const string UnhealthyGlass = "red_stained_glass";
+    private const string StartingGlass = "yellow_stained_glass";
+    private const string FinishedGlass = "gray_stained_glass";
 
     /// <summary>
     /// Builds or updates beacon towers for all monitored resources.
@@ -32,6 +45,17 @@ internal sealed class BeaconTowerService(
         logger.LogDebug("Beacon towers updated for {Count} resources", monitor.TotalCount);
     }
 
+    internal static string GetGlassBlock(ResourceInfo info)
+    {
+        return info.Status switch
+        {
+            ResourceStatus.Unhealthy => UnhealthyGlass,
+            ResourceStatus.Unknown => StartingGlass,
+            ResourceStatus.Healthy => ResourceTypeGlassColors.GetValueOrDefault(info.Type, DefaultHealthyGlass),
+            _ => DefaultHealthyGlass,
+        };
+    }
+
     private async Task BuildBeaconTowerAsync(ResourceInfo info, int index, CancellationToken ct)
     {
         var x = BaseX + (index * Spacing);
@@ -46,15 +70,13 @@ internal sealed class BeaconTowerService(
         await rcon.SendCommandAsync(
             $"setblock {x + 1} {y + 1} {z + 1} minecraft:beacon", ct);
 
-        // Stained glass above the beacon for color indication
-        var glassBlock = info.Status == ResourceStatus.Unhealthy
-            ? "minecraft:red_stained_glass"
-            : "minecraft:green_stained_glass";
+        // Stained glass above the beacon — color reflects resource type and health state
+        var glassBlock = GetGlassBlock(info);
 
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z + 1} {glassBlock}", ct);
+            $"setblock {x + 1} {y + 2} {z + 1} minecraft:{glassBlock}", ct);
 
-        logger.LogDebug("Beacon tower built: {ResourceName} ({Status}) at ({X},{Y},{Z})",
-            info.Name, info.Status, x, y, z);
+        logger.LogDebug("Beacon tower built: {ResourceName} ({Type}/{Status}) at ({X},{Y},{Z})",
+            info.Name, info.Type, info.Status, x, y, z);
     }
 }
