@@ -77,3 +77,7 @@ Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource t
 **Bug 2 — Only 2 of 4 beacon beams visible:** Beacon positions used hardcoded `BaseZ = 14` with row-based offsets. For row 1+ structures (index 2, 3), the 7×7 structure footprint (z=10 to z=16) overlapped the beacon at z=14, blocking sky access. Fix: replaced hardcoded position calculation with `GetBeaconOrigin(index)` that derives position from `VillageLayout.GetStructureOrigin(index)` and places the beacon behind the structure at `z + StructureSize + 1`. This guarantees no overlap regardless of grid size.
 
 **Key learning:** Any service that depends on RCON or discovered resources must NOT be an independent `BackgroundService`. It must be a singleton called from `MinecraftWorldWorker`'s main loop, which handles the RCON wait and resource discovery lifecycle.
+
+### Fence Perimeter Fix (2026-02-10)
+
+Fixed two fence bugs: (1) Fence was placed at `BaseY + 1` (y=-59), floating one block above the superflat surface. Changed to `BaseY` (y=-60) so fences sit on ground. (2) `GetFencePerimeter` offsets were only 1-2 blocks from building edges. Changed to 4-block gap on all sides (`minX-4, minZ-4, maxX+4, maxZ+4`) per user request. Entry path from gate to boulevard auto-extends because it reads `fMinZ` from `GetFencePerimeter`. Gate position is boulevard-relative (X=17), unaffected by fence offset. All 303 tests pass.

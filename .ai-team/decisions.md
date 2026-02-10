@@ -327,37 +327,31 @@
 
 **Status:** 📐 Design complete — no implementation yet.
 
-### 2026-02-10: Heartbeat service uses BackgroundService pattern
+### 2026-02-10: Heartbeat service timing
 
 **By:** Rocket
 **Issue:** #27
 
-**What:** `HeartbeatService` uses `BackgroundService` (via `AddHostedService`) for independent timing loop (1–4 second pulse intervals depending on health).
+**What:** `HeartbeatService` uses a 1–4 second pulse interval depending on health. Originally implemented as `BackgroundService` (via `AddHostedService`), later converted to `AddSingleton<>()` called from `MinecraftWorldWorker` to fix a startup race condition (see: "Sprint 3 service lifecycle" decision).
 
-**Why:** Main worker loop runs on 10-second intervals — too slow for a heartbeat. Independent loop creates audible rhythm at 1-second intervals when healthy.
+**Why:** Main worker loop runs on 10-second intervals — too slow for a heartbeat. RCON throttle deduplication handled by micro-varying volume (0.001 increments per tick).
 
-**Implications:**
-- Future features needing their own timing can follow this pattern.
-- `HeartbeatService` runs independently but shares `RconService` and `AspireResourceMonitor` singletons.
-- RCON throttle deduplication handled by micro-varying volume (0.001 increments per tick).
-
-**Status:** ✅ Implemented. Build passes, 303 tests pass.
+**Status:** ✅ Implemented (lifecycle updated).
 
 ### 2026-02-10: Redstone Dependency Graph Implementation
 
 **By:** Rocket
 **Issue:** #36
 
-**What:** `RedstoneDependencyService` (BackgroundService) visualizes Aspire resource dependencies as redstone wire circuits. L-shaped routing (X then Z), repeaters every 15 blocks, redstone lamps at entrances, health-reactive circuit breaking/restoring.
+**What:** `RedstoneDependencyService` visualizes Aspire resource dependencies as redstone wire circuits. L-shaped routing (X then Z), repeaters every 15 blocks, redstone lamps at entrances, health-reactive circuit breaking/restoring. Originally a `BackgroundService`, later converted to `AddSingleton<>()` called from `MinecraftWorldWorker` (see: "Sprint 3 service lifecycle" decision).
 
 **Key decisions:**
-1. BackgroundService pattern — 5s health check loop, 15s initial wait for structures.
-2. L-shaped routing avoids complex A* pathfinding.
-3. Circuit breaking — remove redstone block + break wire every 5th position on unhealthy.
-4. CommandPriority.Low for building to avoid starving higher-priority commands.
-5. Wire positions at BaseY, Z-1 — paths run in front of structures.
+1. L-shaped routing avoids complex A* pathfinding.
+2. Circuit breaking — remove redstone block + break wire every 5th position on unhealthy.
+3. CommandPriority.Low for building to avoid starving higher-priority commands.
+4. Wire positions at BaseY, Z-1 — paths run in front of structures.
 
-**Status:** ✅ Implemented. Build passes, 303 tests pass.
+**Status:** ✅ Implemented (lifecycle updated).
 
 ### 2026-02-10: Resource Village Layout & Themed Structures
 
@@ -371,17 +365,17 @@
 **By:** Rocket
 **Issue:** #35
 
-**What:** `ServiceSwitchService` (BackgroundService) with `WithServiceSwitches()` and `ASPIRE_FEATURE_SWITCHES` env var. Levers and lamps on each resource structure. Healthy=lever ON + glowstone, Unhealthy=lever OFF + unlit redstone lamp.
+**What:** `ServiceSwitchService` with `WithServiceSwitches()` and `ASPIRE_FEATURE_SWITCHES` env var. Levers and lamps on each resource structure. Healthy=lever ON + glowstone, Unhealthy=lever OFF + unlit redstone lamp. Originally a `BackgroundService`, later converted to `AddSingleton<>()` called from `MinecraftWorldWorker` (see: "Sprint 3 service lifecycle" decision).
 
 **Key decision:** Visual only — levers reflect state, they do not control Aspire resources.
 
-**Status:** ✅ Implemented. Build passes, 303 tests pass.
+**Status:** ✅ Implemented (lifecycle updated).
 
 ### 2026-02-10: Village fence perimeter and pathway coordinate conventions
 
 **By:** Rocket
-**What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence perimeter is 1 block outside village bounds (2 on south/entrance side). Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
-**Status:** ✅ Implemented.
+**What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence at ground level (`BaseY`), 4-block gap from buildings. Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
+**Status:** ✅ Implemented (updated: fence moved to ground level, gap increased to 4 blocks).
 
 ### 2026-02-10: Azure SDK Research — Separate Package Recommendation
 
@@ -431,3 +425,11 @@
 2. NuGet symbol packages enabled via `IncludeSymbols`/`SymbolPackageFormat`. Release workflow pushes `.snupkg` explicitly.
 3. CodeQL security scanning added as `.github/workflows/codeql.yml` — C# only, default query suite, weekly + push/PR triggers.
 4. GitHub Pages/docfx deferred to a future sprint.
+
+### Sprint 3 service lifecycle: no independent BackgroundServices for RCON-dependent features
+
+**By:** Rocket
+**What:** Converted HeartbeatService, RedstoneDependencyService, and ServiceSwitchService from `AddHostedService<>()` (independent BackgroundServices) to `AddSingleton<>()` called by MinecraftWorldWorker. Also fixed beacon tower positions to derive from VillageLayout instead of hardcoded offsets.
+**Why:** Independent BackgroundServices start before RCON is connected and before resources are discovered, causing all Sprint 3 features to silently fail. The established pattern (used by WorldBorderService, AdvancementService, BeaconTowerService, etc.) is singleton + nullable constructor injection + calls from the main worker loop. Beacon positions used a hardcoded BaseZ=14 that overlapped with row-1 structures (z=10–16), blocking beacon sky access for 2 of 4 resources.
+**Rule:** Any feature service that uses RCON or depends on discovered resources MUST be registered as `AddSingleton<>()` and called from MinecraftWorldWorker — never as an independent `AddHostedService<>()`.
+**Status:** ✅ Resolved. All 303 tests pass. Build clean (0 errors, 0 warnings).
