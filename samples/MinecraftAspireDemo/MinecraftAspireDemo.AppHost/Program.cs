@@ -41,6 +41,9 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithGuardianMobs()
     .WithDeploymentFanfare()
     .WithWorldBorderPulse()
+    // Sprint 3 features
+    .WithHeartbeat()
+    .WithAchievements()
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
     .WithMonitoredResource(redis)

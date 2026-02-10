@@ -245,17 +245,20 @@ public static class MinecraftServerBuilderExtensions
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
     /// <param name="resource">The Aspire resource with endpoints to monitor.</param>
+    /// <param name="dependsOn">Optional list of resource names this resource depends on. Dependent resources are placed adjacent in the village grid.</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
-        IResourceBuilder<IResourceWithEndpoints> resource)
+        IResourceBuilder<IResourceWithEndpoints> resource,
+        params string[] dependsOn)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
 
         var name = resource.Resource.Name;
+        builder.Resource.MonitoredResourceNames.Add(name);
 
         // Determine resource type from the concrete type
         var resourceType = resource.Resource switch
@@ -266,6 +269,22 @@ public static class MinecraftServerBuilderExtensions
         };
 
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+
+        // Collect dependency names: explicit params + IResourceWithParent auto-detection
+        var allDeps = new List<string>(dependsOn);
+        if (resource.Resource is IResourceWithParent parentResource)
+        {
+            var parentName = parentResource.Parent.Name;
+            if (!allDeps.Contains(parentName, StringComparer.OrdinalIgnoreCase))
+                allDeps.Add(parentName);
+        }
+
+        if (allDeps.Count > 0)
+        {
+            workerBuilder.WithEnvironment(
+                $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_DEPENDS_ON",
+                string.Join(",", allDeps));
+        }
 
         // Resolve endpoints for health checking.
         // GetEndpoint() never throws — it creates a dangling reference for missing endpoints.
@@ -318,19 +337,39 @@ public static class MinecraftServerBuilderExtensions
     /// <param name="builder">The Minecraft server resource builder.</param>
     /// <param name="resource">The Aspire resource to monitor.</param>
     /// <param name="resourceType">A display label for the type of resource (e.g., "Database", "Cache").</param>
+    /// <param name="dependsOn">Optional list of resource names this resource depends on.</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
         IResourceBuilder<IResource> resource,
-        string resourceType)
+        string resourceType,
+        params string[] dependsOn)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
 
         var name = resource.Resource.Name;
+        builder.Resource.MonitoredResourceNames.Add(name);
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+
+        // Collect dependency names: explicit params + IResourceWithParent auto-detection
+        var allDeps = new List<string>(dependsOn);
+        if (resource.Resource is IResourceWithParent parentResource)
+        {
+            var parentName = parentResource.Parent.Name;
+            if (!allDeps.Contains(parentName, StringComparer.OrdinalIgnoreCase))
+                allDeps.Add(parentName);
+        }
+
+        if (allDeps.Count > 0)
+        {
+            workerBuilder.WithEnvironment(
+                $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_DEPENDS_ON",
+                string.Join(",", allDeps));
+        }
+
         return builder;
     }
     /// <summary>
@@ -547,6 +586,47 @@ public static class MinecraftServerBuilderExtensions
                 "WithWorldBorderPulse() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_WORLDBORDER", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables in-world achievement announcements for infrastructure milestones.
+    /// Grants achievements such as "First Service Online", "Full Fleet Healthy",
+    /// "Survived a Crash", and "Night Shift" using title popups and sounds.
+    /// Each achievement is granted once per session.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithAchievements(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithAchievements() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_ACHIEVEMENTS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables a redstone heartbeat circuit — an audible note block pulse whose tempo and pitch
+    /// reflect overall fleet health. Healthy = steady fast rhythm, degraded = slow labored pulse,
+    /// dead = silence. Runs on its own timing loop independent of the main display update interval.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithHeartbeat(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithHeartbeat() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_HEARTBEAT", "true");
         return builder;
     }
 

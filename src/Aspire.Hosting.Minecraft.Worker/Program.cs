@@ -77,6 +77,10 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
     builder.Services.AddSingleton<DeploymentFanfareService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
     builder.Services.AddSingleton<WorldBorderService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"]))
+    builder.Services.AddHostedService<HeartbeatService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
+    builder.Services.AddSingleton<AdvancementService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -124,7 +128,8 @@ file sealed class MinecraftWorldWorker(
     FireworksService? fireworks = null,
     GuardianMobService? guardianMobs = null,
     DeploymentFanfareService? deploymentFanfare = null,
-    WorldBorderService? worldBorder = null) : BackgroundService
+    WorldBorderService? worldBorder = null,
+    AdvancementService? achievements = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -175,7 +180,13 @@ file sealed class MinecraftWorldWorker(
                         await fireworks.CheckAndLaunchFireworksAsync(changes, stoppingToken);
                     if (deploymentFanfare is not null)
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
+                    if (achievements is not null)
+                        await achievements.CheckAchievementsAsync(changes, stoppingToken);
                 }
+
+                // Achievement checks that run every cycle (e.g., Night Shift needs time query)
+                if (achievements is not null && changes.Count == 0)
+                    await achievements.CheckAchievementsAsync(changes, stoppingToken);
 
                 // Update in-world displays
                 await holograms.UpdateDashboardAsync(stoppingToken);
