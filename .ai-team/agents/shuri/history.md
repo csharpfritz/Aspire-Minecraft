@@ -120,3 +120,24 @@
 - **Extension method:** `WithWorldBorderPulse()` added to `MinecraftServerBuilderExtensions.cs` with full XML docs.
 - **Demo wiring:** Added `.WithWorldBorderPulse()` to sample AppHost.
 - **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
+
+### Sprint 3: Resource Dependency Placement + RCON Rate-Limiting (Issue #29)
+
+- **RCON rate-limiting improvements in `RconService`:**
+  - Added `CommandPriority` enum (`Low`, `Normal`, `High`) in `CommandPriority.cs`.
+  - Added `SendCommandAsync(string command, CommandPriority priority, CancellationToken ct)` overload. Original overload defaults to `Normal` priority.
+  - Token bucket rate limiter: configurable `maxCommandsPerSecond` (default: 10/s). Tokens refill proportionally to elapsed time.
+  - High-priority commands bypass rate limits entirely (health updates, player messages).
+  - Low-priority commands (structure builds) are queued in a bounded `Channel<T>` (capacity 100, DropOldest) when rate-limited, processed asynchronously when tokens are available.
+  - Normal-priority commands wait briefly (100ms) for a token if none available.
+  - Queue processor runs as a background task, drained on dispose.
+- **Resource dependency placement:**
+  - Extended `ResourceInfo` record with `IReadOnlyList<string>? Dependencies` parameter (defaults to `Array.Empty<string>()`). Backward compatible — existing callers unaffected.
+  - `AspireResourceMonitor.DiscoverResources()` now reads `ASPIRE_RESOURCE_{NAME}_DEPENDS_ON` env var (comma-separated list of dependency names).
+  - Added `VillageLayout.ReorderByDependency(IReadOnlyDictionary<string, ResourceInfo>)` — BFS topological sort. Parents placed before children; dependency graph cycles handled gracefully (remaining resources appended at end).
+- **Hosting extension dependency env vars:**
+  - `WithMonitoredResource()` (both overloads) now accepts `params string[] dependsOn` for explicit dependency declaration.
+  - Auto-detects `IResourceWithParent` relationships and adds parent name to dependencies.
+  - Emits `ASPIRE_RESOURCE_{NAME}_DEPENDS_ON` env var to the worker with comma-separated dependency names.
+  - Added `MonitoredResourceNames` list to `MinecraftServerResource` for tracking.
+- **Verified:** `dotnet build -c Release` ✅ (0 errors, 0 warnings), `dotnet test --no-build -c Release` ✅ (303 tests pass: 241 Worker + 45 RCON + 17 Hosting).

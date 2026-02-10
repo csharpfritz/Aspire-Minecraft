@@ -168,3 +168,47 @@
 - Boulevard X starts at `BaseX + StructureSize` (X=17), which is the 3-block gap between columns.
 - Cross path entrance X is at `structureOriginX + 3` (center of the 7-wide structure front face).
 - Gate aligned with boulevard center for seamless entry path connection.
+
+### Redstone Heartbeat Circuit (Issue #27)
+
+**What:** Implemented `HeartbeatService` — an audible note block heartbeat that pulses at a rate proportional to fleet health. Unlike other services (which are singletons called from the main worker loop), this is a `BackgroundService` with its own independent timing loop, allowing sub-second pulse intervals that the 10-second display update cycle can't support.
+
+**Health-to-rhythm mapping:**
+- 100% healthy: note every 1 second, pitch 1.5 (steady, high-pitched heartbeat)
+- 50–99% healthy: note every 2 seconds, pitch 1.0 (slower beat)
+- 1–49% healthy: note every 4 seconds, pitch 0.7 (labored, low-pitched pulse)
+- 0% healthy: silence (flatline)
+
+**RCON command:** `execute at @a run playsound minecraft:block.note_block.bass block @a ~ ~ ~ {volume} {pitch}` — plays at each online player's location. Volume varied slightly per tick (0.500–0.509) to avoid the 250ms RCON deduplication throttle eating repeated commands.
+
+**Architecture:**
+- First `BackgroundService` feature (all others are singletons invoked by `MinecraftWorldWorker`). Registered with `AddHostedService<HeartbeatService>()` instead of `AddSingleton`.
+- Feature gate: `ASPIRE_FEATURE_HEARTBEAT` env var, set by `WithHeartbeat()` extension method.
+- Waits for `monitor.TotalCount > 0` before starting pulse loop (resources must be discovered first by the main worker).
+- No injection into `MinecraftWorldWorker` — runs completely independently.
+
+**Key learnings:**
+- `BackgroundService` is the right pattern when a feature needs its own timing independent of the main poll loop. Singletons called from the worker are limited to the 10s `DisplayUpdateInterval`.
+- Volume micro-variation (0.001 increments) is inaudible to players but makes each RCON command string unique, sidestepping the throttle without adding delays.
+
+### Advancement Achievements — Gamification (Issue #32)
+
+**What:** Created `AdvancementService` that grants in-world achievement-style announcements for infrastructure milestones. Uses RCON title commands and sounds instead of Minecraft datapack advancements (which are complex to mount via Docker).
+
+**Four achievements (granted once per session):**
+1. **First Service Online** — granted when the first resource transitions to Healthy
+2. **Full Fleet Healthy** — granted when ALL resources are Healthy simultaneously
+3. **Survived a Crash** — granted when a resource recovers from Unhealthy → Healthy (tracks previous status per resource)
+4. **Night Shift** — granted when all resources healthy during Minecraft night (ticks 13000-23000, queried via `time query daytime`)
+
+**Implementation approach:**
+- RCON `title @a title/subtitle` with JSON text components for gold/yellow achievement popups
+- `playsound minecraft:ui.toast.challenge_complete` for achievement sound
+- `HashSet<string>` tracks granted achievements to ensure once-per-session
+- `Dictionary<string, ResourceStatus>` tracks per-resource previous status for crash recovery detection
+- `ParseDaytimeTicks()` is `internal static` for testability — extracts tick count from "The time is {ticks}" response
+- Called both on health transitions (for First Service, Full Fleet, Survived a Crash) and every cycle (for Night Shift time check)
+
+**Opt-in pattern:** `ASPIRE_FEATURE_ACHIEVEMENTS` env var, `WithAchievements()` extension method, conditional registration in Program.cs, nullable injection in MinecraftWorldWorker constructor. Fully consistent with Sprint 1/2 patterns.
+
+**Key decision:** No Minecraft datapacks — title + subtitle + sound gives equivalent player feedback without needing to mount custom advancement JSON into the container's data directory.

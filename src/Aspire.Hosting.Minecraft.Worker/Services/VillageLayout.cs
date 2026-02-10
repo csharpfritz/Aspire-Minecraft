@@ -83,4 +83,73 @@ internal static class VillageLayout
         var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
         return (minX - 1, minZ - 2, maxX + 1, maxZ + 1);
     }
+
+    /// <summary>
+    /// Reorders resource names so that dependencies are placed adjacent in the village grid.
+    /// Parents appear before children, and resources sharing dependencies are grouped together.
+    /// Uses topological sort with BFS ordering.
+    /// </summary>
+    /// <param name="resources">The discovered resources with their dependency information.</param>
+    /// <returns>An ordered list of resource names for grid placement.</returns>
+    public static List<string> ReorderByDependency(IReadOnlyDictionary<string, ResourceInfo> resources)
+    {
+        if (resources.Count == 0)
+            return new List<string>();
+
+        var allNames = new HashSet<string>(resources.Keys, StringComparer.OrdinalIgnoreCase);
+
+        // Build in-degree map and adjacency list (parent → children)
+        var inDegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var childrenOf = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in allNames)
+        {
+            inDegree[name] = 0;
+            childrenOf[name] = new List<string>();
+        }
+
+        foreach (var (name, info) in resources)
+        {
+            foreach (var dep in info.Dependencies)
+            {
+                var depLower = dep.ToLowerInvariant();
+                if (allNames.Contains(depLower))
+                {
+                    childrenOf[depLower].Add(name);
+                    inDegree[name]++;
+                }
+            }
+        }
+
+        // BFS topological sort — roots (no dependencies) first
+        var queue = new Queue<string>();
+        foreach (var (name, degree) in inDegree)
+        {
+            if (degree == 0)
+                queue.Enqueue(name);
+        }
+
+        var ordered = new List<string>(resources.Count);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            ordered.Add(current);
+
+            foreach (var child in childrenOf[current])
+            {
+                inDegree[child]--;
+                if (inDegree[child] == 0)
+                    queue.Enqueue(child);
+            }
+        }
+
+        // Add any remaining resources (cycles or missing deps)
+        foreach (var name in allNames)
+        {
+            if (!ordered.Contains(name))
+                ordered.Add(name);
+        }
+
+        return ordered;
+    }
 }

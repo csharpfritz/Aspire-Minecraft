@@ -31,6 +31,11 @@ public class MinecraftServerResource : ContainerResource, IResourceWithConnectio
     internal IResourceBuilder<ProjectResource>? WorkerBuilder { get; set; }
 
     /// <summary>
+    /// Tracks the names of all monitored resources so dependency env vars can reference them.
+    /// </summary>
+    internal List<string> MonitoredResourceNames { get; } = new();
+
+    /// <summary>
     /// Gets the connection string expression for RCON access.
     /// Uses the RCON endpoint's host and port for proper resolution.
     /// Format: Host=host;Port=port;Password=password
