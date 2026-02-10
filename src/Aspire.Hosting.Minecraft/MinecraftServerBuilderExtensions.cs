@@ -15,6 +15,8 @@ public static class MinecraftServerBuilderExtensions
 
     /// <summary>
     /// Adds a Minecraft Paper server to the Aspire application.
+    /// By default, world data is ephemeral — each run starts fresh. Call <see cref="WithPersistentWorld"/>
+    /// to persist world data across restarts using a named Docker volume.
     /// Includes a built-in RCON health check so dependents can use WaitFor().
     /// </summary>
     /// <param name="builder">The Aspire distributed application builder.</param>
@@ -73,8 +75,19 @@ public static class MinecraftServerBuilderExtensions
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
             })
-            .WithVolume($"{name}-data", "/data")
             .WithHealthCheck(healthCheckKey);
+    }
+
+    /// <summary>
+    /// Persists the Minecraft world data across container restarts using a named Docker volume.
+    /// Without this, each run starts with a fresh world (default behavior).
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithPersistentWorld(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        return builder.WithVolume($"{builder.Resource.Name}-data", "/data");
     }
 
     /// <summary>

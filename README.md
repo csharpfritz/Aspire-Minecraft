@@ -149,6 +149,17 @@ builder.AddMinecraftServer("minecraft",
     rconPort: 25575);   // RCON console port
 ```
 
+### World Persistence
+
+By default, each `dotnet run` starts with a **fresh Minecraft world** — no leftover structures or state from previous sessions. This is ideal for development and demos.
+
+To keep world data across restarts, opt in with `WithPersistentWorld()`:
+
+```csharp
+builder.AddMinecraftServer("minecraft")
+    .WithPersistentWorld();   // Named Docker volume persists /data
+```
+
 ## 📁 Project Structure
 
 ```
