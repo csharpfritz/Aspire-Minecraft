@@ -1,5 +1,0 @@
-### 2026-02-10: WithServerProperty API for server.properties configuration
-
-**By:** Shuri
-**What:** Added `WithServerProperty(string propertyName, string value)` and `WithServerProperties(Dictionary<string, string>)` extension methods on `IResourceBuilder<MinecraftServerResource>`, plus 6 convenience methods (`WithGameMode`, `WithDifficulty`, `WithMaxPlayers`, `WithMotd`, `WithWorldSeed`, `WithPvp`). All set env vars directly on the container resource following the itzg/minecraft-server convention (property name → UPPER_SNAKE_CASE). User calls override `AddMinecraftServer()` defaults because later env var assignments win.
-**Why:** The itzg Docker image supports ALL `server.properties` values via env vars, but the hosting library had no public API to set them. Hardcoded defaults (MODE, SEED, etc.) were not overridable. This gives consumers a clean, chainable, idiomatic Aspire API for server configuration while keeping the generic `WithServerProperty` available for any property not covered by a convenience method.

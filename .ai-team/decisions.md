@@ -150,3 +150,93 @@
 **What:** Audited all public types and established intentional API surface. Made `MinecraftHealthCheck` internal (hosting). Made all Worker types internal (15 classes). Kept public: `MinecraftServerBuilderExtensions` (consumer entry point with 11 methods), `MinecraftServerResource`, and 5 RCON types (`RconClient`, `RconConnection`, `RconResponseParser`, `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult`).
 **Why:** Worker is a standalone service (`IsPackable=false`) — all its types are implementation details. RCON types kept public for consumers who want custom RCON commands. `EnablePackageValidation` catches accidental API surface changes.
 **Status:** ✅ Resolved.
+
+### 2026-02-10: Sprint 2 API review — consistent, no breaking changes
+
+**By:** Rhodey
+**Scope:** Public API surface review of `src/Aspire.Hosting.Minecraft/` after Sprint 2 completion
+
+**What:** All 10 feature extension methods (5 Sprint 1 + 5 Sprint 2) follow identical patterns: same signature shape, guard clause, env var naming (`ASPIRE_FEATURE_*`), fluent return, XML docs. No breaking changes needed.
+
+**Key findings:**
+- Environment variable naming consistent: `ASPIRE_FEATURE_{NAME}` for features, `ASPIRE_RESOURCE_{NAME}_TYPE/URL/HOST/PORT` for metadata, `ASPIRE_APP_NAME` for app-level config.
+- XML documentation complete on all public types and methods.
+- Access modifiers correct: public API intentional, internal types properly hidden.
+
+**Recommendations for Sprint 3:**
+1. Add `WithAllFeatures()` convenience method
+2. Extract duplicated `ParseConnectionString` to shared utility
+3. Add `IRconCommandSender` interface for testability
+4. Tighten feature env var checks to `== "true"` instead of `!string.IsNullOrEmpty`
+5. Consider `WithAllMonitoredResources()` auto-discovery
+6. API freeze before v0.2.0
+
+**Status:** ✅ Approved for v0.1.0 release cut.
+
+### 2026-02-10: Beacon tower glass colors match Aspire dashboard resource type palette
+
+**By:** Rocket (requested by Jeffrey T. Fritz)
+**What:** Changed `BeaconTowerService` from simple green/red glass to resource-type-specific colors matching the Aspire dashboard icon palette. Project=blue, Container=purple, Executable=cyan, unknown type=light blue, unhealthy=red, starting=yellow. `GetGlassBlock()` method is `internal static` for testability. Implements user directive that beacon beams should match Aspire dashboard resource type colors.
+**Why:** Green/red scheme gave no visual distinction between resource types. Dashboard uses blue for projects, purple for containers, teal for executables — beacon beams reinforce the same color language in-world. Health state overrides type color for at-a-glance alerting.
+**Status:** ✅ Resolved. Build passes, 248 tests pass.
+
+### 2026-02-10: Hologram line-add commands must use unique text to avoid RCON throttle
+
+**By:** Rocket
+**What:** Fixed `HologramManager` using identical placeholder text (`&7...`) for all `dh line add` commands. The `RconService` 250ms throttle silently dropped duplicate commands in rapid succession, causing fewer hologram lines than expected. Changed to `&7line{n}` for unique commands.
+**Why:** The RCON throttle is intentional for preventing server flood. The fix works with the throttle rather than disabling it. Any future service issuing identical RCON commands in a tight loop must use unique command strings.
+**Status:** ✅ Resolved. Build passes, 248 tests pass.
+
+### 2026-02-10: Sprint 2 feature decisions — action bar ticker, beacon towers, boss bar app name
+
+**By:** Rocket
+**Issues:** #38, #20, #22
+**What:** Three new Sprint 2 features following the established opt-in env var pattern. Boss bar now supports configurable app name via `ASPIRE_APP_NAME` (implements user directive: boss bar text should show system name from Aspire, not generic text). Action bar ticker cycles TPS/MSPT/healthy count/RCON latency. Beacon towers build iron+beacon+glass structures per resource.
+
+**Key decisions:**
+- `WithBossBar()` added optional `string? appName = null` for backward compatibility.
+- Action bar ticker reads fresh metrics each tick (not cached from main loop).
+- Beacon towers at Z=8 offset to avoid collision with existing structures at Z=0.
+- Single-layer iron base (minimum for beacon activation).
+- Plain strings for action bar, consistent with Sprint 1.
+
+**Status:** ✅ Implemented. 248 tests pass.
+
+### 2026-02-10: NuGet package version defaults to `0.1.0-dev`, overridden by CI
+
+**By:** Shuri
+**What:** Changed `<Version>` in csproj from `0.1.0` to `0.1.0-dev`. Local builds produce pre-release packages. The release workflow passes `-p:Version=X.Y.Z` (from git tag) which overrides the csproj default.
+**Why:** Previously every NuGet publish produced version `0.1.0` regardless of the git tag. The `-dev` suffix distinguishes local from release builds. MSBuild CLI properties always win over csproj values.
+**Status:** ✅ Resolved. Wong's release workflow update is the companion change.
+
+### 2026-02-10: WithServerProperty API for server.properties configuration
+
+**By:** Shuri
+**What:** Added `WithServerProperty(string, string)` and `WithServerProperties(Dictionary<string, string>)` extension methods, plus 6 convenience methods (`WithGameMode`, `WithDifficulty`, `WithMaxPlayers`, `WithMotd`, `WithWorldSeed`, `WithPvp`). All set env vars on the container resource following the itzg/minecraft-server convention (property name → UPPER_SNAKE_CASE).
+**Why:** The itzg Docker image supports all `server.properties` values via env vars, but the hosting library had no public API to set them.
+
+### 2026-02-10: ServerProperty Enum & File-Based server.properties Loading
+
+**By:** Shuri
+**What:** Added `ServerProperty` enum (24 members), `MinecraftGameMode` enum (4 members), `MinecraftDifficulty` enum (4 members), corresponding `WithServerProperty`/`WithGameMode`/`WithDifficulty` overloads, and `WithServerPropertiesFile()` for bulk property loading from disk.
+**Why:** Users previously had to look up `server.properties` key names and pass raw strings. The enum gives IntelliSense discovery. Typed enums prevent typos. File-based loading lets users maintain a standard `server.properties` file.
+**Design choices:** PascalCase→UPPER_SNAKE_CASE conversion. `WithServerPropertiesFile` reads at build/configuration time. Last-write-wins semantics.
+**Status:** ✅ Resolved.
+
+### 2026-02-10: Sprint 2 — XML documentation, RCON throttle, config builder pattern review
+
+**By:** Shuri
+**Issues:** #16, #21
+**What:**
+1. Added comprehensive XML documentation to all public types and methods in both projects.
+2. Added configurable RCON command throttle to Worker's `RconService` (default: disabled, production: 250ms). Per-command-string deduplication prevents server flood during rapid health oscillations.
+3. Reviewed configuration builder pattern — existing `With*()` fluent extension methods already serve as the config builder. No formal options-class builder needed. Recommend closing Issue #21.
+
+**Status:** ✅ Complete.
+
+### 2026-02-10: Release workflow now extracts version from git tag
+
+**By:** Wong
+**What:** Updated `.github/workflows/release.yml` to extract the semantic version from the git tag (`v0.2.1` → `0.2.1`) and pass it to `dotnet build` and `dotnet pack` via `-p:Version=`. GitHub Release name now includes the version. CI workflow (`build.yml`) intentionally unchanged.
+**Why:** Previously every tag-triggered release produced `0.1.0` packages regardless of the actual tag. The tag is now the single source of truth for release versions.
+**Status:** ✅ Resolved.

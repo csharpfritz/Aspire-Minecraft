@@ -46,3 +46,9 @@
 📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz
 
 📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+
+📌 Team update (2026-02-10): NuGet package version now defaults to 0.1.0-dev; CI overrides via -p:Version from git tag — decided by Shuri
+📌 Team update (2026-02-10): Sprint 2 API review complete — IRconCommandSender interface recommended for Sprint 3 testability — decided by Rhodey
+📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — new tests may be needed — decided by Rocket
+📌 Team update (2026-02-10): Hologram line-add bug fixed (unique text per command to avoid RCON throttle) — decided by Rocket
+📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added — tests needed — decided by Shuri

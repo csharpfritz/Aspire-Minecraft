@@ -19,81 +19,19 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-### Public API Surface Audit (Issue #12)
+### Summary: Sprint 1 NuGet Work (2026-02-10)
 
-- **MinecraftHealthCheck** changed from `public` to `internal` — it's only instantiated inside `AddMinecraftServer()` and consumers never need to reference it directly.
-- **All Worker project types** changed from `public` to `internal` — the Worker is a standalone service (`IsPackable=false`) with no public API surface. Types changed: `MinecraftMetrics`, `RconService`, `AspireResourceMonitor`, `ResourceInfo`, `ResourceStatusChange`, `ResourceStatus`, `HologramManager`, `PlayerMessageService`, `ScoreboardManager`, `StructureBuilder`, `BossBarService`, `TitleAlertService`, `ParticleEffectService`, `SoundEffectService`, `WeatherService`.
-- **Added `InternalsVisibleTo` for Worker tests** — `Aspire.Hosting.Minecraft.Worker.Tests` now has access to internal Worker types.
-- **Fixed pre-existing build errors:** Extension methods in `MinecraftServerBuilderExtensions.cs` were placed outside the class body (lines 310–385). Moved them inside the class. Also fixed `$$` raw string interpolation syntax in `BossBarService.cs` and `TitleAlertService.cs`.
-- **Test adaptation:** `StateTransitionTrackingTests.ResourceStatusChange_AllValidTransitions_AreRecorded` used `ResourceStatus` enum (now internal) in `[InlineData]` — changed to `int` parameters with cast.
-- **Intentionally public API surface (Hosting package):**
-  - `MinecraftServerBuilderExtensions` — all `With*` and `Add*` extension methods
-  - `MinecraftServerResource` — resource type, `RconPasswordParameter`, `ConnectionStringExpression`
-- **Intentionally public API surface (Rcon, embedded in Hosting package):**
-  - `RconClient` — `ConnectAsync`, `AuthenticateAsync`, `SendCommandAsync`, `IsConnected`, `DisposeAsync`
-  - `RconConnection` — `SendCommandAsync`, `IsConnected`, `DisposeAsync`
-  - `RconResponseParser` — `StripColorCodes`, `ParseTps`, `ParseMspt`, `ParsePlayerList`, `ParseWorldList`
-  - `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult` — response data types
-- **Created CONTRIBUTING.md** with prerequisites, build/test/pack commands, single-package architecture notes, code style, and PR process.
-- **Updated PR template** — added `-c Release` to build command, `Closes #` placeholder, pack clarification for src projects only, public API changes checklist item.
-
-### NuGet Readiness Audit (2026-02-10)
-
-- **Build status:** `dotnet build Aspire-Minecraft.slnx` succeeds cleanly (0 errors, 0 warnings on src projects).
-- **Pack status:** `dotnet pack -o nupkgs` succeeds. Produces three `.nupkg` files. Two sample projects correctly emit "not packable" warnings.
-- **Package sizes:** Hosting=~41 MB (due to 23 MB otel jar), Rcon=~20 KB, Worker=~28 KB.
-- **Content files:** `bluemap/core.conf` and `otel/opentelemetry-javaagent.jar` are packed as both `content/` and `contentFiles/` entries — correct for consumer copy-to-output behavior.
-- **Floating versions:** All three csproj files use `Version="*"` on PackageReference. Pack resolves these to concrete versions in the nuspec (e.g., Aspire.Hosting → 13.1.0). This is fine for local dev but is fragile for reproducible builds and should be pinned before publishing.
-- **Directory.Build.props** (`Directory.Build.props`): Sets shared metadata — Authors, License (MIT), PackageProjectUrl, RepositoryUrl, RepositoryType, PackageReadmeFile. Conditionally includes repo-root README.md in all packages.
-- **Missing from all csproj/props:** `GenerateDocumentationFile`, `EnablePackageValidation`, `SourceLink`, `Deterministic`, `ContinuousIntegrationBuild`, `EmbedUntrackedSources`, `PackageIcon`, `PackageReleaseNotes`.
-- **README:** All three packages share the repo-level `README.md`. No per-package README.
-- **CI/CD:** No `.github/workflows/` files exist. Only `.github/agents/squad.agent.md`.
-- **XML docs:** Present on public APIs in all three projects (confirmed by grep). But `GenerateDocumentationFile` is not enabled, so no XML doc file is shipped in the nupkg.
-- **No icon:** `img/sample-1.png` exists but no `PackageIcon` property is set. NuGet.org will show a default icon.
+- **NuGet readiness audit:** Identified blockers — floating `Version="*"` deps, no SourceLink/deterministic builds, no CI/CD, 41 MB hosting package (23 MB OTel jar), no per-package READMEs, no `GenerateDocumentationFile`.
+- **Hardening:** Pinned 6 deps to exact versions, added `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild`, `EmbedUntrackedSources`, `Microsoft.SourceLink.GitHub` to `Directory.Build.props`. Created per-package READMEs. OTel jar kept embedded (Sprint 2 TODO).
+- **Single package consolidation:** Only `Aspire.Hosting.Minecraft` is packable (`Fritz.Aspire.Hosting.Minecraft` on NuGet). Rcon embedded via `PrivateAssets="All"` + `BuildOutputInPackage`. Worker is `IsPackable=false` (standalone service). Rcon's transitive dep surfaced as direct PackageReference in Hosting.
+- **Public API audit (Issue #12):** `MinecraftHealthCheck` → internal. All Worker types → internal. Public: `MinecraftServerBuilderExtensions`, `MinecraftServerResource`, 5 RCON types. Created CONTRIBUTING.md, updated PR template.
+- **PackageId rename:** `Aspire.Hosting.Minecraft` → `Fritz.Aspire.Hosting.Minecraft` (Aspire.Hosting prefix reserved by Microsoft). Namespaces/folders unchanged.
 
 📌 Team update (2026-02-10): 18 Minecraft interaction features proposed across 3 tiers — decided by Rocket
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Shuri: pin deps, NuGet hardening, extract otel jar, verify pack — decided by Rhodey
-
-### Sprint 1 NuGet Hardening (2026-02-10)
-
-- **Pinned all floating `Version="*"` dependencies** to exact resolved versions:
-  - `Aspire.Hosting` → `13.1.0` (in Aspire.Hosting.Minecraft.csproj)
-  - `Microsoft.Extensions.Logging.Abstractions` → `10.0.2` (in Aspire.Hosting.Minecraft.Rcon.csproj)
-  - `Microsoft.Extensions.Hosting` → `10.0.2` (in Aspire.Hosting.Minecraft.Worker.csproj)
-  - `Microsoft.Extensions.Http` → `10.0.2` (in Aspire.Hosting.Minecraft.Worker.csproj)
-  - `OpenTelemetry.Extensions.Hosting` → `1.15.0` (in Aspire.Hosting.Minecraft.Worker.csproj)
-  - `OpenTelemetry.Exporter.OpenTelemetryProtocol` → `1.15.0` (in Aspire.Hosting.Minecraft.Worker.csproj)
-- **Added NuGet hardening properties** to `Directory.Build.props`: `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild` (CI-only), `EmbedUntrackedSources`.
-- **Added SourceLink** via `Microsoft.SourceLink.GitHub` Version `8.*` with `PrivateAssets="All"`.
-- **OpenTelemetry Java agent (23 MB):** Chose Option B — kept embedded, added a TODO comment in the csproj for Sprint 2 runtime download. Rationale: runtime download introduces container networking assumptions and itzg image init-system complexity. Ship the simple thing first.
-- **Created per-package README.md files** for all three packages; removed the shared repo-root README from `Directory.Build.props` conditional include. Each csproj now packs its own local README.
-- **Pack output verified clean:** 0 errors, 0 warnings on src projects. Only warnings are from sample projects ("not packable") — expected.
-  - `Aspire.Hosting.Minecraft.0.1.0.nupkg` — 39.6 MB (otel jar dominates)
-  - `Aspire.Hosting.Minecraft.Rcon.0.1.0.nupkg` — 20.8 KB
-  - `Aspire.Hosting.Minecraft.Worker.0.1.0.nupkg` — 27.5 KB
-- **No floating versions remain** in any nuspec — confirmed by inspecting the packed nuspec inside the nupkg.
-
 📌 Team update (2026-02-10): CI/CD pipeline created — build.yml + release.yml now build/test/publish your packages — decided by Wong
 📌 Team update (2026-02-10): Test infrastructure created — InternalsVisibleTo added to both source projects, 62 tests passing — decided by Nebula
-
-### Single Package Consolidation (2026-02-10)
-
-- **Consolidated three NuGet packages into one:** Only `Aspire.Hosting.Minecraft` is now packable. Rcon and Worker projects set to `IsPackable=false`.
-- **Rcon embedding approach:** Used `PrivateAssets="All"` on the ProjectReference to prevent Rcon from appearing as a nuspec dependency, combined with `TargetsForTfmSpecificBuildOutput` and `BuildOutputInPackage` MSBuild items to physically include `Aspire.Hosting.Minecraft.Rcon.dll` and its XML docs in the package's `lib/` folder.
-- **Rcon transitive dependency:** Added `Microsoft.Extensions.Logging.Abstractions` as a direct `PackageReference` in the Hosting project since Rcon's dependency is no longer surfaced via a separate package.
-- **Worker kept separate:** Worker uses `Microsoft.NET.Sdk.Worker` and runs as a standalone process — cannot be a DLL inside the hosting package. Consumers reference it as a `ProjectReference` via the `WithAspireWorldDisplay<TWorkerProject>()` generic type parameter.
-- **Test projects unchanged:** Both test projects still reference their source projects directly. All 62 tests (45 Rcon + 17 Hosting) pass.
-- **Pack output:** Single `Aspire.Hosting.Minecraft.0.1.0.nupkg` (39.6 MB). Contains both DLLs, XML docs, content files (bluemap, otel jar), and README.
-
 📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula
-
-### NuGet PackageId Rename (2026-02-10)
-
-- **Renamed PackageId** from `Aspire.Hosting.Minecraft` to `Fritz.Aspire.Hosting.Minecraft` in `src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj`. The `Aspire.Hosting` prefix is reserved by Microsoft on NuGet.org and would cause publish rejection.
-- **No namespace/assembly/folder changes** — C# namespaces remain `Aspire.Hosting.Minecraft`, project folders and assembly names unchanged. Only the NuGet package identity changed.
-- **Updated documentation:** Blog post install commands, demo script, CONTRIBUTING.md nupkg filename reference, social media copy — all now reference `Fritz.Aspire.Hosting.Minecraft`.
-- **CI/CD unaffected:** Both `build.yml` and `release.yml` use `nupkgs/*.nupkg` globs — no hardcoded package name.
-- **Verified:** `dotnet restore` ✅, `dotnet build -c Release` ✅ (0 errors), `dotnet pack -c Release -o nupkgs` ✅ (produces `Fritz.Aspire.Hosting.Minecraft.0.1.0.nupkg`), `dotnet test` ✅ (207 tests pass).
 
 ### Sprint 2: XML Documentation & RCON Throttle (Issue #16)
 
@@ -130,3 +68,17 @@
 - **Added `WithServerPropertiesFile(string)` method** — reads a standard Minecraft `server.properties` file at build/configuration time, parses key=value lines (skipping comments/blanks, splitting on first `=` only), and calls `WithServerProperty()` for each entry. Relative paths resolve from AppHost project directory. Throws `FileNotFoundException` if the file doesn't exist.
 - **PascalCase→UPPER_SNAKE_CASE conversion** (`ConvertEnumToEnvVar`): Inserts `_` before each uppercase letter (except the first), then uppercases everything. E.g., `MaxPlayers` → `MAX_PLAYERS`, `SpawnNpcs` → `SPAWN_NPCS`.
 - **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
+
+### NuGet Package Versioning Fix
+
+- **Changed `<Version>0.1.0</Version>` to `<Version>0.1.0-dev</Version>`** in `src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj`. The `-dev` suffix marks local/dev builds as pre-release.
+- **CI override mechanism:** MSBuild command-line properties (`-p:Version=X.Y.Z`) always override csproj `<Version>`. The release workflow (maintained by Wong) passes the git tag version via `-p:Version`, so published packages get the correct release version (e.g., `0.2.1`). No `<VersionPrefix>`/`<VersionSuffix>` split needed — the single `<Version>` property with CLI override is the simplest approach.
+- **Verified both scenarios:**
+  - `dotnet pack -c Release --no-build -o nupkgs` → `Fritz.Aspire.Hosting.Minecraft.0.1.0-dev.nupkg` ✅
+  - `dotnet pack -c Release --no-build -o nupkgs -p:Version=0.2.1` → `Fritz.Aspire.Hosting.Minecraft.0.2.1.nupkg` ✅
+- **All tests pass:** `dotnet test --no-build -c Release` ✅ (248 tests: 186 Worker + 45 RCON + 17 Hosting).
+
+📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
+📌 Team update (2026-02-10): Sprint 2 API review complete — 5 additive recommendations for Sprint 3 (WithAllFeatures, ParseConnectionString extraction, IRconCommandSender, env var tightening, auto-discovery) — decided by Rhodey
+📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — decided by Rocket
+📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle dropping duplicate commands) — decided by Rocket

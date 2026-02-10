@@ -55,3 +55,9 @@
 - **Build:** 0 warnings, 0 errors. **Tests:** 248 pass (186 worker + 45 RCON + 17 hosting).
 
 📌 Team update (2026-02-10): Sprint 2 API review complete — 10 feature methods consistent, no breaking changes, 5 additive recommendations for Sprint 3, demo + README updated — decided by Rhodey
+
+📌 Team update (2026-02-10): NuGet package version now defaults to 0.1.0-dev; CI overrides via -p:Version from git tag — decided by Shuri
+📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
+📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette (blue/purple/cyan/red/yellow) — decided by Rocket
+📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added for server.properties configuration — decided by Shuri
+📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle was dropping duplicate commands) — decided by Rocket

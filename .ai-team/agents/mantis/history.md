@@ -27,3 +27,8 @@
 📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
 📌 Blog post (2026-02-10): Published v0.1.0 release blog post (docs/blog/v0.1.0-release.md), social media thread (docs/blog/social-thread.md), and behind-the-build draft outline (docs/blog/behind-the-build-draft.md). Blog leads with the "break a service, watch the weather change" hook. Code examples use actual sample AppHost API with all 5 Sprint 1 features. Social thread is 7 posts for Twitter/Bluesky. Behind-the-build covers RCON protocol, Aspire resource model, and worker architecture with 3 opening paragraphs written. — Mantis
 📌 Learning (2026-02-10): The v0.1.0 blog post code examples must always show `WithAspireWorldDisplay<T>()` before any Sprint 1 `.With*()` calls — the opt-in methods throw if called before the world display is configured. This ordering matters for copy-paste correctness. — Mantis
+
+📌 Team update (2026-02-10): NuGet package version now defaults to 0.1.0-dev; CI overrides via -p:Version from git tag — decided by Shuri
+📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — update media assets — decided by Rocket
+📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added — new docs/blog content opportunity — decided by Shuri
+📌 Team update (2026-02-10): Sprint 2 API review complete — 10 feature methods available for blog coverage — decided by Rhodey
