@@ -21,6 +21,12 @@ public class MinecraftServerResource : ContainerResource, IResourceWithConnectio
     public ParameterResource? RconPasswordParameter { get; set; }
 
     /// <summary>
+    /// The internally-managed worker project builder, created by WithAspireWorldDisplay().
+    /// WithMonitoredResource() applies env vars to this builder.
+    /// </summary>
+    internal IResourceBuilder<ProjectResource>? WorkerBuilder { get; set; }
+
+    /// <summary>
     /// Gets the connection string expression for RCON access.
     /// Uses the RCON endpoint's host and port for proper resolution.
     /// Format: Host=host;Port=port;Password=password

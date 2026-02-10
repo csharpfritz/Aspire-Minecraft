@@ -157,16 +157,27 @@ public static class MinecraftServerBuilderExtensions
 
     /// <summary>
     /// Enables in-world Aspire resource display (holograms, scoreboards, torch structures).
-    /// Registers the bundled worker service that connects via RCON to render Aspire state in Minecraft.
+    /// Internally registers the bundled worker service that connects via RCON to render Aspire state in Minecraft.
+    /// The worker appears as a child of the Minecraft resource in the Aspire dashboard.
+    /// Call WithMonitoredResource() after this to add resources to display.
     /// </summary>
-    public static IResourceBuilder<MinecraftServerResource> WithAspireWorldDisplay(
+    public static IResourceBuilder<MinecraftServerResource> WithAspireWorldDisplay<TWorkerProject>(
         this IResourceBuilder<MinecraftServerResource> builder)
+        where TWorkerProject : IProjectMetadata, new()
     {
         // Add DecentHolograms plugin (required for holograms)
         builder = builder.WithDecentHolograms();
 
-        // The worker service will be added as a project reference by the AppHost.
-        // We annotate the resource so the worker knows to connect.
+        // Internally create the worker project resource
+        var workerName = $"{builder.Resource.Name}-worker";
+        var workerBuilder = builder.ApplicationBuilder.AddProject<TWorkerProject>(workerName)
+            .WithReference(builder)
+            .WaitFor(builder)
+            .WithParentRelationship(builder);
+
+        // Store the worker builder on the resource so WithMonitoredResource() can apply env vars
+        builder.Resource.WorkerBuilder = workerBuilder;
+
         builder.WithAnnotation(new AspireWorldDisplayAnnotation());
 
         return builder;
@@ -193,11 +204,16 @@ public static class MinecraftServerBuilderExtensions
     /// Adds an Aspire resource to be monitored and displayed in the Minecraft world.
     /// The worker will create a cube, hologram entry, and scoreboard line for this resource.
     /// Works with any resource type — projects, containers, Redis, databases, etc.
+    /// Must be called after WithAspireWorldDisplay().
     /// </summary>
-    public static IResourceBuilder<T> WithMonitoredResource<T>(
-        this IResourceBuilder<T> workerBuilder,
-        IResourceBuilder<IResourceWithEndpoints> resource) where T : IResourceWithEnvironment
+    public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        IResourceBuilder<IResourceWithEndpoints> resource)
     {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
+
         var name = resource.Resource.Name;
 
         // Determine resource type from the concrete type
@@ -239,21 +255,26 @@ public static class MinecraftServerBuilderExtensions
             }
         });
 
-        return workerBuilder;
+        return builder;
     }
 
     /// <summary>
     /// Adds an Aspire resource to be monitored (for resources without endpoints).
-    /// The resource will appear in the Minecraft world but health won't be polled.
+    /// The resource will appear in the Minecraft world but health won't be polled via HTTP.
+    /// Must be called after WithAspireWorldDisplay().
     /// </summary>
-    public static IResourceBuilder<T> WithMonitoredResource<T>(
-        this IResourceBuilder<T> workerBuilder,
+    public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
+        this IResourceBuilder<MinecraftServerResource> builder,
         IResourceBuilder<IResource> resource,
-        string resourceType) where T : IResourceWithEnvironment
+        string resourceType)
     {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
+
         var name = resource.Resource.Name;
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
-        return workerBuilder;
+        return builder;
     }
 }
 
