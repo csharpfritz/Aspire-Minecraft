@@ -76,10 +76,11 @@ internal sealed class HologramManager(
         lines.Add($"&f{monitor.HealthyCount}/{monitor.TotalCount} services healthy");
 
         // Ensure we have enough lines (add if needed)
+        // Note: each add command must have unique text to avoid RCON command throttling
         while (_lastLineCount < lines.Count)
         {
             _lastLineCount++;
-            await rcon.SendCommandAsync($"dh line add {DashboardHologramId} 1 &7...", ct);
+            await rcon.SendCommandAsync($"dh line add {DashboardHologramId} 1 &7line{_lastLineCount}", ct);
         }
 
         // Remove excess lines (shrink if resources were removed)
