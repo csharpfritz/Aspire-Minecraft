@@ -18,32 +18,42 @@ var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web")
     .WithReference(api)
     .WithExternalHttpEndpoints();
 
-// Add Minecraft server with all integrations — the worker is created internally
+// Add Minecraft server with all integrations — the worker is created internally.
 // World data is ephemeral by default (fresh world each run).
 // Uncomment .WithPersistentWorld() to keep world data across restarts.
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
     //.WithPersistentWorld()
+
+    // Server configuration
     .WithMaxPlayers(10)
     .WithMotd("Aspire Fleet Monitor")
+
+    // Integrations
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
-    // Sprint 1 features
-    .WithParticleEffects()
+
+    // Sprint 1 — Core feedback
     .WithTitleAlerts()
     .WithWeatherEffects()
     .WithBossBar()
     .WithSoundEffects()
-    // Sprint 2 features
+    .WithParticleEffects()
+
+    // Sprint 2 — Atmosphere & delight
     .WithActionBarTicker()
     .WithBeaconTowers()
     .WithFireworks()
     .WithGuardianMobs()
     .WithDeploymentFanfare()
+
+    // Sprint 3 — Showstopper
     .WithWorldBorderPulse()
-    // Sprint 3 features
     .WithHeartbeat()
     .WithAchievements()
+    .WithRedstoneDependencyGraph()
+
+    // Monitored resources — each gets in-world representation
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
     .WithMonitoredResource(redis)

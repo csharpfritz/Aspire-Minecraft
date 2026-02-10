@@ -23,6 +23,9 @@ A .NET Aspire integration for Minecraft servers— featuring OpenTelemetry instr
 - **Fireworks** — Celebratory fireworks when all resources recover to healthy after a failure
 - **Guardian Mobs** — Iron golems guard healthy resources; zombies spawn at unhealthy ones
 - **Deployment Fanfare** — Lightning, fireworks, and title announcements when a resource finishes starting
+- **World Border Pulse** — World border shrinks with red tint when fleet health is critical, expands back on recovery
+- **Heartbeat** — Note block pulse whose tempo reflects fleet health: fast when healthy, slow when degraded, silent when dead
+- **Achievements** — Infrastructure milestone awards ("First Service Online", "Full Fleet Healthy", "Survived a Crash")
 - **Server Startup Optimization** — Tuned view distance, simulation distance, and world settings for fast container boot
 
 ## 🚀 Quick Start
@@ -79,6 +82,10 @@ var mc = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 2557
     .WithFireworks()                   // Celebrate all-green recovery
     .WithGuardianMobs()                // Iron golems / zombies per resource
     .WithDeploymentFanfare()           // Lightning + fireworks on deploy
+    // Sprint 3: Showstopper
+    .WithWorldBorderPulse()            // World border shrinks on critical health
+    .WithHeartbeat()                   // Note block pulse = fleet heartbeat
+    .WithAchievements()                // Infrastructure milestone awards
     .WithMonitoredResource(api)        // Each monitored resource gets a cube,
     .WithMonitoredResource(redis);     // hologram line, and scoreboard entry
 
