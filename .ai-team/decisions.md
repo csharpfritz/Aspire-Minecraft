@@ -2,22 +2,12 @@
 
 > Shared decision log. All agents read this before starting work. Scribe merges new decisions from the inbox.
 
-### 2026-02-10: NuGet packages are NOT ready for nuget.org publication
+### 2026-02-10: NuGet hardening completed — floating deps pinned, SourceLink and deterministic builds added
 
 **By:** Shuri
-**What:** Completed a full NuGet readiness audit of all three packages. Build and pack succeed, but several blocking and important gaps remain before publishing to nuget.org.
-**Why:** Publishing packages with floating `Version="*"` dependencies, no SourceLink, no package validation, no CI/CD pipeline, and a 41 MB package (embedded otel jar) would create a poor consumer experience and make debugging/versioning impossible. These must be addressed first.
-
-Key blockers:
-1. Floating `Version="*"` references in all three csproj files must be pinned to specific versions.
-2. No CI/CD pipeline exists — no automated build/test/publish workflow.
-3. The 23 MB `opentelemetry-javaagent.jar` embedded in the hosting package inflates it to 41 MB — consider downloading at runtime instead.
-
-Key improvements needed:
-- Add `GenerateDocumentationFile`, `EnablePackageValidation`, SourceLink packages, `Deterministic`/`ContinuousIntegrationBuild` to `Directory.Build.props`.
-- Add a `PackageIcon` (create a proper icon, not the sample screenshot).
-- Consider per-package READMEs for better nuget.org presentation.
-- Create a GitHub Actions CI/CD workflow for build + pack + publish.
+**What:** Audited all three packages and found blockers (floating `Version="*"` deps, no SourceLink, no package validation, no CI/CD, 41 MB hosting package). Resolved in Sprint 1: pinned 6 deps to exact versions, added `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild`, `EmbedUntrackedSources`, and `Microsoft.SourceLink.GitHub` to `Directory.Build.props`. Created per-package README.md files. Kept the 23 MB OpenTelemetry Java agent embedded — runtime download deferred to Sprint 2 due to container networking complexity.
+**Why:** NuGet.org rejects floating versions. Pinned versions ensure reproducible builds. SourceLink enables debugger source mapping. Per-package READMEs improve nuget.org presentation. OTel jar stays embedded to avoid offline/restricted environment issues in v0.1.0.
+**Status:** ✅ Resolved. Remaining: `PackageIcon` not yet added. OTel jar extraction is Sprint 2.
 
 ### 2026-02-10: Proposed feature ideas for Aspire-Minecraft
 
@@ -66,3 +56,27 @@ Key improvements needed:
 - Mantis: Deep-dive blog, conference demo post, README overhaul.
 
 **Cut line:** Rail Network drops first; Resource Village + Achievements are conference must-haves.
+
+### 2026-02-10: CI/CD pipeline — build.yml + release.yml created
+
+**By:** Wong
+**What:** Created two GitHub Actions workflows: `build.yml` (CI on push/PR to main, ubuntu+windows matrix, restore→build→test→pack→upload) and `release.yml` (NuGet publish on `v*` tag, GitHub Release creation). Also added `.github/PULL_REQUEST_TEMPLATE.md`. No separate PR-validation workflow — `build.yml` covers PR triggers.
+**Why:** Sprint 1 blocker — no CI/CD existed. Packages can't ship to nuget.org without an automated publish pipeline. The matrix build ensures cross-platform correctness. Tag-triggered release keeps publishing intentional. `NUGET_API_KEY` secret must be configured in repo settings before first release.
+
+### 2026-02-10: Test project structure and InternalsVisibleTo pattern established
+
+**By:** Nebula
+**What:** Created tests/Aspire.Hosting.Minecraft.Rcon.Tests and tests/Aspire.Hosting.Minecraft.Tests with xUnit, FluentAssertions, and Microsoft.NET.Test.Sdk. Added InternalsVisibleTo to both source projects. Changed MinecraftHealthCheck.ParseConnectionString from private to internal for testability. 62 tests (45 RCON + 17 hosting), 0 failures.
+**Why:** CI/CD pipeline requires test projects to exist and pass. The InternalsVisibleTo pattern enables testing of internal types (RconPacket, endpoint constants, ParseConnectionString) without exposing them publicly.
+
+### 2026-02-10: FluentAssertions v8 licensing concern
+
+**By:** Nebula
+**What:** FluentAssertions 8.8.0 (resolved by Version="*") shows a commercial licensing warning from Xceed at test runtime. The library works but requires a paid license for commercial use.
+**Why:** This is an MIT-licensed open-source project. Team should evaluate pinning to FluentAssertions 6.x (last free version), switching to Shouldly or TUnit assertions, or accepting the Xceed community license terms. Not blocking Sprint 1 but must be resolved before v0.1.0 release.
+
+### 2026-02-10: Track all work as GitHub issues with team member labels
+
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** All sprint plan items opened as GitHub issues. Labels created for each team member (rhodey, shuri, rocket, nebula, wong, mantis) and sprint (sprint-1, sprint-2, sprint-3). 34 issues created across 3 sprints.
+**Why:** User directive — ensures visibility and accountability for all planned work.

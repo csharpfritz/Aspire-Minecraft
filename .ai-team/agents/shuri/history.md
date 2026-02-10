@@ -35,3 +35,25 @@
 
 📌 Team update (2026-02-10): 18 Minecraft interaction features proposed across 3 tiers — decided by Rocket
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Shuri: pin deps, NuGet hardening, extract otel jar, verify pack — decided by Rhodey
+
+### Sprint 1 NuGet Hardening (2026-02-10)
+
+- **Pinned all floating `Version="*"` dependencies** to exact resolved versions:
+  - `Aspire.Hosting` → `13.1.0` (in Aspire.Hosting.Minecraft.csproj)
+  - `Microsoft.Extensions.Logging.Abstractions` → `10.0.2` (in Aspire.Hosting.Minecraft.Rcon.csproj)
+  - `Microsoft.Extensions.Hosting` → `10.0.2` (in Aspire.Hosting.Minecraft.Worker.csproj)
+  - `Microsoft.Extensions.Http` → `10.0.2` (in Aspire.Hosting.Minecraft.Worker.csproj)
+  - `OpenTelemetry.Extensions.Hosting` → `1.15.0` (in Aspire.Hosting.Minecraft.Worker.csproj)
+  - `OpenTelemetry.Exporter.OpenTelemetryProtocol` → `1.15.0` (in Aspire.Hosting.Minecraft.Worker.csproj)
+- **Added NuGet hardening properties** to `Directory.Build.props`: `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild` (CI-only), `EmbedUntrackedSources`.
+- **Added SourceLink** via `Microsoft.SourceLink.GitHub` Version `8.*` with `PrivateAssets="All"`.
+- **OpenTelemetry Java agent (23 MB):** Chose Option B — kept embedded, added a TODO comment in the csproj for Sprint 2 runtime download. Rationale: runtime download introduces container networking assumptions and itzg image init-system complexity. Ship the simple thing first.
+- **Created per-package README.md files** for all three packages; removed the shared repo-root README from `Directory.Build.props` conditional include. Each csproj now packs its own local README.
+- **Pack output verified clean:** 0 errors, 0 warnings on src projects. Only warnings are from sample projects ("not packable") — expected.
+  - `Aspire.Hosting.Minecraft.0.1.0.nupkg` — 39.6 MB (otel jar dominates)
+  - `Aspire.Hosting.Minecraft.Rcon.0.1.0.nupkg` — 20.8 KB
+  - `Aspire.Hosting.Minecraft.Worker.0.1.0.nupkg` — 27.5 KB
+- **No floating versions remain** in any nuspec — confirmed by inspecting the packed nuspec inside the nupkg.
+
+📌 Team update (2026-02-10): CI/CD pipeline created — build.yml + release.yml now build/test/publish your packages — decided by Wong
+📌 Team update (2026-02-10): Test infrastructure created — InternalsVisibleTo added to both source projects, 62 tests passing — decided by Nebula

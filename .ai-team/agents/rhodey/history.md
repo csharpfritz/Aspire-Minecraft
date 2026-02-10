@@ -32,3 +32,9 @@
 📌 Team update (2026-02-10): NuGet packages blocked from publication — floating deps, no CI/CD, bloated jar must be fixed first — decided by Shuri
 📌 Team update (2026-02-10): 18 Minecraft interaction features proposed across 3 tiers (must-have/nice-to-have/stretch) — decided by Rocket
 📌 Team update (2026-02-10): 3-sprint roadmap adopted (Ship It → Polish & Atmosphere → Showstopper) with per-agent assignments — decided by Rhodey
+
+📌 Team update (2026-02-10): Sprint 1 — Shuri completed NuGet hardening (6 deps pinned, SourceLink, deterministic builds, per-package READMEs, OTel jar kept with TODO) — decided by Shuri
+📌 Team update (2026-02-10): Sprint 1 — Wong completed CI/CD pipeline (build.yml + release.yml + PR template) — decided by Wong
+📌 Team update (2026-02-10): Sprint 1 — Nebula completed test infrastructure (62 tests, 0 failures, InternalsVisibleTo pattern) — decided by Nebula
+📌 Team update (2026-02-10): FluentAssertions v8 licensing concern flagged — needs resolution before v0.1.0 release — decided by Nebula
+📌 Team update (2026-02-10): All sprint work tracked as 34 GitHub issues with team member and sprint labels, 6 Sprint 1 issues closed — decided by Jeffrey T. Fritz

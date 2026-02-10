@@ -19,3 +19,4 @@
 
 📌 Team update (2026-02-10): 18 features proposed — rich demo material for blog content — decided by Rocket
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Mantis: blog outline + demo screenshots; blog gates on release tag — decided by Rhodey
+📌 Team update (2026-02-10): All sprint work tracked as GitHub issues with team member and sprint labels — decided by Jeffrey T. Fritz

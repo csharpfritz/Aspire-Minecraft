@@ -20,6 +20,14 @@
 | Wong | GitHub Ops | `.ai-team/agents/wong/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.ai-team/agents/scribe/charter.md` | 📋 Silent |
 
+## Issue Source
+
+| Field | Value |
+|-------|-------|
+| **Repository** | csharpfritz/Aspire-Minecraft |
+| **Connected** | 2026-02-10 |
+| **Filters** | all open |
+
 ## Project Context
 
 - **Owner:** Jeffrey T. Fritz (csharpfritz@users.noreply.github.com)
