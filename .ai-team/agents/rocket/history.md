@@ -89,3 +89,22 @@
 📌 Team update (2026-02-10): Single NuGet package consolidation — only one package ships now — decided by Jeffrey T. Fritz, Shuri
 
 📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+
+### 2026-02-10: Sprint 2 features implemented — 3 new in-world interaction features
+
+**Features implemented (all opt-in via builder extension methods):**
+1. **Boss bar app name support** (`WithBossBar(appName?)`) — Issue #38. Added `ASPIRE_APP_NAME` env var support. `WithBossBar()` now accepts optional `appName` parameter. `BossBarService` reads `ASPIRE_APP_NAME` at startup, falls back to "Aspire". Boss bar title shows `{appName} Fleet Health: {value} percent`.
+2. **ActionBarTickerService** (`WithActionBarTicker()`) — Issue #20. Cycles through TPS, MSPT, healthy resource count, and RCON latency via `title @a actionbar` command. Rotates each poll cycle. Uses `ASPIRE_FEATURE_ACTIONBAR` env var.
+3. **BeaconTowerService** (`WithBeaconTowers()`) — Issue #22. Builds beacon-powered towers per monitored resource. 3x3 iron block base at Y=-60, beacon center at Y=-59, stained glass at Y=-58. Green glass = healthy, red glass = unhealthy. Towers at Z=8 offset to avoid overlap with existing 3x3 structures at Z=0. Uses `ASPIRE_FEATURE_BEACONS` env var.
+
+**Architecture decisions:**
+- **Consistent opt-in pattern:** All three features follow the Sprint 1 env var pattern — extension method sets env var, Program.cs registers conditionally, worker injects as nullable.
+- **Action bar ticker design:** Reads metrics live each tick (TPS, MSPT via RCON parse, RCON latency via stopwatch) rather than caching from the main loop. This gives the action bar its own fresh data independent of the poll interval.
+- **Beacon tower placement:** Z=8 offset chosen to separate beacon towers from existing structures (at Z=0) while keeping them visible in the same area. Single-layer iron base is the minimum for beacon activation in Minecraft.
+- **Boss bar % symbol:** Used "percent" instead of "%" in RCON strings to avoid parsing issues, consistent with Sprint 1 pattern.
+
+**RCON commands used:**
+- `title @a actionbar "{message}"` — plain string, not JSON text component
+- `fill {x} {y} {z} {x+2} {y} {z+2} minecraft:iron_block` — 3x3 iron base
+- `setblock {x+1} {y+1} {z+1} minecraft:beacon` — beacon on center
+- `setblock {x+1} {y+2} {z+1} minecraft:{color}_stained_glass` — health indicator
