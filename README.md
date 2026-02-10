@@ -13,6 +13,17 @@ A .NET Aspire integration for Minecraft servers— featuring OpenTelemetry instr
 - **BlueMap Web Map** — Interactive 3D map exposed as a clickable endpoint in the dashboard
 - **In-World Aspire Display** — Hologram dashboards, scoreboards, and torch-topped structures showing service health
 - **Player Message Audit Trail** — Every system→player message logged as structured OTEL events
+- **Boss Bar Health Meter** — Persistent bar showing fleet health percentage (green/yellow/red)
+- **Title Screen Alerts** — Full-screen alerts when resources go down or recover
+- **Sound Effects** — Audio cues on health state transitions (wither ambient on failure, level-up on recovery)
+- **Weather = System Health** — Clear skies when healthy, rain when degraded, thunderstorms when critical
+- **Particle Effects** — Smoke/flame on crash, happy villager particles on recovery
+- **Action Bar Ticker** — Rotating HUD metrics (TPS, MSPT, healthy count, RCON latency) above the hotbar
+- **Beacon Towers** — Per-resource iron-base beacons with green/red stained glass reflecting health
+- **Fireworks** — Celebratory fireworks when all resources recover to healthy after a failure
+- **Guardian Mobs** — Iron golems guard healthy resources; zombies spawn at unhealthy ones
+- **Deployment Fanfare** — Lightning, fireworks, and title announcements when a resource finishes starting
+- **Server Startup Optimization** — Tuned view distance, simulation distance, and world settings for fast container boot
 
 ## 🚀 Quick Start
 
@@ -56,6 +67,18 @@ var mc = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 2557
     .WithBlueMap(port: 8100)           // Adds BlueMap web map
     .WithOpenTelemetry()               // Injects OTEL Java agent for JVM telemetry
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    // Sprint 1: Core feedback
+    .WithParticleEffects()             // Smoke/flame on crash, happy particles on recovery
+    .WithTitleAlerts()                 // Full-screen alerts on resource state changes
+    .WithWeatherEffects()              // Weather reflects fleet health
+    .WithBossBar()                     // Persistent health bar
+    .WithSoundEffects()                // Audio cues on transitions
+    // Sprint 2: Atmosphere & delight
+    .WithActionBarTicker()             // Rotating HUD metrics
+    .WithBeaconTowers()                // Per-resource beacon towers
+    .WithFireworks()                   // Celebrate all-green recovery
+    .WithGuardianMobs()                // Iron golems / zombies per resource
+    .WithDeploymentFanfare()           // Lightning + fireworks on deploy
     .WithMonitoredResource(api)        // Each monitored resource gets a cube,
     .WithMonitoredResource(redis);     // hologram line, and scoreboard entry
 

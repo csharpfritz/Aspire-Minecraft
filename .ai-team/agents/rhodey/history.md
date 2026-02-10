@@ -44,3 +44,14 @@
 📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz
 
 📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+
+### 2026-02-10: Sprint 2 API Review & Release Prep
+
+- **API surface is clean and consistent.** All 10 feature extension methods (5 Sprint 1 + 5 Sprint 2) follow identical patterns: same signature shape, guard clause, env var naming (`ASPIRE_FEATURE_*`), and XML docs.
+- **No breaking changes needed.** Sprint 2 methods (`WithActionBarTicker`, `WithBeaconTowers`, `WithFireworks`, `WithGuardianMobs`, `WithDeploymentFanfare`) are exact copies of the Sprint 1 pattern.
+- **5 non-breaking concerns documented** for Sprint 3: add `WithAllFeatures()` convenience, tighten env var checks to `== "true"`, extract duplicated `ParseConnectionString`, add `IRconCommandSender` interface, consider auto-discovery of monitored resources.
+- **Demo AppHost updated** with all Sprint 2 feature calls chained alongside Sprint 1 calls.
+- **README updated** with 11 new feature bullet points (Sprint 1 + Sprint 2) and full code sample showing all features enabled.
+- **Build:** 0 warnings, 0 errors. **Tests:** 248 pass (186 worker + 45 RCON + 17 hosting).
+
+📌 Team update (2026-02-10): Sprint 2 API review complete — 10 feature methods consistent, no breaking changes, 5 additive recommendations for Sprint 3, demo + README updated — decided by Rhodey
