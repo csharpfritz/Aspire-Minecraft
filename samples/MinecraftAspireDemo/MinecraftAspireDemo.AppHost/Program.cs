@@ -23,9 +23,14 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    .WithParticleEffects()
+    .WithTitleAlerts()
+    .WithWeatherEffects()
+    .WithBossBar()
+    .WithSoundEffects()
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
     .WithMonitoredResource(redis)
-		.WithMonitoredResource(pg);
+    .WithMonitoredResource(pg);
 
 builder.Build().Run();
