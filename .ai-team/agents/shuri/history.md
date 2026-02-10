@@ -82,3 +82,13 @@
 📌 Team update (2026-02-10): Sprint 2 API review complete — 5 additive recommendations for Sprint 3 (WithAllFeatures, ParseConnectionString extraction, IRconCommandSender, env var tightening, auto-discovery) — decided by Rhodey
 📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — decided by Rocket
 📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle dropping duplicate commands) — decided by Rocket
+
+### Ephemeral World by Default + WithPersistentWorld() Opt-in
+
+- **Removed named volume mount** (`{name}-data` → `/data`) from `AddMinecraftServer()`. World data is now ephemeral — each `dotnet run` starts fresh, no leftover structures or state.
+- **Added `WithPersistentWorld()` extension method** that mounts a named Docker volume (`{name}-data` → `/data`) for consumers who want persistent world data across restarts.
+- **Updated `AddMinecraftServer()` XML docs** with a `<see cref="WithPersistentWorld"/>` reference explaining the default ephemeral behavior.
+- **Updated sample AppHost** with a comment showing `WithPersistentWorld()` usage (commented out — demo should get fresh worlds).
+- **Updated README** with a "World Persistence" subsection in the Configuration section.
+- **No test changes needed** — no existing tests referenced the volume mount. 248 tests pass.
+- **Key insight:** The itzg/minecraft-server container stores everything in `/data`. Without a named volume, Docker uses an anonymous volume that's cleaned up with the container. Aspire removes containers on shutdown, so the world is truly ephemeral.
