@@ -20,6 +20,8 @@ var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web")
 
 // Add Minecraft server with all integrations — the worker is created internally
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
+    .WithMaxPlayers(10)
+    .WithMotd("Aspire Fleet Monitor")
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()

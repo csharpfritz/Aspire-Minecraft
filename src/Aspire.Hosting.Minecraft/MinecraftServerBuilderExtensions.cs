@@ -516,6 +516,132 @@ public static class MinecraftServerBuilderExtensions
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_FANFARE", "true");
         return builder;
     }
+
+    /// <summary>
+    /// Sets an arbitrary Minecraft <c>server.properties</c> value via the itzg/minecraft-server
+    /// environment variable convention. The property name is converted to UPPER_SNAKE_CASE
+    /// (e.g., <c>max-players</c> becomes <c>MAX_PLAYERS</c>).
+    /// Properties set here override any defaults configured by <see cref="AddMinecraftServer"/>.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="propertyName">The <c>server.properties</c> property name (e.g., <c>"max-players"</c>, <c>"difficulty"</c>).</param>
+    /// <param name="value">The value to set for the property.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithServerProperty(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string propertyName,
+        string value)
+    {
+        var envVarName = ConvertPropertyNameToEnvVar(propertyName);
+        return builder.WithEnvironment(envVarName, value);
+    }
+
+    /// <summary>
+    /// Sets multiple Minecraft <c>server.properties</c> values at once via the itzg/minecraft-server
+    /// environment variable convention. Each property name is converted to UPPER_SNAKE_CASE.
+    /// Properties set here override any defaults configured by <see cref="AddMinecraftServer"/>.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="properties">A dictionary of <c>server.properties</c> names and their values.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithServerProperties(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        Dictionary<string, string> properties)
+    {
+        foreach (var (propertyName, value) in properties)
+        {
+            builder = builder.WithServerProperty(propertyName, value);
+        }
+        return builder;
+    }
+
+    /// <summary>
+    /// Sets the game mode for the Minecraft server.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="mode">The game mode: <c>"survival"</c>, <c>"creative"</c>, <c>"adventure"</c>, or <c>"spectator"</c>.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithGameMode(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string mode)
+    {
+        return builder.WithEnvironment("MODE", mode);
+    }
+
+    /// <summary>
+    /// Sets the difficulty level for the Minecraft server.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="difficulty">The difficulty: <c>"peaceful"</c>, <c>"easy"</c>, <c>"normal"</c>, or <c>"hard"</c>.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithDifficulty(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string difficulty)
+    {
+        return builder.WithEnvironment("DIFFICULTY", difficulty);
+    }
+
+    /// <summary>
+    /// Sets the maximum number of players allowed on the Minecraft server.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="maxPlayers">The maximum number of players.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithMaxPlayers(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        int maxPlayers)
+    {
+        return builder.WithEnvironment("MAX_PLAYERS", maxPlayers.ToString());
+    }
+
+    /// <summary>
+    /// Sets the message of the day (MOTD) shown in the Minecraft server browser.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="motd">The message of the day text.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithMotd(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string motd)
+    {
+        return builder.WithEnvironment("MOTD", motd);
+    }
+
+    /// <summary>
+    /// Sets the world seed for the Minecraft server.
+    /// Overrides the default seed configured by <see cref="AddMinecraftServer"/>.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="seed">The world generation seed.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithWorldSeed(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string seed)
+    {
+        return builder.WithEnvironment("SEED", seed);
+    }
+
+    /// <summary>
+    /// Enables or disables player-versus-player combat on the Minecraft server.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="enabled"><c>true</c> to enable PvP (default); <c>false</c> to disable it.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithPvp(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        bool enabled = true)
+    {
+        return builder.WithEnvironment("PVP", enabled ? "true" : "false");
+    }
+
+    /// <summary>
+    /// Converts a Minecraft <c>server.properties</c> property name to the itzg/minecraft-server
+    /// environment variable convention: uppercase with hyphens replaced by underscores.
+    /// </summary>
+    private static string ConvertPropertyNameToEnvVar(string propertyName)
+    {
+        return propertyName.ToUpperInvariant().Replace('-', '_');
+    }
 }
 
 /// <summary>
