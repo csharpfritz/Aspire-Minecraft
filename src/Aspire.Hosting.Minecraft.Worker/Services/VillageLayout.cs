@@ -75,13 +75,13 @@ internal static class VillageLayout
     }
 
     /// <summary>
-    /// Gets the fence perimeter coordinates (1 block outside the village bounds).
+    /// Gets the fence perimeter coordinates (4 blocks outside the village bounds).
     /// Returns (minX, minZ, maxX, maxZ) for fence placement.
     /// </summary>
     public static (int minX, int minZ, int maxX, int maxZ) GetFencePerimeter(int resourceCount)
     {
         var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
-        return (minX - 1, minZ - 2, maxX + 1, maxZ + 1);
+        return (minX - 4, minZ - 4, maxX + 4, maxZ + 4);
     }
 
     /// <summary>

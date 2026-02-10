@@ -69,7 +69,7 @@ internal sealed class StructureBuilder(
     private async Task BuildFencePerimeterAsync(int resourceCount, CancellationToken ct)
     {
         var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
-        var fenceY = VillageLayout.BaseY + 1;
+        var fenceY = VillageLayout.BaseY;
 
         // South side (low Z) — two segments with a gate gap in the center
         var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
