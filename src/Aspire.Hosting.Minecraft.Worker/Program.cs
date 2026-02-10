@@ -83,6 +83,8 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
     builder.Services.AddSingleton<AdvancementService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"]))
     builder.Services.AddHostedService<RedstoneDependencyService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SWITCHES"]))
+    builder.Services.AddHostedService<ServiceSwitchService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();

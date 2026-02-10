@@ -240,3 +240,25 @@
 - Repeater `facing` property must point toward the signal destination for correct signal propagation.
 - L-shaped routing (X then Z) is simple and avoids structure collisions since structures are on a grid.
 - Breaking wire at intervals (every 5th block) rather than removing all wire is more visually dramatic and uses fewer RCON commands.
+
+### Service Switches — visual resource status levers (Issue #35)
+
+**What:** Created `ServiceSwitchService` (BackgroundService) that places Minecraft levers and redstone lamps on each resource structure to visually represent service status. Healthy = lever ON + glowstone (always lit), Unhealthy = lever OFF + redstone lamp (unlit).
+
+**Architecture:**
+- Third `BackgroundService` feature (after `HeartbeatService` and `RedstoneDependencyService`). Registered with `AddHostedService<ServiceSwitchService>()`.
+- Feature gate: `ASPIRE_FEATURE_SWITCHES` env var, set by `WithServiceSwitches()` extension method.
+- Waits for `monitor.TotalCount > 0` + 15s delay (structures must be built first).
+- Monitors health changes every 5 seconds, tracks `_lastKnownStatus` per resource to avoid redundant RCON commands.
+
+**IMPORTANT CONSTRAINT:** Visual only — levers reflect state, they don't control Aspire resources. The `ResourceNotificationService` is read-only from the worker's perspective.
+
+**Placement:**
+- Lever at `(x+1, y+2, z)` on the front wall (z-min side) of each structure.
+- Lamp at `(x+1, y+3, z)` above the lever on the front wall.
+- Uses `minecraft:lever[face=wall,facing=south,powered=true/false]` block data.
+- Lamp uses glowstone (always lit) when powered, redstone_lamp (unlit) when not — same pattern as existing health indicator in StructureBuilder.
+
+**Key learnings:**
+- Minecraft levers with `powered=true/false` block state can be placed/updated via `setblock` RCON commands without player interaction.
+- Using glowstone vs redstone_lamp (rather than trying to power/unpower a lamp via redstone) is more reliable since RCON `setblock` doesn't propagate redstone signal updates.
