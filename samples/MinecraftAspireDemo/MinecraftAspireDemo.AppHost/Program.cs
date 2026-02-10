@@ -25,9 +25,8 @@ builder.AddProject<Projects.Aspire_Hosting_Minecraft_Worker>("minecraft-worker")
     .WithReference(minecraft)
     .WaitFor(minecraft)
     .WithParentRelationship(minecraft)
-    .WithEnvironment("ASPIRE_RESOURCE_API_URL", api.GetEndpoint("http").Property(EndpointProperty.Url))
-    .WithEnvironment("ASPIRE_RESOURCE_API_TYPE", "Project")
-    .WithEnvironment("ASPIRE_RESOURCE_WEB_URL", web.GetEndpoint("http").Property(EndpointProperty.Url))
-    .WithEnvironment("ASPIRE_RESOURCE_WEB_TYPE", "Project");
+    .WithMonitoredResource(api)
+    .WithMonitoredResource(web)
+    .WithMonitoredResource(redis);
 
 builder.Build().Run();

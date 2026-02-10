@@ -188,6 +188,73 @@ public static class MinecraftServerBuilderExtensions
     {
         return Guid.NewGuid().ToString("N")[..16];
     }
+
+    /// <summary>
+    /// Adds an Aspire resource to be monitored and displayed in the Minecraft world.
+    /// The worker will create a cube, hologram entry, and scoreboard line for this resource.
+    /// Works with any resource type — projects, containers, Redis, databases, etc.
+    /// </summary>
+    public static IResourceBuilder<T> WithMonitoredResource<T>(
+        this IResourceBuilder<T> workerBuilder,
+        IResourceBuilder<IResourceWithEndpoints> resource) where T : IResourceWithEnvironment
+    {
+        var name = resource.Resource.Name;
+
+        // Determine resource type from the concrete type
+        var resourceType = resource.Resource switch
+        {
+            ProjectResource => "Project",
+            ContainerResource => "Container",
+            _ => resource.Resource.GetType().Name.Replace("Resource", "")
+        };
+
+        workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+
+        // Try to get an HTTP endpoint URL for health checking.
+        // GetEndpoint() never throws — it creates a dangling reference for missing endpoints.
+        // We must check annotations directly to see if the endpoint actually exists.
+        workerBuilder.WithEnvironment(context =>
+        {
+            if (resource.Resource is IResourceWithEndpoints resourceWithEndpoints)
+            {
+                EndpointReference? endpointRef = null;
+                foreach (var ep in resourceWithEndpoints.GetEndpoints())
+                {
+                    if (string.Equals(ep.EndpointName, "http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        endpointRef = ep;
+                        break;
+                    }
+                    if (string.Equals(ep.EndpointName, "https", StringComparison.OrdinalIgnoreCase))
+                    {
+                        endpointRef = ep;
+                    }
+                }
+
+                if (endpointRef is not null)
+                {
+                    context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL"] =
+                        endpointRef.Property(EndpointProperty.Url);
+                }
+            }
+        });
+
+        return workerBuilder;
+    }
+
+    /// <summary>
+    /// Adds an Aspire resource to be monitored (for resources without endpoints).
+    /// The resource will appear in the Minecraft world but health won't be polled.
+    /// </summary>
+    public static IResourceBuilder<T> WithMonitoredResource<T>(
+        this IResourceBuilder<T> workerBuilder,
+        IResourceBuilder<IResource> resource,
+        string resourceType) where T : IResourceWithEnvironment
+    {
+        var name = resource.Resource.Name;
+        workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+        return workerBuilder;
+    }
 }
 
 /// <summary>
