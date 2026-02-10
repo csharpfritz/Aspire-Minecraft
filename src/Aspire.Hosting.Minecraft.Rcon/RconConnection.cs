@@ -23,6 +23,13 @@ public sealed class RconConnection : IAsyncDisposable
         TimeSpan.FromSeconds(30)
     ];
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RconConnection"/> class.
+    /// </summary>
+    /// <param name="host">The hostname or IP address of the Minecraft RCON server.</param>
+    /// <param name="port">The RCON port number.</param>
+    /// <param name="password">The RCON authentication password.</param>
+    /// <param name="logger">Logger for connection events and diagnostics.</param>
     public RconConnection(string host, int port, string password, ILogger logger)
     {
         _host = host;
@@ -31,11 +38,17 @@ public sealed class RconConnection : IAsyncDisposable
         _logger = logger;
     }
 
+    /// <summary>
+    /// Gets a value indicating whether the connection is established and authenticated.
+    /// </summary>
     public bool IsConnected => _client?.IsConnected == true;
 
     /// <summary>
     /// Sends a command, reconnecting if necessary.
     /// </summary>
+    /// <param name="command">The RCON command to send.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The server's text response to the command.</returns>
     public async Task<string> SendCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         var client = await EnsureConnectedAsync(cancellationToken);
@@ -102,6 +115,9 @@ public sealed class RconConnection : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the RCON connection and releases all resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         await DisposeClientAsync();

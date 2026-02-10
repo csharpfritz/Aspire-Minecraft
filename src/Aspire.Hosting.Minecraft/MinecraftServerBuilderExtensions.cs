@@ -17,6 +17,11 @@ public static class MinecraftServerBuilderExtensions
     /// Adds a Minecraft Paper server to the Aspire application.
     /// Includes a built-in RCON health check so dependents can use WaitFor().
     /// </summary>
+    /// <param name="builder">The Aspire distributed application builder.</param>
+    /// <param name="name">A unique name for this Minecraft server resource.</param>
+    /// <param name="gamePort">Optional external port for Minecraft game connections (default: auto-assigned, target 25565).</param>
+    /// <param name="rconPort">Optional external port for RCON management connections (default: auto-assigned, target 25575).</param>
+    /// <returns>A resource builder for further configuration of the Minecraft server.</returns>
     public static IResourceBuilder<MinecraftServerResource> AddMinecraftServer(
         this IDistributedApplicationBuilder builder,
         string name,
@@ -66,6 +71,9 @@ public static class MinecraftServerBuilderExtensions
     /// <summary>
     /// Adds BlueMap web map plugin, exposing its web UI as an HTTP endpoint in the Aspire dashboard.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="port">Optional external port for the BlueMap web UI (default: auto-assigned, target 8100).</param>
+    /// <returns>The resource builder for chaining.</returns>
     public static IResourceBuilder<MinecraftServerResource> WithBlueMap(
         this IResourceBuilder<MinecraftServerResource> builder,
         int? port = null)
@@ -98,6 +106,8 @@ public static class MinecraftServerBuilderExtensions
     /// Bind-mounts the bundled OTEL Java agent JAR and configures the JVM to use it.
     /// Telemetry (metrics, traces, logs) is exported to the Aspire dashboard's OTLP endpoint.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
     public static IResourceBuilder<MinecraftServerResource> WithOpenTelemetry(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -144,6 +154,8 @@ public static class MinecraftServerBuilderExtensions
     /// <summary>
     /// Adds DecentHolograms plugin for in-world hologram displays.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
     public static IResourceBuilder<MinecraftServerResource> WithDecentHolograms(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -161,6 +173,9 @@ public static class MinecraftServerBuilderExtensions
     /// The worker appears as a child of the Minecraft resource in the Aspire dashboard.
     /// Call WithMonitoredResource() after this to add resources to display.
     /// </summary>
+    /// <typeparam name="TWorkerProject">The worker project type that implements the in-world display logic.</typeparam>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
     public static IResourceBuilder<MinecraftServerResource> WithAspireWorldDisplay<TWorkerProject>(
         this IResourceBuilder<MinecraftServerResource> builder)
         where TWorkerProject : IProjectMetadata, new()
@@ -206,6 +221,10 @@ public static class MinecraftServerBuilderExtensions
     /// Works with any resource type — projects, containers, Redis, databases, etc.
     /// Must be called after WithAspireWorldDisplay().
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="resource">The Aspire resource with endpoints to monitor.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
         IResourceBuilder<IResourceWithEndpoints> resource)
@@ -274,6 +293,11 @@ public static class MinecraftServerBuilderExtensions
     /// The resource will appear in the Minecraft world but health won't be polled via HTTP.
     /// Must be called after WithAspireWorldDisplay().
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="resource">The Aspire resource to monitor.</param>
+    /// <param name="resourceType">A display label for the type of resource (e.g., "Database", "Cache").</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
         IResourceBuilder<IResource> resource,
@@ -292,6 +316,9 @@ public static class MinecraftServerBuilderExtensions
     /// Crash: large_smoke + flame, Recovery: happy_villager particles appear at the resource's structure.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithParticleEffects(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -308,6 +335,9 @@ public static class MinecraftServerBuilderExtensions
     /// Red "⚠ SERVICE DOWN" on failure, green "✅ BACK ONLINE" on recovery.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithTitleAlerts(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -325,6 +355,9 @@ public static class MinecraftServerBuilderExtensions
     /// Only changes weather on state transitions, not every poll cycle.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithWeatherEffects(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -343,6 +376,10 @@ public static class MinecraftServerBuilderExtensions
     /// The boss bar title includes the Aspire application name if configured.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="appName">Optional application name displayed in the boss bar title.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithBossBar(
         this IResourceBuilder<MinecraftServerResource> builder,
         string? appName = null)
@@ -362,6 +399,9 @@ public static class MinecraftServerBuilderExtensions
     /// Down: entity.wither.ambient, Up: entity.player.levelup, All green: ui.toast.challenge_complete.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithSoundEffects(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -378,6 +418,9 @@ public static class MinecraftServerBuilderExtensions
     /// Metrics rotate every poll cycle on the player's HUD above the hotbar.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithActionBarTicker(
         this IResourceBuilder<MinecraftServerResource> builder)
     {
@@ -394,6 +437,9 @@ public static class MinecraftServerBuilderExtensions
     /// and stained glass on top. Green glass = healthy, red glass = unhealthy.
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithBeaconTowers(
         this IResourceBuilder<MinecraftServerResource> builder)
     {

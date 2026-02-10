@@ -11,6 +11,10 @@ public class MinecraftServerResource : ContainerResource, IResourceWithConnectio
     internal const string RconEndpointName = "rcon";
     internal const string BlueMapEndpointName = "bluemap";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MinecraftServerResource"/> class.
+    /// </summary>
+    /// <param name="name">The name of the Minecraft server resource.</param>
     public MinecraftServerResource(string name) : base(name)
     {
     }

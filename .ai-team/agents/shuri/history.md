@@ -94,3 +94,18 @@
 - **Updated documentation:** Blog post install commands, demo script, CONTRIBUTING.md nupkg filename reference, social media copy — all now reference `Fritz.Aspire.Hosting.Minecraft`.
 - **CI/CD unaffected:** Both `build.yml` and `release.yml` use `nupkgs/*.nupkg` globs — no hardcoded package name.
 - **Verified:** `dotnet restore` ✅, `dotnet build -c Release` ✅ (0 errors), `dotnet pack -c Release -o nupkgs` ✅ (produces `Fritz.Aspire.Hosting.Minecraft.0.1.0.nupkg`), `dotnet test` ✅ (207 tests pass).
+
+### Sprint 2: XML Documentation & RCON Throttle (Issue #16)
+
+- **Added XML doc comments to all public types and methods** across both `Aspire.Hosting.Minecraft` and `Aspire.Hosting.Minecraft.Rcon` projects. Every public method now has `<summary>`, `<param>`, `<returns>`, and `<exception>` tags where applicable.
+- **`GenerateDocumentationFile` already enabled** in `Directory.Build.props` from Sprint 1. No csproj changes needed.
+- **Covered types:** `MinecraftServerResource` (constructor, properties), `MinecraftServerBuilderExtensions` (all 15 public methods including Rocket's Sprint 2 additions: `WithActionBarTicker`, `WithBeaconTowers`, `WithBossBar` with `appName`), `RconClient` (all public members), `RconConnection` (constructor, `IsConnected`, `SendCommandAsync`, `DisposeAsync`), `RconResponseParser` (all 5 methods), `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult` (all with param docs).
+- **RCON throttle mechanism added to Worker `RconService`:** New optional `minCommandInterval` parameter (defaults to `TimeSpan.Zero` — disabled). When configured, identical RCON commands sent within the interval are deduplicated. Production Worker configures 250ms throttle. Tests use default (no throttle) to avoid timing sensitivity.
+- **Design rationale for throttle:** Per-command-string deduplication catches the main flooding scenario (rapid health oscillations sending identical `weather`, `bossbar`, or `particle` commands). Default-off ensures backward compatibility and test stability. The Worker's `Program.cs` opts in with 250ms.
+- **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 nullable warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
+
+### Sprint 2: Configuration Builder Pattern Review (Issue #21)
+
+- **Determined existing pattern is sufficient.** The current `With*()` fluent extension method pattern already provides the configuration builder experience: `AddMinecraftServer().WithBossBar().WithWeatherEffects().WithParticleEffects()`.
+- **No formal builder options class needed.** A `AddMinecraftServer(opts => opts.EnableBossBars().EnableWeather())` pattern would duplicate functionality without adding value. The per-method approach is idiomatic Aspire, independently opt-in, and backward-compatible by design.
+- **Recommendation:** Close Issue #21 as already-addressed by Sprint 1's `With*()` extension method architecture.

@@ -21,11 +21,17 @@ public sealed class RconClient : IAsyncDisposable
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private bool _authenticated;
 
+    /// <summary>
+    /// Gets a value indicating whether the client is connected and authenticated.
+    /// </summary>
     public bool IsConnected => _tcp?.Connected == true && _authenticated;
 
     /// <summary>
     /// Connects to a Minecraft RCON server.
     /// </summary>
+    /// <param name="host">The hostname or IP address of the RCON server.</param>
+    /// <param name="port">The RCON port number (typically 25575).</param>
+    /// <param name="cancellationToken">A token to cancel the connection attempt.</param>
     public async Task ConnectAsync(string host, int port, CancellationToken cancellationToken = default)
     {
         _tcp = new TcpClient();
@@ -36,6 +42,9 @@ public sealed class RconClient : IAsyncDisposable
     /// <summary>
     /// Authenticates with the RCON server using the given password.
     /// </summary>
+    /// <param name="password">The RCON password configured on the Minecraft server.</param>
+    /// <param name="cancellationToken">A token to cancel the authentication attempt.</param>
+    /// <returns><c>true</c> if authentication succeeded; <c>false</c> otherwise.</returns>
     public async Task<bool> AuthenticateAsync(string password, CancellationToken cancellationToken = default)
     {
         if (_stream is null) throw new InvalidOperationException("Not connected.");
@@ -51,6 +60,10 @@ public sealed class RconClient : IAsyncDisposable
     /// <summary>
     /// Sends a command to the Minecraft server and returns the response.
     /// </summary>
+    /// <param name="command">The RCON command to send (e.g., "list", "tps", "weather clear").</param>
+    /// <param name="cancellationToken">A token to cancel the command.</param>
+    /// <returns>The server's text response to the command.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when not connected or not authenticated.</exception>
     public async Task<string> SendCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         if (_stream is null || !_authenticated)
@@ -116,6 +129,9 @@ public sealed class RconClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the RCON client, closing the TCP connection.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         _authenticated = false;
