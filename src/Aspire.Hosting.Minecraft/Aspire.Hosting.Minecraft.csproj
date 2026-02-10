@@ -2,19 +2,51 @@
 
   <PropertyGroup>
     <RootNamespace>Aspire.Hosting.Minecraft</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackageId>Aspire.Hosting.Minecraft</PackageId>
+    <Version>0.1.0</Version>
+    <Description>A .NET Aspire hosting integration for Minecraft servers — adds a Paper server container with RCON health checks, BlueMap web maps, OpenTelemetry instrumentation, and in-world visualization of Aspire resource health.</Description>
+    <PackageTags>aspire;minecraft;dotnet;hosting;otel;opentelemetry;rcon;bluemap</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="*" />
+    <PackageReference Include="Aspire.Hosting" Version="13.1.0" />
+    <!-- Rcon's transitive dependency — required since Rcon is embedded, not a separate package -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" />
+    <!-- Embed Rcon assembly into this package (single-package consolidation).
+         PrivateAssets="All" prevents Rcon from appearing as a nuspec dependency. -->
+    <ProjectReference Include="..\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- Include the Rcon DLL and XML docs in the package lib folder -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeRconInPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="IncludeRconInPackage">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(OutputPath)Aspire.Hosting.Minecraft.Rcon.dll" />
+      <BuildOutputInPackage Include="$(OutputPath)Aspire.Hosting.Minecraft.Rcon.xml" Condition="Exists('$(OutputPath)Aspire.Hosting.Minecraft.Rcon.xml')" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aspire.Hosting.Minecraft.Tests" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="bluemap\core.conf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- TODO: Sprint 2 — download opentelemetry-javaagent.jar at container startup instead of
+         embedding it. The 23 MB jar inflates this package to ~41 MB. See WithOpenTelemetry()
+         in MinecraftServerBuilderExtensions.cs. -->
     <Content Include="otel\opentelemetry-javaagent.jar" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

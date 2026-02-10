@@ -128,9 +128,9 @@ builder.AddMinecraftServer("minecraft",
 
 ```
 src/
-  Aspire.Hosting.Minecraft/        # Hosting library (NuGet package)
-  Aspire.Hosting.Minecraft.Worker/ # Worker service for in-world display
-  Aspire.Hosting.Minecraft.Rcon/   # RCON protocol client library
+  Aspire.Hosting.Minecraft/        # Hosting library (NuGet package — includes RCON client)
+  Aspire.Hosting.Minecraft.Rcon/   # RCON protocol client library (embedded in hosting package)
+  Aspire.Hosting.Minecraft.Worker/ # Worker service for in-world display (separate project, not packaged)
 samples/
   MinecraftAspireDemo/             # Demo application
 ```

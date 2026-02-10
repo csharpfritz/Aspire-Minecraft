@@ -1,0 +1,48 @@
+name: Build & Pack
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Aspire-Minecraft.slnx
+
+      - name: Build
+        run: dotnet build Aspire-Minecraft.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal
+
+      - name: Pack
+        run: dotnet pack Aspire-Minecraft.slnx -c Release --no-build -o nupkgs
+
+      - name: Upload NuGet packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: nupkgs/*.nupkg
+          if-no-files-found: error

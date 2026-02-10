@@ -32,3 +32,6 @@
 
 📌 Team update (2026-02-10): NuGet hardening completed — source projects now have pinned deps and SourceLink — decided by Shuri
 📌 Team update (2026-02-10): CI/CD pipeline created — tests will run in ubuntu+windows matrix via build.yml — decided by Wong
+
+📌 FluentAssertions removed — replaced with xUnit built-in Assert (2026-02-10). Zero new dependencies added. Chose xUnit Assert over Shouldly/TUnit because all 62 tests used straightforward assertion patterns (equality, boolean, null, empty, contains, throws) that map 1:1 to Assert.*. No licensing concerns.
+📌 Migration patterns: `.Should().Be(x)` → `Assert.Equal(x, actual)`, `.Should().BeTrue/BeFalse()` → `Assert.True/False()`, `.Should().BeNull()` → `Assert.Null()`, `.Should().BeEmpty()` → `Assert.Empty()`, `.Should().Contain(x)` → `Assert.Contains(x, actual)`, `.Should().BeEquivalentTo([...])` → `Assert.Equivalent(expected, actual)`, `.Should().HaveCount(n)` → `Assert.Equal(n, actual.Length)`, `.Should().ThrowAsync<T>()` → `await Assert.ThrowsAsync<T>(...)`, `.Should().BePositive()` → `Assert.True(x > 0)`, `.Should().BeGreaterThan(x)` → `Assert.True(a > x)`.

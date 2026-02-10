@@ -57,3 +57,12 @@
 
 📌 Team update (2026-02-10): CI/CD pipeline created — build.yml + release.yml now build/test/publish your packages — decided by Wong
 📌 Team update (2026-02-10): Test infrastructure created — InternalsVisibleTo added to both source projects, 62 tests passing — decided by Nebula
+
+### Single Package Consolidation (2026-02-10)
+
+- **Consolidated three NuGet packages into one:** Only `Aspire.Hosting.Minecraft` is now packable. Rcon and Worker projects set to `IsPackable=false`.
+- **Rcon embedding approach:** Used `PrivateAssets="All"` on the ProjectReference to prevent Rcon from appearing as a nuspec dependency, combined with `TargetsForTfmSpecificBuildOutput` and `BuildOutputInPackage` MSBuild items to physically include `Aspire.Hosting.Minecraft.Rcon.dll` and its XML docs in the package's `lib/` folder.
+- **Rcon transitive dependency:** Added `Microsoft.Extensions.Logging.Abstractions` as a direct `PackageReference` in the Hosting project since Rcon's dependency is no longer surfaced via a separate package.
+- **Worker kept separate:** Worker uses `Microsoft.NET.Sdk.Worker` and runs as a standalone process — cannot be a DLL inside the hosting package. Consumers reference it as a `ProjectReference` via the `WithAspireWorldDisplay<TWorkerProject>()` generic type parameter.
+- **Test projects unchanged:** Both test projects still reference their source projects directly. All 62 tests (45 Rcon + 17 Hosting) pass.
+- **Pack output:** Single `Aspire.Hosting.Minecraft.0.1.0.nupkg` (39.6 MB). Contains both DLLs, XML docs, content files (bluemap, otel jar), and README.

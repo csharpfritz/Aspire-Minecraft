@@ -1,15 +1,18 @@
 ---
 name: "nuget-packaging"
-description: "NuGet packaging patterns for Aspire.Hosting.Minecraft packages"
+description: "NuGet packaging patterns for the Aspire.Hosting.Minecraft package"
 domain: "dotnet-nuget"
 confidence: "high"
 source: "manual"
 ---
 
 ## Context
-These patterns apply to all three NuGet packages in this repo: Aspire.Hosting.Minecraft, Aspire.Hosting.Minecraft.Rcon, and Aspire.Hosting.Minecraft.Worker. They ensure packages are NuGet.org-ready with reproducible builds.
+These patterns apply to the single NuGet package produced by this repo: `Aspire.Hosting.Minecraft`. The RCON library (`Aspire.Hosting.Minecraft.Rcon`) is embedded into this package. The Worker project is not packaged — it runs as a standalone service. They ensure packages are NuGet.org-ready with reproducible builds.
 
 ## Patterns
+
+### Single Package Architecture
+Only `Aspire.Hosting.Minecraft` is packable (`IsPackable=true`). The Rcon project is embedded via `PrivateAssets="All"` on the ProjectReference plus `TargetsForTfmSpecificBuildOutput` to include the DLL in the lib folder. The Worker project is `IsPackable=false` — it's a standalone service consumers reference directly.
 
 ### Never Use Floating Versions
 All `PackageReference` entries must have exact pinned versions (e.g., `Version="13.1.0"`). Never use `Version="*"` or version ranges. NuGet.org rejects packages with floating version references and they break reproducible builds.
@@ -26,12 +29,12 @@ Every packable project inherits these from `Directory.Build.props`:
 - `EmbedUntrackedSources` — ensures all source files are available in SourceLink
 - `Microsoft.SourceLink.GitHub` — enables debugger source mapping to GitHub
 
-### Per-Package READMEs
-Each packable project has its own `README.md` in the project directory, included in the nupkg via:
+### Package README
+The single packable project (`Aspire.Hosting.Minecraft`) has its own `README.md` in the project directory, included in the nupkg via:
 ```xml
 <None Include="README.md" Pack="true" PackagePath="\" />
 ```
-The `PackageReadmeFile` property in `Directory.Build.props` is set to `README.md`. Do NOT use the repo-root README for packages.
+The `PackageReadmeFile` property in `Directory.Build.props` is set to `README.md`. Non-packable projects do not pack READMEs.
 
 ### Pack and Verify Workflow
 ```bash
@@ -43,6 +46,7 @@ Check for: zero warnings on src projects, correct package sizes, no floating ver
 
 ## Anti-Patterns
 - **Floating `Version="*"`** — will be rejected by NuGet.org and breaks reproducibility
-- **Shared repo-root README for all packages** — each package needs its own focused README for NuGet.org
+- **Multiple packages for a single integration** — consolidate into one package for simpler consumer experience
 - **Missing `EnablePackageValidation`** — won't catch breaking API changes between releases
 - **Missing SourceLink** — consumers can't step into source during debugging
+- **Embedding Worker in the hosting package** — Worker uses `Microsoft.NET.Sdk.Worker` and runs as a separate process; it can't be a DLL inside the hosting package

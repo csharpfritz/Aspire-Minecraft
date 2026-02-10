@@ -41,7 +41,7 @@ public class MinecraftHealthCheck(Func<string?> connectionStringSupplier) : IHea
         }
     }
 
-    private static (string Host, int Port, string Password) ParseConnectionString(string cs)
+    internal static (string Host, int Port, string Password) ParseConnectionString(string cs)
     {
         var host = "localhost";
         var port = 25575;
