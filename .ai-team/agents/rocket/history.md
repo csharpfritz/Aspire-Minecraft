@@ -212,3 +212,31 @@
 **Opt-in pattern:** `ASPIRE_FEATURE_ACHIEVEMENTS` env var, `WithAchievements()` extension method, conditional registration in Program.cs, nullable injection in MinecraftWorldWorker constructor. Fully consistent with Sprint 1/2 patterns.
 
 **Key decision:** No Minecraft datapacks — title + subtitle + sound gives equivalent player feedback without needing to mount custom advancement JSON into the container's data directory.
+
+### Redstone Dependency Graph — visualize resource connections (Issue #36)
+
+**What:** Created `RedstoneDependencyService` (BackgroundService) that draws redstone wire circuits between dependent resource structures in the Minecraft world. Uses the `Dependencies` property on `ResourceInfo` (populated from `ASPIRE_RESOURCE_{NAME}_DEPENDS_ON` env vars) to build visual connections.
+
+**How it works:**
+- On startup (after structures are built, with 15s delay), calculates L-shaped wire paths between dependent structures
+- For each dependency edge: lays `minecraft:redstone_wire` along the ground, places `minecraft:repeater` every 15 blocks, and `minecraft:redstone_lamp` at structure entrances
+- Powers circuit with `minecraft:redstone_block` next to parent lamp
+- Wire routing: L-shaped paths (X-axis first, then Z-axis) to avoid complex pathfinding
+- Uses `VillageLayout.ReorderByDependency()` and `GetStructureOrigin()` for consistent positioning
+
+**Health-reactive wiring:**
+- Monitors resource health changes every 5 seconds
+- When a resource goes unhealthy: removes redstone block (kills power) and breaks wire at every 5th position (visual disconnect)
+- When it recovers: restores wire positions and redstone block (circuit lights up again)
+- Tracks `_connectionState` per edge and `_lastKnownStatus` per resource to avoid redundant RCON commands
+
+**Architecture:**
+- Second `BackgroundService` feature (after `HeartbeatService`). Registered with `AddHostedService<RedstoneDependencyService>()`.
+- Feature gate: `ASPIRE_FEATURE_REDSTONE_GRAPH` env var, set by `WithRedstoneDependencyGraph()` extension method.
+- Uses `CommandPriority.Low` for wire placement (bulk building commands) and `CommandPriority.Normal` for health-reactive toggles.
+
+**Key learnings:**
+- Redstone wire auto-connects to adjacent wire and repeaters — no need to specify connection state in block data.
+- Repeater `facing` property must point toward the signal destination for correct signal propagation.
+- L-shaped routing (X then Z) is simple and avoids structure collisions since structures are on a grid.
+- Breaking wire at intervals (every 5th block) rather than removing all wire is more visually dramatic and uses fewer RCON commands.

@@ -631,6 +631,28 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables redstone dependency graph visualization — draws redstone wire circuits between
+    /// dependent resource structures in the Minecraft world. Wire paths show the resource DAG,
+    /// with repeaters every 15 blocks and redstone lamps at structure entrances. When a resource
+    /// goes unhealthy, its outgoing redstone connections break (lamps go dark). On recovery,
+    /// circuits are restored. Runs on its own timing loop as a BackgroundService.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithRedstoneDependencyGraph(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithRedstoneDependencyGraph() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_REDSTONE_GRAPH", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Sets an arbitrary Minecraft <c>server.properties</c> value via the itzg/minecraft-server
     /// environment variable convention. The property name is converted to UPPER_SNAKE_CASE
     /// (e.g., <c>max-players</c> becomes <c>MAX_PLAYERS</c>).
