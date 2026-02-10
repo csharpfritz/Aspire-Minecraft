@@ -118,3 +118,15 @@
 - **Design decision:** These methods set env vars on the container resource directly (not on the worker builder). This is correct because `server.properties` is a Minecraft server concern, not a worker concern. Later env var calls override earlier ones, so user calls to `WithWorldSeed("custom")` correctly override the default `SEED=aspire2026` set in `AddMinecraftServer()`.
 - **Updated demo AppHost** to show `.WithMaxPlayers(10).WithMotd("Aspire Fleet Monitor")` chained right after `AddMinecraftServer()`.
 - **Verified:** `dotnet build -c Release` ✅ (0 errors), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
+
+### ServerProperty Enum & File-Based Properties Loading
+
+- **Created `ServerProperty` enum** (`ServerProperty.cs`) with 24 PascalCase members covering all commonly configured Minecraft `server.properties` keys: `MaxPlayers`, `Motd`, `Difficulty`, `GameMode`, `Pvp`, `Hardcore`, `ViewDistance`, `SimulationDistance`, `MaxWorldSize`, `SpawnProtection`, `SpawnAnimals`, `SpawnMonsters`, `SpawnNpcs`, `AllowFlight`, `AllowNether`, `ForceGamemode`, `LevelType`, `LevelName`, `Seed`, `WhiteList`, `OnlineMode`, `EnableCommandBlock`, `ServerPort`, `MaxBuildHeight`, `GenerateStructures`. Each member has XML doc comments describing valid values.
+- **Created `MinecraftGameMode` enum** (`MinecraftGameMode.cs`) with `Survival`, `Creative`, `Adventure`, `Spectator` members.
+- **Created `MinecraftDifficulty` enum** (`MinecraftDifficulty.cs`) with `Peaceful`, `Easy`, `Normal`, `Hard` members.
+- **Added `WithServerProperty(ServerProperty, string)` overload** — accepts the enum and converts PascalCase to UPPER_SNAKE_CASE internally via `ConvertEnumToEnvVar()` helper.
+- **Added `WithGameMode(MinecraftGameMode)` overload** — converts enum to lowercase string (e.g., `MinecraftGameMode.Creative` → `"creative"`).
+- **Added `WithDifficulty(MinecraftDifficulty)` overload** — converts enum to lowercase string (e.g., `MinecraftDifficulty.Hard` → `"hard"`).
+- **Added `WithServerPropertiesFile(string)` method** — reads a standard Minecraft `server.properties` file at build/configuration time, parses key=value lines (skipping comments/blanks, splitting on first `=` only), and calls `WithServerProperty()` for each entry. Relative paths resolve from AppHost project directory. Throws `FileNotFoundException` if the file doesn't exist.
+- **PascalCase→UPPER_SNAKE_CASE conversion** (`ConvertEnumToEnvVar`): Inserts `_` before each uppercase letter (except the first), then uppercases everything. E.g., `MaxPlayers` → `MAX_PLAYERS`, `SpawnNpcs` → `SPAWN_NPCS`.
+- **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
