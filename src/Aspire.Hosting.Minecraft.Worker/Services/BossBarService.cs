@@ -26,7 +26,7 @@ internal sealed class BossBarService(
         if (!_created)
         {
             await rcon.SendCommandAsync(
-                $$"""bossbar add {{BossBarId}} {"text":"Aspire Fleet Health","color":"green","bold":true}""", ct);
+                $"""bossbar add {BossBarId} "Aspire Fleet Health" """, ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} max 100", ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} players @a", ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} visible true", ct);
@@ -45,7 +45,7 @@ internal sealed class BossBarService(
         {
             await rcon.SendCommandAsync($"bossbar set {BossBarId} value {value}", ct);
             await rcon.SendCommandAsync(
-                $$"""bossbar set {{BossBarId}} name {"text":"Aspire Fleet Health: {{value}}%","bold":true}""", ct);
+                $"""bossbar set {BossBarId} name "Aspire Fleet Health: {value}%" """, ct);
             _lastValue = value;
         }
 
