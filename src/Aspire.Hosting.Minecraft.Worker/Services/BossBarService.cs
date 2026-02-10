@@ -14,6 +14,7 @@ internal sealed class BossBarService(
     private const string BossBarId = "aspire:fleet_health";
     private bool _created;
     private int _lastValue = -1;
+    private bool _nameSet;
     private string _lastColor = "";
 
     /// <summary>
@@ -43,12 +44,13 @@ internal sealed class BossBarService(
             _ => "red"
         };
 
-        if (value != _lastValue)
+        if (value != _lastValue || !_nameSet)
         {
             await rcon.SendCommandAsync($"bossbar set {BossBarId} value {value}", ct);
             await rcon.SendCommandAsync(
-                $"""bossbar set {BossBarId} name "Aspire Fleet Health: {value}%" """, ct);
+                $"bossbar set {BossBarId} name \"Aspire Fleet Health: {value} percent\"", ct);
             _lastValue = value;
+            _nameSet = true;
         }
 
         if (color != _lastColor)
