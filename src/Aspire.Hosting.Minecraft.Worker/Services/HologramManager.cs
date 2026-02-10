@@ -82,6 +82,13 @@ public sealed class HologramManager(
             await rcon.SendCommandAsync($"dh line add {DashboardHologramId} 1 &7...", ct);
         }
 
+        // Remove excess lines (shrink if resources were removed)
+        while (_lastLineCount > lines.Count)
+        {
+            await rcon.SendCommandAsync($"dh line remove {DashboardHologramId} 1 {_lastLineCount}", ct);
+            _lastLineCount--;
+        }
+
         // Update all lines
         for (var i = 0; i < lines.Count; i++)
         {

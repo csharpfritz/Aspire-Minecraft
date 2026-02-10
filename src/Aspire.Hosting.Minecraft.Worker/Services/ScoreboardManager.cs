@@ -49,13 +49,21 @@ public sealed class ScoreboardManager(
         await rcon.SendCommandAsync($"scoreboard objectives setdisplay sidebar {ObjectiveName}", ct);
     }
 
+    private readonly HashSet<string> _previousEntries = [];
+
     private async Task UpdateScoresAsync(CancellationToken ct)
     {
+        var currentEntries = new HashSet<string>();
         var score = monitor.TotalCount + 2;
 
         // Total resources
-        await SetScore($"§fResources: §a{monitor.TotalCount}", score--, ct);
-        await SetScore($"§fHealthy: §a{monitor.HealthyCount}", score--, ct);
+        var resLine = $"§fResources: §a{monitor.TotalCount}";
+        await SetScore(resLine, score--, ct);
+        currentEntries.Add(resLine);
+
+        var healthLine = $"§fHealthy: §a{monitor.HealthyCount}";
+        await SetScore(healthLine, score--, ct);
+        currentEntries.Add(healthLine);
 
         // Individual resource statuses
         foreach (var (_, info) in monitor.Resources)
@@ -66,15 +74,26 @@ public sealed class ScoreboardManager(
                 ResourceStatus.Unhealthy => "§c✘",
                 _ => "§e⏳"
             };
-            await SetScore($"{statusIcon} {info.Name}", score--, ct);
+            var line = $"{statusIcon} {info.Name}";
+            await SetScore(line, score--, ct);
+            currentEntries.Add(line);
         }
+
+        // Remove stale entries from previous cycle
+        foreach (var stale in _previousEntries.Except(currentEntries))
+        {
+            await rcon.SendCommandAsync(
+                $"""scoreboard players reset "{stale}" {ObjectiveName}""", ct);
+        }
+
+        _previousEntries.Clear();
+        _previousEntries.UnionWith(currentEntries);
 
         logger.LogDebug("Scoreboard updated with {Count} resources", monitor.TotalCount);
     }
 
     private async Task SetScore(string name, int value, CancellationToken ct)
     {
-        // Use fake player names for scoreboard entries
         await rcon.SendCommandAsync(
             $"""scoreboard players set "{name}" {ObjectiveName} {value}""", ct);
     }
