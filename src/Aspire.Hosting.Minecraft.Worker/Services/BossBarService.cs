@@ -28,10 +28,12 @@ internal sealed class BossBarService(
             await rcon.SendCommandAsync(
                 $"""bossbar add {BossBarId} "Aspire Fleet Health" """, ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} max 100", ct);
-            await rcon.SendCommandAsync($"bossbar set {BossBarId} players @a", ct);
             await rcon.SendCommandAsync($"bossbar set {BossBarId} visible true", ct);
             _created = true;
         }
+
+        // Re-send players @a every cycle so newly joined players see the boss bar
+        await rcon.SendCommandAsync($"bossbar set {BossBarId} players @a", ct);
 
         var value = (int)((double)monitor.HealthyCount / monitor.TotalCount * 100);
         var color = value switch
