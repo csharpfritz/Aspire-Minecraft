@@ -61,3 +61,12 @@
 📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette (blue/purple/cyan/red/yellow) — decided by Rocket
 📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added for server.properties configuration — decided by Shuri
 📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle was dropping duplicate commands) — decided by Rocket
+
+### 2026-02-10: Azure Resource Group Integration — Architecture Trade-offs
+
+- **Separate NuGet package is the right call for Azure.** Putting `Azure.ResourceManager.*` deps into the main package penalizes every consumer, even those who never touch Azure. `Fritz.Aspire.Hosting.Minecraft.Azure` keeps the dependency graph clean and follows .NET ecosystem conventions.
+- **The critical architectural insight is that Azure is a new discovery source, not a new rendering pipeline.** `AzureResourceMonitor` should emit the same `ResourceInfo`/`ResourceStatusChange` records that the existing worker services already consume. All 10+ in-world services (beacons, particles, boss bar, guardian mobs, etc.) work unchanged.
+- **Polling beats Event Grid for v1.** Event Grid requires Azure infrastructure setup (topics, subscriptions, ingress) that destroys the "clone and run" developer experience. Polling at 30s intervals stays well within ARM API rate limits (~6,000 calls/hr vs ~12,000/hr cap).
+- **Scale is the biggest unknown.** A production Azure RG can have 200+ resources. The current 2-column village layout at 10-block spacing would stretch 1,000+ blocks — well beyond beacon render distance (256 blocks) and the configured `MAX_WORLD_SIZE` (256). A `MaxResources` cap and default resource type exclusion list are mandatory for v1.
+- **RCON throughput is a hidden constraint for Azure.** 50 resources × ~15 fill commands × 250ms throttle = ~3 minutes for initial world build. The Aspire path typically has 3–8 resources, so this never surfaced. May need batch mode or throttle bypass for initial construction.
+- **`DefaultAzureCredential` is the right default but first-run DX will be rough.** The credential chain's error messages are notoriously confusing for devs who haven't done `az login`. A connectivity pre-check in the worker before building structures would save support headaches.

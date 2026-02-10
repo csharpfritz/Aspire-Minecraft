@@ -92,3 +92,15 @@
 - **Updated README** with a "World Persistence" subsection in the Configuration section.
 - **No test changes needed** — no existing tests referenced the volume mount. 248 tests pass.
 - **Key insight:** The itzg/minecraft-server container stores everything in `/data`. Without a named volume, Docker uses an anonymous volume that's cleaned up with the container. Aspire removes containers on shutdown, so the world is truly ephemeral.
+
+### Azure SDK Research for Resource Group → Minecraft Visualization
+
+- **Core packages identified:** `Azure.ResourceManager` v1.13.2 (ARM client), `Azure.Identity` v1.17.1 (authentication), `Azure.ResourceManager.ResourceHealth` v1.0.0 (health status), `Azure.Monitor.Query.Metrics` v1.0.0 (metrics). All target .NET Standard 2.0+.
+- **`Azure.Monitor.Query` is deprecated** (Oct 2025) — replaced by `Azure.Monitor.Query.Metrics` and `Azure.Monitor.Query.Logs`. Do NOT use the old package.
+- **Resource enumeration:** Use `SubscriptionResource.GetGenericResourcesAsync()` with OData filter to scope by resource group. Returns name, type, location, provisioning state, tags. Pagination is automatic via `AsyncPageable<T>`.
+- **Azure health states:** Available, Degraded, Unavailable, Unknown — maps to our existing `ResourceStatus` enum but needs a `Degraded` value added.
+- **ARM rate limits:** Token bucket model — 250 reads bucket / 25 per sec refill per subscription per region. Polling 10–50 resources every 30–60s is well within limits.
+- **DefaultAzureCredential chain (.NET):** EnvironmentCredential → WorkloadIdentityCredential → ManagedIdentityCredential → SharedTokenCacheCredential → VisualStudioCredential → VisualStudioCodeCredential → AzureCliCredential → AzurePowerShellCredential → AzureDeveloperCliCredential. Simplest local dev path: `az login`.
+- **Recommendation:** Polling for v1 (matches existing `AspireResourceMonitor` pattern, no extra Azure infrastructure needed). Event Grid for v2 if sub-second latency needed.
+- **Package separation:** Azure monitoring should be a separate NuGet package (`Fritz.Aspire.Hosting.Minecraft.Azure`) — ~5 MB of Azure SDK deps shouldn't be forced on all users.
+- **Research doc created:** `docs/epics/azure-sdk-research.md`

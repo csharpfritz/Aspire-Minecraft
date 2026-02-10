@@ -130,3 +130,18 @@
 - The 2×N grid layout scales better than linear — 10 resources only need 5 rows instead of spreading 60+ blocks in one direction.
 - `VillageLayout` as a shared static class prevents coordinate drift between services. All services that place things per-resource-index should use it.
 - Stairs with `facing` and `half` NBT properties create convincing peaked roofs with minimal commands.
+
+### Azure Resource Visualization Design (2026-02-10)
+
+**What:** Created comprehensive design document (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource types to Minecraft structures for in-world visualization of live Azure Resource Groups.
+
+**Key design decisions:**
+- **Two-universe separation:** Aspire village = warm medieval workshop (wood, stone, torches). Azure citadel = cool prismarine/quartz/end stone civilization. Instant visual distinction between local dev and cloud infrastructure.
+- **Azure block palette:** Primary: `prismarine_bricks`, `dark_prismarine`, `quartz_block`, `end_stone_bricks`. Accent: `sea_lantern`, `end_rod`, `amethyst`, `crying_obsidian`. Chosen to evoke "built by a higher power" — ocean monument and End dimension blocks.
+- **Structure-to-resource metaphors:** App Service=Cathedral (workhorse, central), Key Vault=Obsidian Stronghold (impenetrable, compact), AKS=Honeycomb Tower (pod cells), Redis=Redstone Engine (fast signal), Function App=Lightning Spire (event-driven, ephemeral).
+- **3-column tiered layout:** Resources grouped by functional tier (Gateway → Compute → Data → Infra → Monitoring) instead of alphabetical. Mirrors how Azure architects think. 14-block spacing for larger structures.
+- **District separation:** Azure citadel at X=60 (20-block gap from Aspire village at X=10–40). Connected by prismarine boulevard with end rod lampposts.
+- **Azure health states are richer than Aspire:** Stopped=dark+cobwebs, Deallocated=soul sand perimeter, Failed=netherrack+fire on roof. Provisioning states: Creating=live build animation, Deleting=reverse deconstruction.
+- **Scale handling:** 1–15 resources = 3×5 grid. 16–30 = 3×10. 50+ = multiple Z-offset planes. Progress boss bar during initial build.
+- **RCON budget:** 15–35 commands per Azure structure (comparable to Aspire's 15–25). 15 resources ≈ 94s build time. 50 resources ≈ 5.2 min (needs progress indicator).
+- **Beacon color palette for Azure:** Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta. Unhealthy=red, Starting=yellow (consistent with Aspire).
