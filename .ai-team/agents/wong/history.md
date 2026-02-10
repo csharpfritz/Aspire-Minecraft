@@ -42,3 +42,5 @@
 📌 Team update (2026-02-10): All sprint work tracked as GitHub issues with team member and sprint labels — decided by Jeffrey T. Fritz
 
 📌 Team update (2026-02-10): Single NuGet package consolidation — only Aspire.Hosting.Minecraft is packable, CI/CD should build/pack accordingly — decided by Jeffrey T. Fritz, Shuri
+
+📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri

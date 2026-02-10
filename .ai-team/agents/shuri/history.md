@@ -86,3 +86,11 @@
 - **Pack output:** Single `Aspire.Hosting.Minecraft.0.1.0.nupkg` (39.6 MB). Contains both DLLs, XML docs, content files (bluemap, otel jar), and README.
 
 📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula
+
+### NuGet PackageId Rename (2026-02-10)
+
+- **Renamed PackageId** from `Aspire.Hosting.Minecraft` to `Fritz.Aspire.Hosting.Minecraft` in `src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj`. The `Aspire.Hosting` prefix is reserved by Microsoft on NuGet.org and would cause publish rejection.
+- **No namespace/assembly/folder changes** — C# namespaces remain `Aspire.Hosting.Minecraft`, project folders and assembly names unchanged. Only the NuGet package identity changed.
+- **Updated documentation:** Blog post install commands, demo script, CONTRIBUTING.md nupkg filename reference, social media copy — all now reference `Fritz.Aspire.Hosting.Minecraft`.
+- **CI/CD unaffected:** Both `build.yml` and `release.yml` use `nupkgs/*.nupkg` globs — no hardcoded package name.
+- **Verified:** `dotnet restore` ✅, `dotnet build -c Release` ✅ (0 errors), `dotnet pack -c Release -o nupkgs` ✅ (produces `Fritz.Aspire.Hosting.Minecraft.0.1.0.nupkg`), `dotnet test` ✅ (207 tests pass).

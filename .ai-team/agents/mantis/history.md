@@ -23,3 +23,5 @@
 📌 Blog outline (2026-02-10): Created v0.1.0 release blog outline, media plan (18 assets), and demo script (10-min format) in docs/blog/. Blog structure: hook → why → getting started → feature highlights → architecture → what's next. Demo climax is "break a service, watch the world react." — Mantis
 📌 Learning (2026-02-10): The demo AppHost includes 5 monitored resources (api, web, cache, db-host, db) — good for showing scoreboard/boss bar at scale. Demo script should always reference the actual sample, not a simplified version. — Mantis
 📌 Learning (2026-02-10): Sprint 1 features (boss bar, weather, title alerts, sounds, particles) are the dramatic core of the v0.1.0 story — they transform passive monitoring into visceral feedback. The blog and demo should lead with the "break something" moment. — Mantis
+
+📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri

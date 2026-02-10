@@ -109,3 +109,44 @@
 - Could use redstone signal strength to indicate health/load
 
 **Sprint target:** Sprint 3 (Showstopper) — this is a flagship feature
+
+### 2026-02-10: NuGet PackageId renamed to Fritz.Aspire.Hosting.Minecraft
+
+**By:** Shuri (requested by Jeffrey T. Fritz)
+**What:** Renamed the NuGet PackageId from `Aspire.Hosting.Minecraft` to `Fritz.Aspire.Hosting.Minecraft` in the csproj. Updated all documentation (blog post, demo script, CONTRIBUTING.md) to reference the new package name. C# namespaces, project folders, assembly names, and solution structure are unchanged — only the NuGet package identity changed. User explicitly chose `Fritz` as the prefix (rejected `CommunityToolkit` alternative).
+**Why:** The `Aspire.Hosting` prefix is reserved by Microsoft on NuGet.org. Publishing under that prefix would be rejected. The `Fritz` prefix avoids the reserved namespace while keeping the package discoverable. Consumers still `using Aspire.Hosting.Minecraft;` — the install command is now `dotnet add package Fritz.Aspire.Hosting.Minecraft`.
+**Verified:** restore ✅, build ✅ (0 errors), pack ✅ (`Fritz.Aspire.Hosting.Minecraft.0.1.0.nupkg`), test ✅ (207 tests pass).
+**Status:** ✅ Resolved.
+
+### 2026-02-10: Blog outline structure and media plan for v0.1.0
+
+**By:** Mantis
+**What:** Created three deliverables in `docs/blog/`: `v0.1.0-release-outline.md` (full blog post outline with 7 sections, placeholder code snippets, social media copy), `v0.1.0-media-plan.md` (18 visual assets with capture instructions), and `v0.1.0-demo-script.md` (10-minute 4-act demo script).
+**Why:** First public release — the blog post is the primary announcement channel. .NET devs using Aspire are the audience. Demo climax is the "break" moment (stopping a service and watching 6 feedback channels react). 18 media assets cover blog, social media, and conference slides. Media captures require Sprint 1 features from Rocket.
+**Dependencies:** Rocket's Sprint 1 features (boss bar, weather, title alerts, sounds, particles) must be complete before media capture. Blog references actual sample `Program.cs`.
+
+### 2026-02-10: Sprint 1 proactive test coverage for Rocket's features
+
+**By:** Nebula
+**What:** Created `tests/Aspire.Hosting.Minecraft.Worker.Tests` with 145 tests covering all 5 Sprint 1 features (particles, title alerts, weather, boss bar, sounds) plus state transitions, health→RCON mapping, and feature opt-in behavior. Solution total: 207 tests across 3 projects, all passing.
+**Why:** Proactive testing — writing tests before implementation ensures expected RCON command syntax is documented, state transition edge cases are covered, and Rocket has concrete test expectations to code against.
+**Key decisions:** No MockRconService (sealed class, no interface) — tests validate command format via static helper. Commented-out stubs for opt-in tests await Rocket's extension methods. Health ratio thresholds are opinionated (Weather: 100%=clear, 20-99%=rain, <20%=thunder; BossBar: ≥75%=green, 25-74%=yellow, <25%=red).
+**Testability concern:** `RconService` is sealed with no interface — consider adding `IRconCommandSender` in Sprint 2.
+**Status:** ✅ Complete.
+
+### 2026-02-10: Sprint 1 feature decisions — opt-in architecture, state tracking, health thresholds
+
+**By:** Rocket
+**Issues:** #3, #5, #7, #8, #10
+**What:** Each Sprint 1 feature (particles, title alerts, weather, boss bar, sounds) is enabled by a dedicated environment variable (`ASPIRE_FEATURE_{NAME}=true`) set via builder extension methods, with conditional service registration in the Worker. Services injected as nullable primary constructor parameters. Particles/titles/sounds fire per-resource; weather/boss bar reflect aggregate fleet health. State tracking (`_lastWeather`, `_lastValue`, `_lastColor`) avoids redundant RCON commands.
+**Health thresholds:** Weather: 100%=clear, ≥50%=rain, <50%=thunder. Boss bar: 100%=green, ≥50%=yellow, <50%=red.
+**Why:** Follows existing env var pattern. Opt-in ensures backward compatibility and zero additional RCON traffic for unused features. State tracking conserves server tick budget.
+**Status:** ✅ Implemented.
+
+### 2026-02-10: Public API surface contract established
+
+**By:** Shuri
+**Issue:** #12
+**What:** Audited all public types and established intentional API surface. Made `MinecraftHealthCheck` internal (hosting). Made all Worker types internal (15 classes). Kept public: `MinecraftServerBuilderExtensions` (consumer entry point with 11 methods), `MinecraftServerResource`, and 5 RCON types (`RconClient`, `RconConnection`, `RconResponseParser`, `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult`).
+**Why:** Worker is a standalone service (`IsPackable=false`) — all its types are implementation details. RCON types kept public for consumers who want custom RCON commands. `EnablePackageValidation` catches accidental API surface changes.
+**Status:** ✅ Resolved.

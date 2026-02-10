@@ -7,7 +7,7 @@ source: "manual"
 ---
 
 ## Context
-These patterns apply to the single NuGet package produced by this repo: `Aspire.Hosting.Minecraft`. The RCON library (`Aspire.Hosting.Minecraft.Rcon`) is embedded into this package. The Worker project is not packaged — it runs as a standalone service. They ensure packages are NuGet.org-ready with reproducible builds.
+These patterns apply to the single NuGet package produced by this repo: `Fritz.Aspire.Hosting.Minecraft` (PackageId). The RCON library (`Aspire.Hosting.Minecraft.Rcon`) is embedded into this package. The Worker project is not packaged — it runs as a standalone service. They ensure packages are NuGet.org-ready with reproducible builds.
 
 ## Patterns
 

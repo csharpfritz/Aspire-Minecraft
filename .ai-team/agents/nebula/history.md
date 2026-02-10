@@ -44,3 +44,5 @@
 
 📌 Team update (2026-02-10): Single NuGet package consolidation — Rcon embedded into Aspire.Hosting.Minecraft, Worker stays separate but IsPackable=false. All 62 tests still pass. — decided by Jeffrey T. Fritz, Shuri
 📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz
+
+📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri

@@ -42,7 +42,7 @@ To produce the NuGet package locally:
 dotnet pack -o nupkgs
 ```
 
-This produces a single `Aspire.Hosting.Minecraft.{version}.nupkg` in the `nupkgs/` folder.
+This produces a single `Fritz.Aspire.Hosting.Minecraft.{version}.nupkg` in the `nupkgs/` folder.
 
 ## Project Structure
 

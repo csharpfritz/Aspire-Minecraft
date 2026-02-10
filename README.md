@@ -1,6 +1,8 @@
 # 🎮 Aspire.Hosting.Minecraft
 
-A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry instrumentation, BlueMap web maps, and live in-world visualization of your Aspire resources.
+[![NuGet](https://img.shields.io/nuget/v/Fritz.Aspire.Hosting.Minecraft.svg)](https://www.nuget.org/packages/Fritz.Aspire.Hosting.Minecraft) [![NuGet Downloads](https://img.shields.io/nuget/dt/Fritz.Aspire.Hosting.Minecraft.svg)](https://www.nuget.org/packages/Fritz.Aspire.Hosting.Minecraft) [![GitHub Release](https://img.shields.io/github/v/release/csharpfritz/Aspire-Minecraft)](https://github.com/csharpfritz/Aspire-Minecraft/releases/latest) [![Build](https://github.com/csharpfritz/Aspire-Minecraft/actions/workflows/build.yml/badge.svg)](https://github.com/csharpfritz/Aspire-Minecraft/actions/workflows/build.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A .NET Aspire integration for Minecraft servers— featuring OpenTelemetry instrumentation, BlueMap web maps, and live in-world visualization of your Aspire resources.
 
 ![Aspire resources visualized in Minecraft — emerald block structures with health signs, floating hologram dashboard, scoreboard sidebar, and player chat alerts](img/sample-1.png)
 
