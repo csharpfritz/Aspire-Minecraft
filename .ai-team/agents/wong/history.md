@@ -58,3 +58,14 @@
 **Key observations:**
 - The test step was already in build.yml from Sprint 1 — Wong had included it in the original CI workflow. The Sprint 2 roadmap item was redundant.
 - Dependabot will auto-create PRs for outdated NuGet packages and Actions versions, reducing manual dependency management.
+
+### Release Versioning — Tag-Driven NuGet Versions
+
+**Changes:**
+- Updated `.github/workflows/release.yml` to extract the version from the git tag (`v*` → strip `v` prefix) and pass it via `-p:Version=` to both `dotnet build` and `dotnet pack`. GitHub Release name now includes the version.
+- `build.yml` (CI) intentionally left unchanged — CI builds use the default csproj version, which is correct for non-release artifacts.
+
+**Key observations:**
+- Without `-p:Version=`, every release produced `0.1.0` packages regardless of the tag. This was a silent bug — the pipeline appeared to work but published wrong versions.
+- The `GITHUB_REF_NAME` variable gives the tag name directly (e.g., `v0.2.1`), and `${GITHUB_REF_NAME#v}` strips the `v` prefix in bash. This is simpler than parsing `GITHUB_REF` (which includes `refs/tags/`).
+- Version is passed to both build and pack to ensure assembly version and package version are consistent.
