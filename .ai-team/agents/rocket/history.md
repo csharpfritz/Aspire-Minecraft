@@ -108,3 +108,28 @@
 - `fill {x} {y} {z} {x+2} {y} {z+2} minecraft:iron_block` — 3x3 iron base
 - `setblock {x+1} {y+1} {z+1} minecraft:beacon` — beacon on center
 - `setblock {x+1} {y+2} {z+1} minecraft:{color}_stained_glass` — health indicator
+
+### 2026-02-10: Sprint 2 remaining features — fireworks, guardians, fanfare, startup optimization
+
+**Features implemented (Issues #15, #18, #23):**
+1. **FireworksService** (`WithFireworks()`) — Issue #15. Tracks `_wasAnyUnhealthy` state. When ALL resources transition to healthy from at least one being unhealthy, launches `summon firework_rocket` at 5 positions around the resource area. Uses `ASPIRE_FEATURE_FIREWORKS` env var.
+2. **GuardianMobService** (`WithGuardianMobs()`) — Issue #18. Spawns iron golem per healthy resource, zombie per unhealthy resource. Mobs have `NoAI:1b`, `Invulnerable:1b`, `PersistenceRequired:1b` NBT tags to prevent wandering/despawning. Uses `kill @e[name=guardian_{name}]` to clean up before respawning. Tracks `_lastKnownStatus` per resource to avoid redundant respawns. Uses `ASPIRE_FEATURE_GUARDIANS` env var.
+3. **DeploymentFanfareService** (`WithDeploymentFanfare()`) — Issue #23. Fires on `Unknown → Healthy` transitions (representing Starting → Running). Spawns lightning bolt, 2 fireworks, and shows title/subtitle announcement with plain strings. Uses `ASPIRE_FEATURE_FANFARE` env var.
+
+**Investigation (Issue #37): Minecraft Server Startup Time**
+- **Current config:** Using `itzg/minecraft-server:latest` with `TYPE=PAPER`, `LEVEL_TYPE=flat`, `SEED=aspire2026`, `MODE=creative`.
+- **Easy wins implemented:**
+  - `SPAWN_PROTECTION=0` — disables spawn protection radius (no need for it in a dashboard world)
+  - `VIEW_DISTANCE=6` — reduced from default 10, less chunk generation on startup
+  - `SIMULATION_DISTANCE=4` — reduced from default 10, less entity/block tick processing
+  - `GENERATE_STRUCTURES=false` — disables structure generation (villages, temples) — saves world gen time
+  - `SPAWN_ANIMALS=FALSE`, `SPAWN_MONSTERS=FALSE`, `SPAWN_NPCS=FALSE` — no mob spawning, saves tick budget
+  - `MAX_WORLD_SIZE=256` — limits world border to 256 blocks radius (plenty for dashboard, prevents chunk gen on exploration)
+- **Why these help:** Flat world + no structures + small world size = minimal chunk generation. No mob spawning = less entity processing. Reduced view/sim distance = fewer chunks loaded/ticked. These are all itzg/minecraft-server env vars that map to server.properties.
+- **Not implemented (deferred):** Pre-generating world via volume mount, custom Paper config (paper-global.yml), Aikar's JVM flags (would conflict with OTEL agent JVM_OPTS), custom startup scripts.
+
+**Architecture patterns confirmed:**
+- Fireworks/fanfare are event-driven (fire on health transitions in the changes block)
+- Guardian mobs are continuous (update every cycle, but track state to avoid redundant respawns)
+- Mob cleanup via `kill @e[name=...]` selector is the standard pattern for entity management
+- NBT tags (`NoAI`, `Invulnerable`, `PersistenceRequired`) essential for stationary display mobs

@@ -69,6 +69,12 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"]))
     builder.Services.AddSingleton<ActionBarTickerService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BEACONS"]))
     builder.Services.AddSingleton<BeaconTowerService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FIREWORKS"]))
+    builder.Services.AddSingleton<FireworksService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_GUARDIANS"]))
+    builder.Services.AddSingleton<GuardianMobService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
+    builder.Services.AddSingleton<DeploymentFanfareService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -112,7 +118,10 @@ file sealed class MinecraftWorldWorker(
     BossBarService? bossBar = null,
     SoundEffectService? sounds = null,
     ActionBarTickerService? actionBarTicker = null,
-    BeaconTowerService? beaconTowers = null) : BackgroundService
+    BeaconTowerService? beaconTowers = null,
+    FireworksService? fireworks = null,
+    GuardianMobService? guardianMobs = null,
+    DeploymentFanfareService? deploymentFanfare = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -155,6 +164,10 @@ file sealed class MinecraftWorldWorker(
                         await titleAlerts.ShowTitleAlertsAsync(changes, stoppingToken);
                     if (sounds is not null)
                         await sounds.PlaySoundsForChangesAsync(changes, stoppingToken);
+                    if (fireworks is not null)
+                        await fireworks.CheckAndLaunchFireworksAsync(changes, stoppingToken);
+                    if (deploymentFanfare is not null)
+                        await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
                 }
 
                 // Update in-world displays
@@ -171,6 +184,8 @@ file sealed class MinecraftWorldWorker(
                     await actionBarTicker.TickAsync(stoppingToken);
                 if (beaconTowers is not null)
                     await beaconTowers.UpdateBeaconTowersAsync(stoppingToken);
+                if (guardianMobs is not null)
+                    await guardianMobs.UpdateGuardianMobsAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

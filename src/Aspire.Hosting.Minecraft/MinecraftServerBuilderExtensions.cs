@@ -60,6 +60,15 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("SEED", "aspire2026")
             .WithEnvironment("ENABLE_RCON", "true")
             .WithEnvironment("RCON_PORT", "25575")
+            // Startup performance: skip unnecessary work
+            .WithEnvironment("SPAWN_PROTECTION", "0")
+            .WithEnvironment("VIEW_DISTANCE", "6")
+            .WithEnvironment("SIMULATION_DISTANCE", "4")
+            .WithEnvironment("GENERATE_STRUCTURES", "false")
+            .WithEnvironment("SPAWN_ANIMALS", "FALSE")
+            .WithEnvironment("SPAWN_MONSTERS", "FALSE")
+            .WithEnvironment("SPAWN_NPCS", "FALSE")
+            .WithEnvironment("MAX_WORLD_SIZE", "256")
             .WithEnvironment(context =>
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
@@ -448,6 +457,63 @@ public static class MinecraftServerBuilderExtensions
                 "WithBeaconTowers() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_BEACONS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables fireworks when all monitored resources recover to healthy after a failure.
+    /// Fireworks are launched at several positions around the resource area.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithFireworks(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithFireworks() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_FIREWORKS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Spawns guardian mobs per monitored resource. Healthy resources get an iron golem;
+    /// unhealthy resources get a zombie. Mobs are named after their resource.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithGuardianMobs(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithGuardianMobs() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_GUARDIANS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables deployment fanfare when a resource transitions from Starting to Running.
+    /// Includes lightning bolt, fireworks, and a title announcement.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithDeploymentFanfare(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithDeploymentFanfare() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_FANFARE", "true");
         return builder;
     }
 }
