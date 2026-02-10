@@ -5,6 +5,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add supporting services (these will be visualized in the Minecraft world)
 var redis = builder.AddRedis("cache");
 
+var pg = builder.AddPostgres("db-host");
+
+var db = pg.AddDatabase("db");
+
 // Add sample API service
 var api = builder.AddProject<Projects.MinecraftAspireDemo_ApiService>("api")
     .WithReference(redis);
@@ -21,6 +25,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
-    .WithMonitoredResource(redis);
+    .WithMonitoredResource(redis)
+		.WithMonitoredResource(pg);
 
 builder.Build().Run();

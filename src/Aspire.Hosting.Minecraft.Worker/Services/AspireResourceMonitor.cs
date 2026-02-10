@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using System.Net.Http;
+using System.Net.Sockets;
 
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
 /// Tracks the health status of sibling Aspire resources.
-/// Discovers resources via environment variables and polls HTTP endpoints.
+/// Discovers resources via environment variables and polls HTTP endpoints or TCP sockets.
 /// </summary>
 public sealed class AspireResourceMonitor
 {
@@ -24,14 +25,12 @@ public sealed class AspireResourceMonitor
 
     /// <summary>
     /// Discovers resources from environment variables.
-    /// Convention: ASPIRE_RESOURCE_{NAME}_TYPE and optionally ASPIRE_RESOURCE_{NAME}_URL.
-    /// Resources without a URL are still tracked but won't have HTTP health polling.
+    /// Convention: ASPIRE_RESOURCE_{NAME}_TYPE, optionally _URL (HTTP) or _HOST/_PORT (TCP).
     /// </summary>
     public void DiscoverResources()
     {
         var envVars = Environment.GetEnvironmentVariables();
 
-        // First pass: find all resources by _TYPE suffix
         foreach (System.Collections.DictionaryEntry entry in envVars)
         {
             var key = entry.Key?.ToString() ?? "";
@@ -39,19 +38,27 @@ public sealed class AspireResourceMonitor
             {
                 var name = key["ASPIRE_RESOURCE_".Length..^"_TYPE".Length].ToLowerInvariant();
                 var type = entry.Value?.ToString() ?? "Unknown";
-                var urlKey = $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL";
-                var url = Environment.GetEnvironmentVariable(urlKey) ?? "";
+                var upperName = name.ToUpperInvariant();
+                var url = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_URL") ?? "";
+                var host = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_HOST") ?? "";
+                var portStr = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_PORT") ?? "";
+                int.TryParse(portStr, out var port);
 
-                _resources[name] = new ResourceInfo(name, type, url, ResourceStatus.Unknown);
-                _logger.LogInformation("Discovered Aspire resource: {ResourceName} ({ResourceType}) at {Url}",
-                    name, type, string.IsNullOrEmpty(url) ? "(no endpoint)" : url);
+                _resources[name] = new ResourceInfo(name, type, url, host, port, ResourceStatus.Unknown);
+
+                var endpoint = !string.IsNullOrEmpty(url) ? url
+                    : !string.IsNullOrEmpty(host) ? $"{host}:{port} (tcp)"
+                    : "(no endpoint)";
+                _logger.LogInformation("Discovered Aspire resource: {ResourceName} ({ResourceType}) at {Endpoint}",
+                    name, type, endpoint);
             }
         }
     }
 
     /// <summary>
     /// Polls all known resources and updates their health status.
-    /// Returns resources whose status changed.
+    /// Uses HTTP for resources with a URL, TCP socket for resources with host:port, 
+    /// and assumes healthy for resources with no endpoint.
     /// </summary>
     public async Task<List<ResourceStatusChange>> PollHealthAsync(CancellationToken ct = default)
     {
@@ -62,14 +69,17 @@ public sealed class AspireResourceMonitor
             var oldStatus = info.Status;
             ResourceStatus newStatus;
 
-            if (string.IsNullOrEmpty(info.Url))
+            if (!string.IsNullOrEmpty(info.Url))
             {
-                // No HTTP endpoint — assume healthy if we got this far
-                newStatus = ResourceStatus.Healthy;
+                newStatus = await CheckHttpHealthAsync(info.Url, ct);
+            }
+            else if (!string.IsNullOrEmpty(info.TcpHost) && info.TcpPort > 0)
+            {
+                newStatus = await CheckTcpHealthAsync(info.TcpHost, info.TcpPort, ct);
             }
             else
             {
-                newStatus = await CheckHealthAsync(info.Url, ct);
+                newStatus = ResourceStatus.Healthy;
             }
 
             if (newStatus != oldStatus)
@@ -84,7 +94,7 @@ public sealed class AspireResourceMonitor
         return changes;
     }
 
-    private async Task<ResourceStatus> CheckHealthAsync(string url, CancellationToken ct)
+    private async Task<ResourceStatus> CheckHttpHealthAsync(string url, CancellationToken ct)
     {
         try
         {
@@ -97,11 +107,27 @@ public sealed class AspireResourceMonitor
         }
     }
 
+    private static async Task<ResourceStatus> CheckTcpHealthAsync(string host, int port, CancellationToken ct)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+            await client.ConnectAsync(host, port, cts.Token);
+            return ResourceStatus.Healthy;
+        }
+        catch
+        {
+            return ResourceStatus.Unhealthy;
+        }
+    }
+
     public int HealthyCount => _resources.Values.Count(r => r.Status == ResourceStatus.Healthy);
     public int TotalCount => _resources.Count;
 }
 
-public record ResourceInfo(string Name, string Type, string Url, ResourceStatus Status);
+public record ResourceInfo(string Name, string Type, string Url, string TcpHost, int TcpPort, ResourceStatus Status);
 
 public record ResourceStatusChange(string Name, string Type, ResourceStatus OldStatus, ResourceStatus NewStatus);
 
