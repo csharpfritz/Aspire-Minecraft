@@ -26,6 +26,6 @@ public class RconConnectionTests
         var connection = new RconConnection("127.0.0.1", 1, "password", NullLogger.Instance);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => connection.SendCommandAsync("list", cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => connection.SendCommandAsync("list", cts.Token));
     }
 }
