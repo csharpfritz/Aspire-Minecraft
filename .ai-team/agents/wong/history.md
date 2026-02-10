@@ -44,3 +44,17 @@
 📌 Team update (2026-02-10): Single NuGet package consolidation — only Aspire.Hosting.Minecraft is packable, CI/CD should build/pack accordingly — decided by Jeffrey T. Fritz, Shuri
 
 📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+
+### Sprint 2 — CI Hardening (Issue #17)
+
+**Changes:**
+- **Test execution in CI:** Already present in `build.yml` — `dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal` runs after the build step on both ubuntu and windows matrix legs. No changes needed.
+- **Dependabot:** Created `.github/dependabot.yml` with weekly updates for both `nuget` and `github-actions` ecosystems targeting the root directory. Open PR limit set to 10 per ecosystem.
+- **Issue templates:** Created YAML-form issue templates:
+  - `.github/ISSUE_TEMPLATE/bug_report.yml` — fields: summary, description, steps to reproduce, expected/actual behavior, environment.
+  - `.github/ISSUE_TEMPLATE/feature_request.yml` — fields: summary, description, use case, proposed solution.
+  - `.github/ISSUE_TEMPLATE/config.yml` — `blank_issues_enabled: true` so users can still open freeform issues.
+
+**Key observations:**
+- The test step was already in build.yml from Sprint 1 — Wong had included it in the original CI workflow. The Sprint 2 roadmap item was redundant.
+- Dependabot will auto-create PRs for outdated NuGet packages and Actions versions, reducing manual dependency management.
