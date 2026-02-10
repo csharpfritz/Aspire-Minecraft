@@ -109,3 +109,12 @@
 - **Determined existing pattern is sufficient.** The current `With*()` fluent extension method pattern already provides the configuration builder experience: `AddMinecraftServer().WithBossBar().WithWeatherEffects().WithParticleEffects()`.
 - **No formal builder options class needed.** A `AddMinecraftServer(opts => opts.EnableBossBars().EnableWeather())` pattern would duplicate functionality without adding value. The per-method approach is idiomatic Aspire, independently opt-in, and backward-compatible by design.
 - **Recommendation:** Close Issue #21 as already-addressed by Sprint 1's `With*()` extension method architecture.
+
+### Server Properties Configuration API
+
+- **Added `WithServerProperty(string, string)` and `WithServerProperties(Dictionary<string, string>)`** — generic methods for setting any Minecraft `server.properties` value via the itzg/minecraft-server env var convention (property name → UPPER_SNAKE_CASE).
+- **Added 6 convenience methods:** `WithGameMode`, `WithDifficulty`, `WithMaxPlayers`, `WithMotd`, `WithWorldSeed`, `WithPvp` — type-safe wrappers for the most commonly configured properties.
+- **itzg env var convention:** The `itzg/minecraft-server` Docker image reads env vars as `server.properties` overrides. Property names are converted by uppercasing and replacing hyphens with underscores (e.g., `max-players` → `MAX_PLAYERS`). The `ConvertPropertyNameToEnvVar` helper centralizes this.
+- **Design decision:** These methods set env vars on the container resource directly (not on the worker builder). This is correct because `server.properties` is a Minecraft server concern, not a worker concern. Later env var calls override earlier ones, so user calls to `WithWorldSeed("custom")` correctly override the default `SEED=aspire2026` set in `AddMinecraftServer()`.
+- **Updated demo AppHost** to show `.WithMaxPlayers(10).WithMotd("Aspire Fleet Monitor")` chained right after `AddMinecraftServer()`.
+- **Verified:** `dotnet build -c Release` ✅ (0 errors), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
