@@ -17,6 +17,12 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+📌 E2E cascade failure scenario test (2026-02-10): Created `tests/Aspire.Hosting.Minecraft.Worker.Tests/Scenarios/CascadeFailureScenarioTests.cs` with 4 tests covering the full cascade failure → recovery lifecycle across 6 services (BossBar, Guardians, Fireworks, Fanfare, Beacons, Particles). Validates command sequences, boss bar percentage thresholds, guardian mob type transitions, beacon glass color tracking, and firework launch on all-green recovery.
+📌 25-resource performance tests (2026-02-10): Created `tests/Aspire.Hosting.Minecraft.Worker.Tests/Performance/LargeResourceSetTests.cs` with 10 tests. All services (StructureBuilder, BeaconTower, HologramManager, BossBar, GuardianMobs, ParticleEffects, Fireworks) handle 25 resources without exceptions. VillageLayout correctly positions all 25 in a 2×13 grid. Full update cycle sends 100+ RCON commands with no drops.
+📌 Sprint 2 feature integration tests (2026-02-10): Added integration tests for all 5 Sprint 2 features — GuardianMobService (8 tests), BeaconTowerService (16 tests), FireworksService (7 tests), DeploymentFanfareService (7 tests), ActionBarTickerService (5 tests). All use MockRconServer pattern. Total: 303 tests across 3 projects, all passing.
+📌 TestResourceMonitorFactory.SetResourcesWithTypes helper added for testing resource-type-specific behavior (beacon colors, structure types). Takes (name, type, ResourceStatus) tuples instead of (name, bool).
+📌 ResourceStatus is internal — cannot use in public [Theory] [InlineData] parameters. Use individual [Fact] tests instead when testing internal enum values.
+
 📌 Team update (2026-02-10): NuGet readiness audit completed — pack output needs smoke testing — decided by Shuri
 📌 Team update (2026-02-10): 18 features proposed — Nebula will test all Rocket features per sprint — decided by Rocket
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Nebula: test project structure, RCON unit tests, health check tests, pack smoke test — decided by Rhodey
