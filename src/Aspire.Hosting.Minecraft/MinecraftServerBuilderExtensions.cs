@@ -537,6 +537,24 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Sets a Minecraft <c>server.properties</c> value using a well-known <see cref="ServerProperty"/> key.
+    /// The enum member is automatically converted to the itzg/minecraft-server UPPER_SNAKE_CASE env var name.
+    /// Properties set here override any defaults configured by <see cref="AddMinecraftServer"/>.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="property">The server property to set.</param>
+    /// <param name="value">The value to set for the property.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithServerProperty(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        ServerProperty property,
+        string value)
+    {
+        var envVarName = ConvertEnumToEnvVar(property.ToString());
+        return builder.WithEnvironment(envVarName, value);
+    }
+
+    /// <summary>
     /// Sets multiple Minecraft <c>server.properties</c> values at once via the itzg/minecraft-server
     /// environment variable convention. Each property name is converted to UPPER_SNAKE_CASE.
     /// Properties set here override any defaults configured by <see cref="AddMinecraftServer"/>.
@@ -569,6 +587,19 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Sets the game mode for the Minecraft server using a strongly-typed <see cref="MinecraftGameMode"/> value.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="mode">The game mode.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithGameMode(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        MinecraftGameMode mode)
+    {
+        return builder.WithEnvironment("MODE", mode.ToString().ToLowerInvariant());
+    }
+
+    /// <summary>
     /// Sets the difficulty level for the Minecraft server.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -579,6 +610,19 @@ public static class MinecraftServerBuilderExtensions
         string difficulty)
     {
         return builder.WithEnvironment("DIFFICULTY", difficulty);
+    }
+
+    /// <summary>
+    /// Sets the difficulty level for the Minecraft server using a strongly-typed <see cref="MinecraftDifficulty"/> value.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="difficulty">The difficulty level.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithDifficulty(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        MinecraftDifficulty difficulty)
+    {
+        return builder.WithEnvironment("DIFFICULTY", difficulty.ToString().ToLowerInvariant());
     }
 
     /// <summary>
@@ -635,12 +679,91 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Loads Minecraft <c>server.properties</c> from a file and applies each property via
+    /// <see cref="WithServerProperty(IResourceBuilder{MinecraftServerResource}, string, string)"/>.
+    /// The file is read at build/configuration time — values become environment variables on the container.
+    /// Properties loaded from the file can be overridden by subsequent <c>WithServerProperty()</c> calls.
+    /// <para>
+    /// Expected file format (standard Minecraft <c>server.properties</c>):
+    /// <code>
+    /// # Lines starting with # are comments
+    /// max-players=20
+    /// motd=My Minecraft Server
+    /// difficulty=normal
+    /// pvp=true
+    /// </code>
+    /// </para>
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="filePath">
+    /// Path to a <c>server.properties</c> file. Relative paths are resolved from the AppHost project directory.
+    /// </param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the specified file does not exist.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithServerPropertiesFile(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string filePath)
+    {
+        var resolvedPath = Path.IsPathRooted(filePath)
+            ? filePath
+            : Path.Combine(builder.ApplicationBuilder.AppHostDirectory, filePath);
+
+        if (!File.Exists(resolvedPath))
+        {
+            throw new FileNotFoundException(
+                $"The server.properties file was not found: {resolvedPath}", resolvedPath);
+        }
+
+        foreach (var line in File.ReadLines(resolvedPath))
+        {
+            // Skip blank lines and comments
+            if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith('#'))
+            {
+                continue;
+            }
+
+            // Split only on the first '=' to handle values containing '='
+            var separatorIndex = line.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                continue;
+            }
+
+            var key = line[..separatorIndex].Trim();
+            var value = line[(separatorIndex + 1)..].Trim();
+
+            builder = builder.WithServerProperty(key, value);
+        }
+
+        return builder;
+    }
+
+    /// <summary>
     /// Converts a Minecraft <c>server.properties</c> property name to the itzg/minecraft-server
     /// environment variable convention: uppercase with hyphens replaced by underscores.
     /// </summary>
     private static string ConvertPropertyNameToEnvVar(string propertyName)
     {
         return propertyName.ToUpperInvariant().Replace('-', '_');
+    }
+
+    /// <summary>
+    /// Converts a PascalCase enum member name to UPPER_SNAKE_CASE for the itzg/minecraft-server
+    /// environment variable convention (e.g., <c>MaxPlayers</c> → <c>MAX_PLAYERS</c>).
+    /// </summary>
+    private static string ConvertEnumToEnvVar(string pascalName)
+    {
+        var result = new System.Text.StringBuilder(pascalName.Length + 4);
+        for (var i = 0; i < pascalName.Length; i++)
+        {
+            var c = pascalName[i];
+            if (char.IsUpper(c) && i > 0)
+            {
+                result.Append('_');
+            }
+            result.Append(char.ToUpperInvariant(c));
+        }
+        return result.ToString();
     }
 }
 
