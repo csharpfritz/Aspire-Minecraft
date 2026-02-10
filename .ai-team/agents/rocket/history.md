@@ -103,3 +103,30 @@
 📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
 📌 Team update (2026-02-10): Sprint 2 API review complete — 5 additive recommendations for Sprint 3 (WithAllFeatures, ParseConnectionString extraction, IRconCommandSender, env var tightening, auto-discovery) — decided by Rhodey
 📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added for server.properties configuration — decided by Shuri
+
+### Resource Village with Themed Architecture (Issue #25)
+
+**What:** Replaced simple 3×3×2 colored block platforms with themed mini-buildings per Aspire resource type. Created a centralized `VillageLayout` helper for 2×N grid positioning.
+
+**Structure types:**
+- **Watchtower** (Project/.NET app): Stone brick tower, 10 blocks tall, blue wool trim, blue banner flag. Corner pillars, glass pane windows.
+- **Warehouse** (Container/Docker): Iron block frame, wide cargo bay door, purple stained glass windows, barrel storage interior. 5 blocks tall.
+- **Workshop** (Executable): Oak plank walls, peaked A-frame roof, cyan stained glass accents, cobblestone chimney with campfire, crafting table + anvil. 7 blocks tall.
+- **Cottage** (Unknown/Other): Cobblestone walls, light blue wool trim, cobblestone slab roof, glass pane windows. 5 blocks tall.
+
+**Layout change:** Linear (Spacing=6, single row) → 2×N grid (Spacing=10, two columns). Cobblestone path between columns. `VillageLayout` static class centralizes coordinate calculation for all services.
+
+**Health indicator:** Replaced torch-on-top with redstone lamp in front wall at eye level. Glowstone (healthy/always lit), redstone lamp (unhealthy/unlit), sea lantern (unknown/starting).
+
+**Services updated:**
+- `StructureBuilder` — complete rewrite with 4 structure templates + path builder
+- `ParticleEffectService` — uses `VillageLayout.GetAboveStructure()` for consistent positioning
+- `BeaconTowerService` — updated to 2×N grid layout, BaseZ moved to 14 (outside 7-block village footprint)
+- `GuardianMobService` — updated to 2×N grid layout
+
+**Key learnings:**
+- `fill ... hollow` is the most efficient RCON command for building walls — one command creates a hollow rectangular shell.
+- Each structure uses ~15-25 RCON commands (well within the 50-100 target), far fewer than individual setblock calls.
+- The 2×N grid layout scales better than linear — 10 resources only need 5 rows instead of spreading 60+ blocks in one direction.
+- `VillageLayout` as a shared static class prevents coordinate drift between services. All services that place things per-resource-index should use it.
+- Stairs with `facing` and `half` NBT properties create convincing peaked roofs with minimal commands.

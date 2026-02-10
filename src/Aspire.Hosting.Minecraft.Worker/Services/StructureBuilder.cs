@@ -3,28 +3,16 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Builds block structures in the Minecraft world representing each Aspire resource.
-/// Each service gets a small building with a torch indicating health status.
+/// Builds themed village structures in the Minecraft world representing each Aspire resource.
+/// Structure type is selected by resource type: Project=Watchtower, Container=Warehouse,
+/// Executable=Workshop, Unknown=Cottage. Laid out in a 2×N grid with cobblestone paths.
 /// </summary>
 internal sealed class StructureBuilder(
     RconService rcon,
     AspireResourceMonitor monitor,
     ILogger<StructureBuilder> logger)
 {
-    private const int BaseX = 10;
-    private const int BaseY = -60; // One block above superflat grass surface (Y=-61)
-    private const int BaseZ = 0;
-    private const int Spacing = 6;
-
-    // Block types for different resource types
-    private static readonly Dictionary<string, string> ResourceBlocks = new()
-    {
-        ["Project"] = "minecraft:emerald_block",
-        ["Container"] = "minecraft:iron_block",
-        ["Redis"] = "minecraft:redstone_block",
-        ["Postgres"] = "minecraft:lapis_block",
-        ["Unknown"] = "minecraft:stone_bricks"
-    };
+    private bool _pathsBuilt;
 
     /// <summary>
     /// Builds or updates structures for all monitored resources.
@@ -35,6 +23,12 @@ internal sealed class StructureBuilder(
 
         try
         {
+            if (!_pathsBuilt && monitor.TotalCount > 0)
+            {
+                await BuildPathsAsync(monitor.TotalCount, ct);
+                _pathsBuilt = true;
+            }
+
             var index = 0;
             foreach (var (_, info) in monitor.Resources)
             {
@@ -42,7 +36,7 @@ internal sealed class StructureBuilder(
                 index++;
             }
 
-            logger.LogInformation("Structures updated for {Count} resources", monitor.TotalCount);
+            logger.LogInformation("Village structures updated for {Count} resources", monitor.TotalCount);
         }
         catch (Exception ex)
         {
@@ -51,40 +45,292 @@ internal sealed class StructureBuilder(
         }
     }
 
+    /// <summary>
+    /// Selects the structure type based on Aspire resource type.
+    /// </summary>
+    internal static string GetStructureType(string resourceType)
+    {
+        return resourceType.ToLowerInvariant() switch
+        {
+            "project" => "Watchtower",
+            "container" => "Warehouse",
+            "executable" => "Workshop",
+            _ => "Cottage"
+        };
+    }
+
+    private async Task BuildPathsAsync(int resourceCount, CancellationToken ct)
+    {
+        var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
+
+        // Cobblestone path between the two columns (runs along Z axis between columns)
+        var pathX = VillageLayout.BaseX + VillageLayout.StructureSize; // gap between col 0 and col 1
+        var pathZ1 = VillageLayout.BaseZ;
+        var pathZ2 = VillageLayout.BaseZ + ((rows - 1) * VillageLayout.Spacing) + VillageLayout.StructureSize - 1;
+
+        if (rows > 0)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {pathX} {VillageLayout.BaseY} {pathZ1} {pathX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
+        }
+    }
+
     private async Task BuildResourceStructureAsync(ResourceInfo info, int index, CancellationToken ct)
     {
-        var x = BaseX + (index * Spacing);
-        var y = BaseY;
-        var z = BaseZ;
+        var (x, y, z) = VillageLayout.GetStructureOrigin(index);
 
-        var blockType = ResourceBlocks.GetValueOrDefault(info.Type, ResourceBlocks["Unknown"]);
+        var structureType = GetStructureType(info.Type);
 
-        // Build a 3x3x2 base (two layers tall)
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 2} {y + 1} {z + 2} {blockType}", ct);
-
-        // Place torch on top based on health status
-        var torchBlock = info.Status switch
+        switch (structureType)
         {
-            ResourceStatus.Healthy => "minecraft:torch",
-            ResourceStatus.Unhealthy => "minecraft:redstone_torch",
-            _ => "minecraft:air"
-        };
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z + 1} {torchBlock}", ct);
+            case "Watchtower":
+                await BuildWatchtowerAsync(x, y, z, ct);
+                break;
+            case "Warehouse":
+                await BuildWarehouseAsync(x, y, z, ct);
+                break;
+            case "Workshop":
+                await BuildWorkshopAsync(x, y, z, ct);
+                break;
+            default:
+                await BuildCottageAsync(x, y, z, ct);
+                break;
+        }
 
-        // Place a sign on the front face with the resource name
-        var signY = y + 1;
+        // Health indicator: redstone lamp in wall, powered = healthy
+        await PlaceHealthIndicatorAsync(x, y, z, info.Status, ct);
+
+        // Sign with resource name at the entrance
+        await PlaceSignAsync(x, y, z, info, ct);
+
+        logger.LogInformation("Village structure built: {ResourceName} ({StructureType}) at ({X},{Y},{Z})",
+            info.Name, structureType, x, y, z);
+    }
+
+    /// <summary>
+    /// Watchtower — tall, narrow tower with flag. Project (.NET app) resources.
+    /// Stone brick walls, blue wool/banner accents, ~7×7 footprint, 10 blocks tall.
+    /// </summary>
+    private async Task BuildWatchtowerAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Foundation: 7×7 stone brick floor
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {signY} {z - 1} minecraft:oak_sign[rotation=8]", ct);
-        var signCmd = "data merge block " + $"{x + 1} {signY} {z - 1}" +
+            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:stone_bricks", ct);
+
+        // Walls: 5×5 hollow stone brick tower (inside the 7×7), 8 blocks tall
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 1} {z + 1} {x + 5} {y + 8} {z + 5} minecraft:stone_bricks hollow", ct);
+
+        // Corner pillars: extend to full height with stone brick
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 1} {z + 1} {x + 1} {y + 9} {z + 1} minecraft:stone_brick_stairs[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 1} {z + 1} {x + 5} {y + 9} {z + 1} minecraft:stone_brick_stairs[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 1} {z + 5} {x + 1} {y + 9} {z + 5} minecraft:stone_brick_stairs[facing=north]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 1} {z + 5} {x + 5} {y + 9} {z + 5} minecraft:stone_brick_stairs[facing=north]", ct);
+
+        // Door opening (front face, Z-min side)
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 1} {z + 1} {x + 3} {y + 2} {z + 1} minecraft:air", ct);
+
+        // Windows (one on each side, at y+4)
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 4} {z + 1} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 4} {z + 5} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 4} {z + 3} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 4} {z + 3} minecraft:glass_pane", ct);
+
+        // Blue wool trim at top
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} minecraft:blue_wool", ct);
+
+        // Roof cap (3×3 stone brick slab)
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 9} {z + 2} {x + 4} {y + 9} {z + 4} minecraft:stone_brick_slab", ct);
+
+        // Flag pole + banner on top
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 10} {z + 3} minecraft:oak_fence", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 10} {z + 2} minecraft:blue_banner[rotation=0]", ct);
+    }
+
+    /// <summary>
+    /// Warehouse — wide, flat, cargo bay feel. Container (Docker) resources.
+    /// Iron block frame, purple stained glass windows, ~7×7 footprint, 5 blocks tall.
+    /// </summary>
+    private async Task BuildWarehouseAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Foundation: 7×7 iron block floor
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:iron_block", ct);
+
+        // Walls: hollow box, 4 blocks tall
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:iron_block hollow", ct);
+
+        // Flat roof
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:iron_block", ct);
+
+        // Wide cargo door (front face, 3 wide × 3 tall)
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 1} {z} {x + 4} {y + 3} {z} minecraft:air", ct);
+
+        // Purple stained glass windows on sides
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 2} {x} {y + 3} {z + 4} minecraft:purple_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 3} {z + 2} {x + 6} {y + 3} {z + 4} minecraft:purple_stained_glass", ct);
+
+        // Purple stained glass on back wall
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 3} {z + 6} {x + 4} {y + 3} {z + 6} minecraft:purple_stained_glass", ct);
+
+        // Interior: barrel storage
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 1} {z + 5} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + 5} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
+    }
+
+    /// <summary>
+    /// Workshop — small building with chimney and workbench vibe. Executable resources.
+    /// Oak planks walls, cyan stained glass accents, ~7×7 footprint, 6 blocks tall.
+    /// </summary>
+    private async Task BuildWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Foundation: 7×7 oak planks floor
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:oak_planks", ct);
+
+        // Walls: hollow box, 4 blocks tall
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:oak_planks hollow", ct);
+
+        // Peaked roof (oak stairs forming an A-frame along X axis)
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 1} minecraft:oak_stairs[facing=south,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 5} {x + 6} {y + 5} {z + 6} minecraft:oak_stairs[facing=north,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 2} {x + 6} {y + 5} {z + 4} minecraft:oak_planks", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 6} {z + 3} {x + 6} {y + 6} {z + 3} minecraft:oak_slab", ct);
+
+        // Door
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+
+        // Cyan stained glass windows
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 3} {z} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 3} {z} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x} {y + 3} {z + 3} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 3} {z + 3} minecraft:cyan_stained_glass", ct);
+
+        // Chimney (cobblestone column on one corner)
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 5} {z + 6} {x + 6} {y + 7} {z + 6} minecraft:cobblestone", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 7} {z + 6} minecraft:campfire", ct);
+
+        // Interior: crafting table + anvil
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + 5} minecraft:crafting_table", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 1} {z + 5} minecraft:anvil", ct);
+    }
+
+    /// <summary>
+    /// Cottage — humble default dwelling. Unknown/Other resource types.
+    /// Cobblestone walls, light blue wool trim, ~7×7 footprint, 5 blocks tall.
+    /// </summary>
+    private async Task BuildCottageAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Foundation: 7×7 cobblestone floor
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:cobblestone", ct);
+
+        // Walls: hollow box, 4 blocks tall
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:cobblestone hollow", ct);
+
+        // Light blue wool trim at top of walls
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} minecraft:light_blue_wool", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} minecraft:light_blue_wool", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+
+        // Flat roof with slab
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:cobblestone_slab", ct);
+
+        // Door
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+
+        // Windows (glass panes on sides)
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 2} {z} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 2} {z} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x} {y + 2} {z + 3} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 2} {z + 3} minecraft:glass_pane", ct);
+    }
+
+    /// <summary>
+    /// Places a redstone lamp in the front wall as health indicator.
+    /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = air.
+    /// </summary>
+    private async Task PlaceHealthIndicatorAsync(int x, int y, int z, ResourceStatus status, CancellationToken ct)
+    {
+        var lampBlock = status switch
+        {
+            ResourceStatus.Healthy => "minecraft:glowstone",
+            ResourceStatus.Unhealthy => "minecraft:redstone_lamp",
+            _ => "minecraft:sea_lantern"
+        };
+
+        // Place in front wall at eye level
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 3} {z} {lampBlock}", ct);
+    }
+
+    /// <summary>
+    /// Places a sign in front of the structure with the resource name and status.
+    /// </summary>
+    private async Task PlaceSignAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    {
+        var signY = y + 1;
+        var signZ = z - 1;
+
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
+
+        var signCmd = "data merge block " + $"{x + 3} {signY} {signZ}" +
             " {front_text:{messages:[\"\"," +
             "\"" + info.Name + "\"," +
             "\"(" + info.Status + ")\"," +
             "\"\"]}}";
         await rcon.SendCommandAsync(signCmd, ct);
-
-        logger.LogInformation("Structure built: {ResourceName} {BlockType} {TorchState}",
-            info.Name, blockType, info.Status.ToString().ToLowerInvariant());
     }
 }

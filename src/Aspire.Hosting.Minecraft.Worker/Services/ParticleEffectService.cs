@@ -11,10 +11,6 @@ internal sealed class ParticleEffectService(
     AspireResourceMonitor monitor,
     ILogger<ParticleEffectService> logger)
 {
-    private const int BaseX = 10;
-    private const int BaseY = -58; // Above the 3x3x2 structure top
-    private const int BaseZ = 0;
-    private const int Spacing = 6;
 
     /// <summary>
     /// Spawns particle effects at the structure of each resource that changed health.
@@ -30,9 +26,7 @@ internal sealed class ParticleEffectService(
             var index = resourceNames.IndexOf(change.Name);
             if (index < 0) continue;
 
-            var x = BaseX + 1 + (index * Spacing);
-            var y = BaseY;
-            var z = BaseZ + 1;
+            var (x, y, z) = VillageLayout.GetAboveStructure(index);
 
             if (change.NewStatus == ResourceStatus.Unhealthy)
             {

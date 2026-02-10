@@ -173,34 +173,37 @@ public class HealthTransitionRconMappingTests
         Assert.Contains("smoke", particleCmd);
     }
 
-    // ===== Coordinate integration with StructureBuilder =====
+    // ===== Coordinate integration with StructureBuilder (2×N village grid) =====
 
     [Theory]
-    [InlineData(0, 10)]   // Resource 0 at x=10 (BaseX + 0*Spacing)
-    [InlineData(1, 16)]   // Resource 1 at x=16 (BaseX + 1*Spacing)
-    [InlineData(2, 22)]   // Resource 2 at x=22 (BaseX + 2*Spacing)
-    [InlineData(3, 28)]   // Resource 3 at x=28
-    [InlineData(4, 34)]   // Resource 4 at x=34
-    public void StructureCoordinates_MatchResourceIndex(int index, int expectedX)
+    [InlineData(0, 10, 0)]   // Resource 0: col=0, row=0 → x=10, z=0
+    [InlineData(1, 20, 0)]   // Resource 1: col=1, row=0 → x=20, z=0
+    [InlineData(2, 10, 10)]  // Resource 2: col=0, row=1 → x=10, z=10
+    [InlineData(3, 20, 10)]  // Resource 3: col=1, row=1 → x=20, z=10
+    [InlineData(4, 10, 20)]  // Resource 4: col=0, row=2 → x=10, z=20
+    public void StructureCoordinates_MatchResourceIndex(int index, int expectedX, int expectedZ)
     {
-        // StructureBuilder: BaseX=10, Spacing=6
-        int baseX = 10, spacing = 6;
-        int actualX = baseX + (index * spacing);
+        // VillageLayout: BaseX=10, BaseZ=0, Spacing=10, Columns=2
+        int col = index % 2;
+        int row = index / 2;
+        int actualX = 10 + (col * 10);
+        int actualZ = 0 + (row * 10);
 
         Assert.Equal(expectedX, actualX);
+        Assert.Equal(expectedZ, actualZ);
     }
 
     [Fact]
     public void ParticleCoordinates_AreCenteredAboveStructure()
     {
-        // Structure is 3x3 base, particles should center at (x+1, y+2, z+1)
+        // Structure is 7x7 base, particles center at (x+3, y+10, z+3) via VillageLayout.GetAboveStructure
         int structX = 10, structY = -60, structZ = 0;
-        int particleX = structX + 1;
-        int particleY = structY + 2;
-        int particleZ = structZ + 1;
+        int particleX = structX + 3;
+        int particleY = structY + 10;
+        int particleZ = structZ + 3;
 
-        Assert.Equal(11, particleX);
-        Assert.Equal(-58, particleY);
-        Assert.Equal(1, particleZ);
+        Assert.Equal(13, particleX);
+        Assert.Equal(-50, particleY);
+        Assert.Equal(3, particleZ);
     }
 }

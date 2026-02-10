@@ -15,7 +15,7 @@ internal sealed class GuardianMobService(
     private const int BaseX = 10;
     private const int BaseY = -58;
     private const int BaseZ = -4; // Offset to avoid overlap with structures
-    private const int Spacing = 6;
+    private const int Spacing = 10;
 
     private readonly Dictionary<string, ResourceStatus> _lastKnownStatus = new();
 
@@ -39,9 +39,11 @@ internal sealed class GuardianMobService(
 
     private async Task SpawnGuardianAsync(string resourceName, ResourceStatus status, int index, CancellationToken ct)
     {
-        var x = BaseX + 1 + (index * Spacing);
+        var col = index % VillageLayout.Columns;
+        var row = index / VillageLayout.Columns;
+        var x = BaseX + 3 + (col * Spacing);
         var y = BaseY;
-        var z = BaseZ;
+        var z = BaseZ + (row * Spacing);
 
         var mobTag = $"guardian_{resourceName}";
 
