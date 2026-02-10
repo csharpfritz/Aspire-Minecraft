@@ -6,7 +6,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Sends system messages to Minecraft players and logs them as structured OTEL events.
 /// All outbound player messages flow through this service for audit trailing.
 /// </summary>
-public sealed class PlayerMessageService(RconService rcon, ILogger<PlayerMessageService> logger)
+internal sealed class PlayerMessageService(RconService rcon, ILogger<PlayerMessageService> logger)
 {
     /// <summary>
     /// Broadcasts a health status change alert to all players.

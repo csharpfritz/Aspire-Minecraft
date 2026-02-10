@@ -13,5 +13,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Aspire.Hosting.Minecraft.Rcon.Tests/Aspire.Hosting.Minecraft.Rcon.Tests.csproj" />
     <Project Path="tests/Aspire.Hosting.Minecraft.Tests/Aspire.Hosting.Minecraft.Tests.csproj" />
+    <Project Path="tests/Aspire.Hosting.Minecraft.Worker.Tests/Aspire.Hosting.Minecraft.Worker.Tests.csproj" />
   </Folder>
 </Solution>

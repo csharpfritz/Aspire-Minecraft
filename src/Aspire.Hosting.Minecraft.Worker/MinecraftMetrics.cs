@@ -6,7 +6,7 @@ namespace Aspire.Hosting.Minecraft.Worker;
 /// <summary>
 /// Custom OTEL metrics for the Minecraft server — game-specific telemetry scraped via RCON.
 /// </summary>
-public sealed class MinecraftMetrics
+internal sealed class MinecraftMetrics
 {
     public const string MeterName = "Aspire.Minecraft";
     public const string ActivitySourceName = "Aspire.Minecraft";

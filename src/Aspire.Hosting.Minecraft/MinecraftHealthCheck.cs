@@ -8,7 +8,7 @@ namespace Aspire.Hosting.Minecraft;
 /// Uses a connection string supplier that is populated once the resource's
 /// connection string becomes available (via Aspire eventing).
 /// </summary>
-public class MinecraftHealthCheck(Func<string?> connectionStringSupplier) : IHealthCheck
+internal class MinecraftHealthCheck(Func<string?> connectionStringSupplier) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,

@@ -6,7 +6,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Builds block structures in the Minecraft world representing each Aspire resource.
 /// Each service gets a small building with a torch indicating health status.
 /// </summary>
-public sealed class StructureBuilder(
+internal sealed class StructureBuilder(
     RconService rcon,
     AspireResourceMonitor monitor,
     ILogger<StructureBuilder> logger)

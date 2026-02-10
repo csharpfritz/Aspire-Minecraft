@@ -57,5 +57,33 @@
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Rocket: boss bars, title alerts, sounds, weather, particles (all Size S) — decided by Rhodey
 📌 Team update (2026-02-10): All sprint work tracked as GitHub issues with team member and sprint labels — decided by Jeffrey T. Fritz
 
+### 2026-02-10: Sprint 1 features implemented — 5 RCON-based in-world effects
+
+**Features implemented (all opt-in via builder extension methods):**
+1. **ParticleEffectService** (`WithParticleEffects()`) — `particle` commands at structure coordinates on health transitions. Crash: `large_smoke` + `flame`, Recovery: `happy_villager`. Uses `force` mode for visibility from distance.
+2. **TitleAlertService** (`WithTitleAlerts()`) — `title @a times/title/subtitle` commands. Red "⚠ SERVICE DOWN" on failure, green "✅ BACK ONLINE" on recovery. JSON text components with bold + color.
+3. **WeatherService** (`WithWeatherEffects()`) — `weather clear/rain/thunder` mapped to fleet health ratio. Tracks last state to avoid redundant commands.
+4. **BossBarService** (`WithBossBar()`) — `bossbar add/set` with persistent bar showing 0-100% fleet health. Color transitions: green→yellow→red. Only sends RCON when value or color actually changes.
+5. **SoundEffectService** (`WithSoundEffects()`) — `playsound` commands. Down: `entity.wither.ambient`, Up: `entity.player.levelup`, All-green celebration: `ui.toast.challenge_complete`.
+
+**Architecture decisions:**
+- **Opt-in via env vars:** Each feature is toggled by `ASPIRE_FEATURE_{NAME}=true` env var, set by builder extension methods (e.g., `WithBossBar()` → `ASPIRE_FEATURE_BOSSBAR`). This preserves the existing pattern where the hosting library configures the worker via env vars on `WorkerBuilder`.
+- **Optional DI injection:** Services are registered conditionally in `Program.cs` and injected as nullable parameters (`ParticleEffectService? particles = null`) into `MinecraftWorldWorker`'s primary constructor.
+- **Per-resource vs aggregate features:** Particles, titles, and sounds fire per-resource-change. Weather and boss bar are aggregate (fleet-level) and update every poll cycle but only send commands on state transitions.
+- **Transition-only logic:** Weather tracks `_lastWeather`, boss bar tracks `_lastValue`/`_lastColor` to avoid redundant RCON traffic.
+
+**RCON command patterns used:**
+- `particle minecraft:{type} {x} {y} {z} {dx} {dy} {dz} {speed} {count} force` — `force` ensures visibility from far away
+- `title @a times {fadeIn} {stay} {fadeOut}` then `title @a title {json}` then `title @a subtitle {json}`
+- `weather clear|rain|thunder` — no duration argument so it persists until next change
+- `bossbar add {namespace:id} {json}` → `bossbar set {id} max|value|players|visible|color|name`
+- `playsound minecraft:{sound} master @a ~ ~ ~ {vol} {pitch}` — `~ ~ ~` for relative coords, `master` channel
+
+**Extension method conventions:**
+- All 5 follow the `With{Feature}()` pattern matching `WithBlueMap()`, `WithOpenTelemetry()`, etc.
+- All require `WithAspireWorldDisplay()` first (validated via `WorkerBuilder` null check).
+- All return `IResourceBuilder<MinecraftServerResource>` for chaining.
+- All set a single env var on the worker builder.
+
 📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — rich demo material — decided by Jeffrey T. Fritz
 📌 Team update (2026-02-10): Single NuGet package consolidation — only one package ships now — decided by Jeffrey T. Fritz, Shuri

@@ -6,7 +6,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Creates and updates floating hologram dashboards in the Minecraft world
 /// using DecentHolograms plugin commands via RCON.
 /// </summary>
-public sealed class HologramManager(
+internal sealed class HologramManager(
     RconService rcon,
     AspireResourceMonitor monitor,
     ILogger<HologramManager> logger)

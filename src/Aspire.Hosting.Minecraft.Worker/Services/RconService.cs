@@ -6,7 +6,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <summary>
 /// Managed RCON service for the worker. Wraps RconConnection with metrics and tracing.
 /// </summary>
-public sealed class RconService : IAsyncDisposable
+internal sealed class RconService : IAsyncDisposable
 {
     private readonly RconConnection _connection;
     private readonly ILogger<RconService> _logger;

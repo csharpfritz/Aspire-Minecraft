@@ -8,7 +8,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Tracks the health status of sibling Aspire resources.
 /// Discovers resources via environment variables and polls HTTP endpoints or TCP sockets.
 /// </summary>
-public sealed class AspireResourceMonitor
+internal sealed class AspireResourceMonitor
 {
     private readonly ILogger<AspireResourceMonitor> _logger;
     private readonly HttpClient _http;
@@ -127,11 +127,11 @@ public sealed class AspireResourceMonitor
     public int TotalCount => _resources.Count;
 }
 
-public record ResourceInfo(string Name, string Type, string Url, string TcpHost, int TcpPort, ResourceStatus Status);
+internal record ResourceInfo(string Name, string Type, string Url, string TcpHost, int TcpPort, ResourceStatus Status);
 
-public record ResourceStatusChange(string Name, string Type, ResourceStatus OldStatus, ResourceStatus NewStatus);
+internal record ResourceStatusChange(string Name, string Type, ResourceStatus OldStatus, ResourceStatus NewStatus);
 
-public enum ResourceStatus
+internal enum ResourceStatus
 {
     Unknown,
     Healthy,

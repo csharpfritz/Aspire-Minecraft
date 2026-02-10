@@ -52,6 +52,18 @@ builder.Services.AddSingleton<HologramManager>();
 builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<StructureBuilder>();
 
+// Opt-in features (enabled via env vars set by builder extension methods)
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_PARTICLES"]))
+    builder.Services.AddSingleton<ParticleEffectService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_TITLE_ALERTS"]))
+    builder.Services.AddSingleton<TitleAlertService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WEATHER"]))
+    builder.Services.AddSingleton<WeatherService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BOSSBAR"]))
+    builder.Services.AddSingleton<BossBarService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SOUNDS"]))
+    builder.Services.AddSingleton<SoundEffectService>();
+
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
 
@@ -87,7 +99,12 @@ file sealed class MinecraftWorldWorker(
     HologramManager holograms,
     ScoreboardManager scoreboard,
     StructureBuilder structures,
-    ILogger<MinecraftWorldWorker> logger) : BackgroundService
+    ILogger<MinecraftWorldWorker> logger,
+    ParticleEffectService? particles = null,
+    TitleAlertService? titleAlerts = null,
+    WeatherService? weather = null,
+    BossBarService? bossBar = null,
+    SoundEffectService? sounds = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -121,10 +138,27 @@ file sealed class MinecraftWorldWorker(
                         change.Name, change.OldStatus.ToString(), change.NewStatus.ToString(), stoppingToken);
                 }
 
+                // Opt-in features triggered on health transitions
+                if (changes.Count > 0)
+                {
+                    if (particles is not null)
+                        await particles.ShowParticlesForChangesAsync(changes, stoppingToken);
+                    if (titleAlerts is not null)
+                        await titleAlerts.ShowTitleAlertsAsync(changes, stoppingToken);
+                    if (sounds is not null)
+                        await sounds.PlaySoundsForChangesAsync(changes, stoppingToken);
+                }
+
                 // Update in-world displays
                 await holograms.UpdateDashboardAsync(stoppingToken);
                 await scoreboard.UpdateScoreboardAsync(stoppingToken);
                 await structures.UpdateStructuresAsync(stoppingToken);
+
+                // Continuous fleet-health features (update every cycle, but only change on transitions)
+                if (weather is not null)
+                    await weather.UpdateWeatherAsync(stoppingToken);
+                if (bossBar is not null)
+                    await bossBar.UpdateBossBarAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

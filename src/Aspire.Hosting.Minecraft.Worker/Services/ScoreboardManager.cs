@@ -5,7 +5,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <summary>
 /// Manages a Minecraft scoreboard sidebar showing Aspire resource metrics.
 /// </summary>
-public sealed class ScoreboardManager(
+internal sealed class ScoreboardManager(
     RconService rcon,
     AspireResourceMonitor monitor,
     ILogger<ScoreboardManager> logger)

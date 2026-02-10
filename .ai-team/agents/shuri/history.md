@@ -16,8 +16,26 @@
 - Uses PackageReference with Version="*" for Aspire packages (floating versions)
 
 ## Learnings
-
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Public API Surface Audit (Issue #12)
+
+- **MinecraftHealthCheck** changed from `public` to `internal` — it's only instantiated inside `AddMinecraftServer()` and consumers never need to reference it directly.
+- **All Worker project types** changed from `public` to `internal` — the Worker is a standalone service (`IsPackable=false`) with no public API surface. Types changed: `MinecraftMetrics`, `RconService`, `AspireResourceMonitor`, `ResourceInfo`, `ResourceStatusChange`, `ResourceStatus`, `HologramManager`, `PlayerMessageService`, `ScoreboardManager`, `StructureBuilder`, `BossBarService`, `TitleAlertService`, `ParticleEffectService`, `SoundEffectService`, `WeatherService`.
+- **Added `InternalsVisibleTo` for Worker tests** — `Aspire.Hosting.Minecraft.Worker.Tests` now has access to internal Worker types.
+- **Fixed pre-existing build errors:** Extension methods in `MinecraftServerBuilderExtensions.cs` were placed outside the class body (lines 310–385). Moved them inside the class. Also fixed `$$` raw string interpolation syntax in `BossBarService.cs` and `TitleAlertService.cs`.
+- **Test adaptation:** `StateTransitionTrackingTests.ResourceStatusChange_AllValidTransitions_AreRecorded` used `ResourceStatus` enum (now internal) in `[InlineData]` — changed to `int` parameters with cast.
+- **Intentionally public API surface (Hosting package):**
+  - `MinecraftServerBuilderExtensions` — all `With*` and `Add*` extension methods
+  - `MinecraftServerResource` — resource type, `RconPasswordParameter`, `ConnectionStringExpression`
+- **Intentionally public API surface (Rcon, embedded in Hosting package):**
+  - `RconClient` — `ConnectAsync`, `AuthenticateAsync`, `SendCommandAsync`, `IsConnected`, `DisposeAsync`
+  - `RconConnection` — `SendCommandAsync`, `IsConnected`, `DisposeAsync`
+  - `RconResponseParser` — `StripColorCodes`, `ParseTps`, `ParseMspt`, `ParsePlayerList`, `ParseWorldList`
+  - `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult` — response data types
+- **Created CONTRIBUTING.md** with prerequisites, build/test/pack commands, single-package architecture notes, code style, and PR process.
+- **Updated PR template** — added `-c Release` to build command, `Closes #` placeholder, pack clarification for src projects only, public API changes checklist item.
 
 ### NuGet Readiness Audit (2026-02-10)
 

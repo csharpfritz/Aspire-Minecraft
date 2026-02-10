@@ -17,4 +17,9 @@
   </ItemGroup>
 
 
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aspire.Hosting.Minecraft.Worker.Tests" />
+  </ItemGroup>
+
 </Project>

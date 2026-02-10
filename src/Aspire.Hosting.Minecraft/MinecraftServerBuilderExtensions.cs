@@ -287,6 +287,87 @@ public static class MinecraftServerBuilderExtensions
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
         return builder;
     }
+    /// <summary>
+    /// Enables particle effects at resource structures on health transitions.
+    /// Crash: large_smoke + flame, Recovery: happy_villager particles appear at the resource's structure.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithParticleEffects(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithParticleEffects() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_PARTICLES", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables dramatic full-screen title alerts when resources go down or recover.
+    /// Red "⚠ SERVICE DOWN" on failure, green "✅ BACK ONLINE" on recovery.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithTitleAlerts(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithTitleAlerts() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_TITLE_ALERTS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Links Minecraft weather to overall Aspire fleet health.
+    /// Clear when all healthy, rain when degraded, thunder when critical.
+    /// Only changes weather on state transitions, not every poll cycle.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithWeatherEffects(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithWeatherEffects() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_WEATHER", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Adds a persistent boss bar showing overall Aspire fleet health percentage.
+    /// Green = all healthy, yellow = degraded, red = majority down.
+    /// Value 0–100 based on healthy/total resource count.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithBossBar(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithBossBar() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_BOSSBAR", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables sound effects on health state transitions.
+    /// Down: entity.wither.ambient, Up: entity.player.levelup, All green: ui.toast.challenge_complete.
+    /// Requires WithAspireWorldDisplay() to be called first.
+    /// </summary>
+    public static IResourceBuilder<MinecraftServerResource> WithSoundEffects(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithSoundEffects() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_SOUNDS", "true");
+        return builder;
+    }
 }
 
 /// <summary>
