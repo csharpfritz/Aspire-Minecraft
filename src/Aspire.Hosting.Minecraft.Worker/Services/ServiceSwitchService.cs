@@ -51,16 +51,16 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever on the west wall (x-min side) at x, y+2, z+3, facing outward (east)
-            await PlaceLeverAsync(x, y + 2, z + 3, powered, ct);
+            // Place lever on the front wall (z-min side) at x+2, y+2, z, facing outward (north)
+            await PlaceLeverAsync(x + 2, y + 2, z, powered, ct);
 
-            // Place redstone lamp above the lever at x, y+3, z+3
-            await PlaceLampAsync(x, y + 3, z + 3, powered, ct);
+            // Place redstone lamp above the lever at x+2, y+3, z
+            await PlaceLampAsync(x + 2, y + 3, z, powered, ct);
 
             _lastKnownStatus[name] = info.Status;
 
             logger.LogInformation("Service switch placed for {ResourceName} at ({X},{Y},{Z}), powered={Powered}",
-                name, x, y + 2, z + 3, powered);
+                name, x + 2, y + 2, z, powered);
         }
 
         logger.LogInformation("Service switches placed for {Count} resources", orderedNames.Count);
@@ -83,8 +83,8 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            await PlaceLeverAsync(x, y + 2, z + 3, powered, ct);
-            await PlaceLampAsync(x, y + 3, z + 3, powered, ct);
+            await PlaceLeverAsync(x + 2, y + 2, z, powered, ct);
+            await PlaceLampAsync(x + 2, y + 3, z, powered, ct);
 
             logger.LogInformation("Service switch updated for {ResourceName}: powered={Powered}",
                 name, powered);
@@ -95,7 +95,7 @@ internal sealed class ServiceSwitchService(
     {
         var poweredState = powered ? "true" : "false";
         await rcon.SendCommandAsync(
-            $"setblock {x} {y} {z} minecraft:lever[face=wall,facing=east,powered={poweredState}]",
+            $"setblock {x} {y} {z} minecraft:lever[face=wall,facing=north,powered={poweredState}]",
             CommandPriority.Normal, ct);
     }
 

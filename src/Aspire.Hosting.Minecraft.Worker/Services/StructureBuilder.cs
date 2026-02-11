@@ -110,7 +110,7 @@ internal sealed class StructureBuilder(
                 $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:grass_block replace air", ct);
             // Place cobblestone path at ground level (replaces grass surface)
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:cobblestone", ct);
         }
 
         // Cross paths: 2-wide cobblestone from each structure's entrance to the main boulevard
@@ -131,7 +131,7 @@ internal sealed class StructureBuilder(
                     await rcon.SendCommandAsync(
                         $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
-                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
             else
@@ -144,7 +144,7 @@ internal sealed class StructureBuilder(
                     await rcon.SendCommandAsync(
                         $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
-                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
         }
@@ -157,7 +157,7 @@ internal sealed class StructureBuilder(
             await rcon.SendCommandAsync(
                 $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:grass_block replace air", ct);
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:cobblestone", ct);
         }
     }
 
@@ -217,9 +217,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 5} {y + 1} {z + 5} {x + 5} {y + 9} {z + 5} minecraft:stone_brick_stairs[facing=north]", ct);
 
-        // Door opening (front face, Z-min side)
+        // Door opening (front face, Z-min side) - 2 blocks wide
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
 
         // Windows (one on each side, at y+4)
         await rcon.SendCommandAsync(
@@ -264,7 +264,7 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:iron_block", ct);
 
-        // Wide cargo door (front face, 3 wide × 3 tall)
+        // Wide cargo door (front face, 3 wide × 3 tall) - ensure on actual wall face
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y + 1} {z} {x + 4} {y + 3} {z} minecraft:air", ct);
 
@@ -313,9 +313,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y + 6} {z + 3} {x + 6} {y + 6} {z + 3} minecraft:oak_slab", ct);
 
-        // Door
+        // Door - 2 blocks wide
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
 
         // Cyan stained glass windows
         await rcon.SendCommandAsync(
@@ -368,9 +368,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:cobblestone_slab", ct);
 
-        // Door
+        // Door - 2 blocks wide
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
 
         // Windows (glass panes on sides)
         await rcon.SendCommandAsync(
@@ -396,7 +396,7 @@ internal sealed class StructureBuilder(
             _ => "minecraft:sea_lantern"
         };
 
-        // Place in front wall at eye level
+        // Place in front wall at eye level (embedded in wall at z)
         await rcon.SendCommandAsync(
             $"setblock {x + 3} {y + 3} {z} {lampBlock}", ct);
     }
