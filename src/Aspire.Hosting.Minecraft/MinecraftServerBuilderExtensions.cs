@@ -107,6 +107,7 @@ public static class MinecraftServerBuilderExtensions
 
         var result = builder
             .WithEndpoint(port: port, targetPort: 8100, name: MinecraftServerResource.BlueMapEndpointName, scheme: "http")
+            .WithUrlForEndpoint(MinecraftServerResource.BlueMapEndpointName, url => url.DisplayText = "World Map")
             .WithAnnotation(new ModrinthPluginAnnotation("bluemap"))
             .WithEnvironment(context =>
             {
