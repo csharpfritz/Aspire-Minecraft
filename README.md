@@ -4,9 +4,9 @@
 
 A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry instrumentation, BlueMap web maps, and live in-world visualization of your distributed system. When your Redis cache goes down, the weather darkens. When it recovers, fireworks light up the sky.
 
-![Aspire resources visualized in Minecraft — emerald block structures with health signs, floating hologram dashboard, scoreboard sidebar, and player chat alerts](img/sample-1.png)
+![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](img/sample-1.png)
 
-> 📸 **Sprint 3 Update:** The resource village now features themed structures (watchtower, warehouse, workshop, cottage), redstone dependency graphs, service switches, achievements, and a heartbeat pulse! Screenshots coming soon.
+> 🎉 **v0.2.1:** Sprint 3 complete! The resource village features themed structures (watchtower/warehouse/workshop/cottage), comprehensive cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and a rhythmic heartbeat that reflects fleet health.
 
 ## 🚀 Quick Start
 
@@ -62,20 +62,25 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 
 ### 🏗️ World Building
 
-- **Resource Village** — Each Aspire resource gets a themed building: Watchtower (projects), Warehouse (containers), Workshop (executables), Cottage (other). Arranged in a 2×N grid with cobblestone pathways and oak fence perimeter
-- **Beacon Towers** — Per-resource beacons with stained glass matching the Aspire dashboard color palette (blue=project, purple=container, cyan=executable). Beam turns red on failure
-- **Redstone Dependency Graph** — Visual redstone wires connecting dependent resources, showing the flow of your system architecture
-- **Service Switches** — Levers on building fronts that reflect current resource state (up=healthy, down=unhealthy)
-- **Fence & Gate** — Oak fence perimeter around the village with a gated entrance
-- **Cobblestone Paths** — Boulevard between structure columns with cross-paths to each building
+- **Resource Village** — Each Aspire resource gets a themed building in a 2×N grid layout:
+  - **Watchtower** (stone brick, 10 blocks tall) — .NET Projects
+  - **Warehouse** (iron block, cargo bay style) — Docker Containers  
+  - **Workshop** (oak planks, peaked roof) — Executables
+  - **Cottage** (cobblestone, humble dwelling) — Other resources
+- **Comprehensive Paths** — Complete cobblestone coverage throughout the village, flush with the ground for seamless walking
+- **Beacon Towers** — Per-resource beacons with color-coded stained glass matching Aspire dashboard colors (blue/purple/cyan). Beam turns red when resource fails
+- **Redstone Dependency Graph** — Visual L-shaped redstone wires connecting dependent resources, showing your system's dependency architecture
+- **Service Switches** — Interactive levers positioned to the right of each building entrance. Lever up + glowing lamp = healthy, lever down + dark lamp = unhealthy (display-only)
+- **Fence & Gate** — Oak fence perimeter with a gated south entrance, 4-block clearance from buildings
+- **Health Indicators** — Glowstone blocks embedded in front walls turn to redstone lamps when resources become unhealthy
 
 ### 📊 Health Monitoring
 
-- **Boss Bar** — Persistent bar at the top of the screen showing fleet health as a percentage (green/yellow/red)
+- **Boss Bar** — Persistent bar at the top showing fleet health percentage (green/yellow/red). Title is configurable via `WithBossBar(title)`, defaults to "Aspire Status"
 - **Weather Effects** — Clear skies when all healthy, rain when degraded, thunderstorms when majority down
-- **World Border Pulse** — Border shrinks from 200→100 blocks with red tint when >50% of services are down
-- **Particle Effects** — Smoke and flame at crashed resources, happy villager particles on recovery
-- **Guardian Mobs** — Iron golems protect healthy resources; zombies spawn at unhealthy ones
+- **World Border Pulse** — Border shrinks from 200→100 blocks with red tint when >50% of services are unhealthy
+- **Particle Effects** — Smoke and flame particles at crashed resources, happy villager particles on recovery
+- **Guardian Mobs** — Iron golems protect healthy resources; zombies spawn at unhealthy ones (disable with `WithPeacefulMode()`)
 
 ### 🔊 Audio & Effects
 
@@ -93,11 +98,12 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 ### ⚙️ Configuration
 
 - **Server Properties** — `WithServerProperty()`, `WithGameMode()`, `WithDifficulty()`, `WithMaxPlayers()`, `WithMotd()`, `WithWorldSeed()`, `WithPvp()` — all Minecraft `server.properties` values via a fluent API or `WithServerPropertiesFile()` for bulk loading
-- **Persistent World** — `WithPersistentWorld()` uses a named Docker volume to keep world data across restarts (default: fresh world each run)
-- **Peaceful Mode** — `WithPeacefulMode()` eliminates hostile mobs for distraction-free monitoring
-- **BlueMap** — `WithBlueMap()` adds an interactive 3D web map exposed as a clickable endpoint in the Aspire dashboard
+- **Persistent World** — `WithPersistentWorld()` uses a named Docker volume to keep world data across restarts (default: ephemeral, fresh world each run)
+- **Peaceful Mode** — `WithPeacefulMode()` eliminates hostile mobs (zombies, skeletons, creepers) for distraction-free monitoring
+- **BlueMap** — `WithBlueMap()` adds an interactive 3D web map exposed as a clickable "world-map" endpoint in the Aspire dashboard
 - **OpenTelemetry** — `WithOpenTelemetry()` injects the OTEL Java agent for automatic JVM metrics (heap, GC, threads, CPU)
-- **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot
+- **RCON Debug Logging** — `WithRconDebugLogging()` enables debug-level logging of every command sent to the server, visible in Aspire dashboard logs
+- **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot (~30 seconds)
 
 ## 📦 Full Feature Demo
 

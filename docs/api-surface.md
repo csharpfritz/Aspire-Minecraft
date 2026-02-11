@@ -1,7 +1,7 @@
 # API Surface — Fritz.Aspire.Hosting.Minecraft
 
-> **Frozen for:** v0.2.0  
-> **Last updated:** 2026-02-10  
+> **Frozen for:** v0.2.1  
+> **Last updated:** 2026-02-11  
 > **Package:** `Fritz.Aspire.Hosting.Minecraft`
 
 This document is the authoritative listing of every public type and method shipped in the NuGet package. Any addition, removal, or signature change to a listed item is a breaking/additive API change that requires review.
@@ -62,6 +62,12 @@ All methods return `IResourceBuilder<MinecraftServerResource>` for fluent chaini
 | `WithRedstoneDependencyGraph` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_REDSTONE_GRAPH` | Redstone wire circuits between dependent resources showing DAG. |
 | `WithServiceSwitches` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_SWITCHES` | Visual levers+lamps on structures reflecting service state. |
 | `WithPeacefulMode` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_PEACEFUL` | Eliminates hostile mobs via `/difficulty peaceful` command. |
+
+#### Sprint 3.1 — Quality & Developer Experience
+
+| Method | Signature | Env Var | Description |
+|--------|-----------|---------|-------------|
+| `WithRconDebugLogging` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `Logging__LogLevel__...RconService` | Enables debug-level logging of all RCON commands in Aspire dashboard. |
 
 #### Server Configuration
 
