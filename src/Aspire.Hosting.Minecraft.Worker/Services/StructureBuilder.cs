@@ -14,6 +14,7 @@ internal sealed class StructureBuilder(
 {
     private bool _pathsBuilt;
     private bool _fenceBuilt;
+    private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Builds or updates structures for all monitored resources.
@@ -37,9 +38,19 @@ internal sealed class StructureBuilder(
             }
 
             var index = 0;
-            foreach (var (_, info) in monitor.Resources)
+            foreach (var (name, info) in monitor.Resources)
             {
-                await BuildResourceStructureAsync(info, index, ct);
+                if (!_builtStructures.Contains(name))
+                {
+                    await BuildResourceStructureAsync(info, index, ct);
+                    _builtStructures.Add(name);
+                }
+                else
+                {
+                    // Only update health indicator, not rebuild entire structure
+                    var (x, y, z) = VillageLayout.GetStructureOrigin(index);
+                    await PlaceHealthIndicatorAsync(x, y, z, info.Status, ct);
+                }
                 index++;
             }
 
@@ -110,7 +121,7 @@ internal sealed class StructureBuilder(
                 $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:grass_block replace air", ct);
             // Place cobblestone path at ground level (replaces grass surface)
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
         }
 
         // Cross paths: 2-wide cobblestone from each structure's entrance to the main boulevard
@@ -131,7 +142,7 @@ internal sealed class StructureBuilder(
                     await rcon.SendCommandAsync(
                         $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
-                        $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
             else
@@ -144,7 +155,7 @@ internal sealed class StructureBuilder(
                     await rcon.SendCommandAsync(
                         $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
-                        $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
         }
@@ -157,7 +168,7 @@ internal sealed class StructureBuilder(
             await rcon.SendCommandAsync(
                 $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:grass_block replace air", ct);
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
         }
     }
 
