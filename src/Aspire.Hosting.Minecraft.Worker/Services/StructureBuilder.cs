@@ -105,6 +105,10 @@ internal sealed class StructureBuilder(
 
         if (rows > 0)
         {
+            // Ensure grass foundation exists before placing path
+            await rcon.SendCommandAsync(
+                $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:grass_block replace air", ct);
+            // Place cobblestone path at ground level (replaces grass surface)
             await rcon.SendCommandAsync(
                 $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
         }
@@ -123,6 +127,9 @@ internal sealed class StructureBuilder(
                 // Left column: path runs from entrance (x+3) east to the boulevard (boulevardX - 1)
                 if (entranceX < boulevardX)
                 {
+                    // Ensure grass foundation
+                    await rcon.SendCommandAsync(
+                        $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
                         $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
@@ -133,6 +140,9 @@ internal sealed class StructureBuilder(
                 var boulevardEnd = boulevardX + 3;
                 if (boulevardEnd <= entranceX)
                 {
+                    // Ensure grass foundation
+                    await rcon.SendCommandAsync(
+                        $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:grass_block replace air", ct);
                     await rcon.SendCommandAsync(
                         $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
@@ -143,6 +153,9 @@ internal sealed class StructureBuilder(
         var (fMinX, fMinZ, _, _) = VillageLayout.GetFencePerimeter(resourceCount);
         if (fMinZ < pathZ1)
         {
+            // Ensure grass foundation
+            await rcon.SendCommandAsync(
+                $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:grass_block replace air", ct);
             await rcon.SendCommandAsync(
                 $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
         }
@@ -206,7 +219,7 @@ internal sealed class StructureBuilder(
 
         // Door opening (front face, Z-min side)
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 1} {z + 1} {x + 3} {y + 2} {z + 1} minecraft:air", ct);
+            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
 
         // Windows (one on each side, at y+4)
         await rcon.SendCommandAsync(
@@ -390,6 +403,7 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Places a sign in front of the structure with the resource name and status.
+    /// Sign is placed offset from the door entrance (at x+2 instead of x+3).
     /// </summary>
     private async Task PlaceSignAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
@@ -397,9 +411,9 @@ internal sealed class StructureBuilder(
         var signZ = z - 1;
 
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
+            $"setblock {x + 2} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
 
-        var signCmd = "data merge block " + $"{x + 3} {signY} {signZ}" +
+        var signCmd = "data merge block " + $"{x + 2} {signY} {signZ}" +
             " {front_text:{messages:[\"\"," +
             "\"" + info.Name + "\"," +
             "\"(" + info.Status + ")\"," +
