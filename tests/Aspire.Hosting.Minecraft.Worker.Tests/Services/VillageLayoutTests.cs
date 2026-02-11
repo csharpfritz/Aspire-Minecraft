@@ -6,17 +6,17 @@ namespace Aspire.Hosting.Minecraft.Worker.Tests.Services;
 public class VillageLayoutTests
 {
     [Theory]
-    [InlineData(1, 0, new[] { 10, -60, 0 })]
-    [InlineData(2, 0, new[] { 10, -60, 0 })]
-    [InlineData(2, 1, new[] { 20, -60, 0 })]
-    [InlineData(4, 0, new[] { 10, -60, 0 })]
-    [InlineData(4, 1, new[] { 20, -60, 0 })]
-    [InlineData(4, 2, new[] { 10, -60, 10 })]
-    [InlineData(4, 3, new[] { 20, -60, 10 })]
-    [InlineData(8, 0, new[] { 10, -60, 0 })]
-    [InlineData(8, 7, new[] { 20, -60, 30 })]
-    [InlineData(10, 0, new[] { 10, -60, 0 })]
-    [InlineData(10, 9, new[] { 20, -60, 40 })]
+    [InlineData(1, 0, new[] { 10, -59, 0 })]
+    [InlineData(2, 0, new[] { 10, -59, 0 })]
+    [InlineData(2, 1, new[] { 20, -59, 0 })]
+    [InlineData(4, 0, new[] { 10, -59, 0 })]
+    [InlineData(4, 1, new[] { 20, -59, 0 })]
+    [InlineData(4, 2, new[] { 10, -59, 10 })]
+    [InlineData(4, 3, new[] { 20, -59, 10 })]
+    [InlineData(8, 0, new[] { 10, -59, 0 })]
+    [InlineData(8, 7, new[] { 20, -59, 30 })]
+    [InlineData(10, 0, new[] { 10, -59, 0 })]
+    [InlineData(10, 9, new[] { 20, -59, 40 })]
     public void GetStructureOrigin_ReturnsCorrectCoordinates(int totalResources, int index, int[] expected)
     {
         var (x, y, z) = VillageLayout.GetStructureOrigin(index);
@@ -27,10 +27,10 @@ public class VillageLayoutTests
     }
 
     [Theory]
-    [InlineData(0, 13, -60, 3)]
-    [InlineData(1, 23, -60, 3)]
-    [InlineData(2, 13, -60, 13)]
-    [InlineData(3, 23, -60, 13)]
+    [InlineData(0, 13, -59, 3)]
+    [InlineData(1, 23, -59, 3)]
+    [InlineData(2, 13, -59, 13)]
+    [InlineData(3, 23, -59, 13)]
     public void GetStructureCenter_ReturnsCorrectOffset(int index, int expectedX, int expectedY, int expectedZ)
     {
         var (x, y, z) = VillageLayout.GetStructureCenter(index);
@@ -212,7 +212,7 @@ public class VillageLayoutTests
             var (x, y, z) = VillageLayout.GetStructureOrigin(0);
 
             Assert.Equal(10, x);
-            Assert.Equal(64, y);
+            Assert.Equal(65, y);
             Assert.Equal(0, z);
         }
         finally
@@ -231,7 +231,7 @@ public class VillageLayoutTests
             var (x, y, z) = VillageLayout.GetStructureCenter(0);
 
             Assert.Equal(13, x);
-            Assert.Equal(72, y);
+            Assert.Equal(73, y);
             Assert.Equal(3, z);
         }
         finally

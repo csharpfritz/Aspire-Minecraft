@@ -90,7 +90,7 @@ internal sealed class StructureBuilder(
         try
         {
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
-            var fenceY = VillageLayout.SurfaceY;
+            var fenceY = VillageLayout.SurfaceY + 1;
 
             // South side (low Z) — two segments with a gate gap in the center
             var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
@@ -129,13 +129,13 @@ internal sealed class StructureBuilder(
             var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
 
-            // Step 1: Clear all blocks at surface level (terrain-agnostic, not just grass_block)
+            // Step 1: Clear blocks above the surface (where structure floors now sit)
             await rcon.SendCommandAsync(
-                $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:air", ct);
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY + 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY + 1} {fMaxZ - 1} minecraft:air", ct);
 
-            // Step 2: Place cobblestone at SurfaceY-1 (one level down, flush with remaining terrain)
+            // Step 2: Place cobblestone at SurfaceY (the grass surface level, one below new floor level)
             await rcon.SendCommandAsync(
-                $"fill {fMinX + 1} {VillageLayout.SurfaceY - 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY - 1} {fMaxZ - 1} minecraft:cobblestone", ct);
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:cobblestone", ct);
 
             logger.LogInformation("Comprehensive village paths built covering fence interior");
         }
@@ -395,9 +395,13 @@ internal sealed class StructureBuilder(
         // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
         var lampZ = structureType == "Watchtower" ? z + 1 : z;
         
-        // Place in front wall at y+3 (window/door height), centered above entrance
+        // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
+        // Workshop and Cottage have 2-tall doors (y+1 to y+2), so y+3 is fine.
+        var lampY = (structureType is "Watchtower" or "Warehouse") ? y + 4 : y + 3;
+        
+        // Place in front wall centered above entrance
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 3} {lampZ} {lampBlock}", ct);
+            $"setblock {x + 3} {lampY} {lampZ} {lampBlock}", ct);
     }
 
     /// <summary>

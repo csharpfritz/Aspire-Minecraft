@@ -120,3 +120,11 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 - `tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/TerrainProbeServiceTests.cs` — probe fallback and integration tests
 
 **RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.
+
+### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment (2026-02-11)
+
+**Bug 1 — Buildings 1 block below ground:** `TerrainProbeService` detects `SurfaceY` as the Y of the highest solid block (the grass block). Structures placed their floor AT `SurfaceY`, replacing the grass and burying the bottom wall row underground. Fix: `VillageLayout.GetStructureOrigin()` now returns `SurfaceY + 1`. Also adjusted `StructureBuilder.BuildFencePerimeterAsync` (`fenceY = SurfaceY + 1`) and `BuildPathsAsync` (air clearing at `SurfaceY + 1`, cobblestone at `SurfaceY`).
+
+**Bug 2 — Warehouse health lamp misaligned:** The health indicator glowstone was placed at `y+3`, which overlapped with the 3-tall cargo door (y+1 to y+3). Fixed `PlaceHealthIndicatorAsync` to use `y+4` for Watchtower and Warehouse (3-tall doors), keeping `y+3` for Workshop and Cottage (2-tall doors).
+
+**Key learning:** When `SurfaceY` represents the topmost solid block, structure floors must be placed at `SurfaceY + 1` (above the surface), not at `SurfaceY` (replacing the surface). Health indicators must be placed above door openings, not overlapping them.

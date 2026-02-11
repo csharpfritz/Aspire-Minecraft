@@ -88,9 +88,9 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.True(pathCommands.Count >= 2, 
             $"Expected at least 2 path commands (grass clear + cobblestone fill) but got {pathCommands.Count}");
         
-        // Verify path is at BaseY-1 (-61)
+        // Verify path cobblestone is at SurfaceY (-60, the grass block level)
         var cobblestonePathCmd = commands.FirstOrDefault(c => 
-            c.Contains("cobblestone") && c.Contains(" -61 "));
+            c.Contains("cobblestone") && c.Contains(" -60 "));
         Assert.NotNull(cobblestonePathCmd);
 
         // === 3. STRUCTURE-SPECIFIC BLOCKS ===
@@ -153,18 +153,19 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.Contains(signDataCommands, c => c.Contains("legacy-app"));
 
         // === 7. COORDINATE VALIDATION ===
-        // VillageLayout: BaseX=10, BaseY=-60, BaseZ=0, Spacing=10
-        // Index 0 (api-service): (10, -60, 0)
-        // Index 1 (redis-cache): (20, -60, 0)
-        // Index 2 (worker-exe): (10, -60, 10)
-        // Index 3 (legacy-app): (20, -60, 10)
+        // VillageLayout: BaseX=10, SurfaceY=-60, BaseZ=0, Spacing=10
+        // GetStructureOrigin returns SurfaceY+1 = -59 for Y
+        // Index 0 (api-service): (10, -59, 0)
+        // Index 1 (redis-cache): (20, -59, 0)
+        // Index 2 (worker-exe): (10, -59, 10)
+        // Index 3 (legacy-app): (20, -59, 10)
         
-        // Verify at least one command uses the first structure origin (10, -60, 0)
-        var structure0Commands = commands.Where(c => c.Contains(" 10 -60 0")).ToList();
+        // Verify at least one command uses the first structure origin (10, -59, 0)
+        var structure0Commands = commands.Where(c => c.Contains(" 10 -59 0")).ToList();
         Assert.NotEmpty(structure0Commands);
         
-        // Verify at least one command uses the second structure origin (20, -60, 0)
-        var structure1Commands = commands.Where(c => c.Contains(" 20 -60 0")).ToList();
+        // Verify at least one command uses the second structure origin (20, -59, 0)
+        var structure1Commands = commands.Where(c => c.Contains(" 20 -59 0")).ToList();
         Assert.NotEmpty(structure1Commands);
 
         // === 8. OVERALL COMMAND COUNT ===
@@ -365,7 +366,7 @@ public class StructureBuilderTests : IAsyncLifetime
         // Act
         await _structureBuilder.UpdateStructuresAsync();
 
-        // Assert: Watchtower at index 0 is at (10, -60, 0), front wall is at z+1 = 1
+        // Assert: Watchtower at index 0 is at (10, -59, 0), front wall is at z+1 = 1
         // Door command should clear air blocks and include z coordinate of 1
         var commands = _server.GetCommands();
         var watchtowerDoorCommand = commands.FirstOrDefault(c => 
@@ -393,7 +394,7 @@ public class StructureBuilderTests : IAsyncLifetime
         // Act
         await _structureBuilder.UpdateStructuresAsync();
 
-        // Assert: Warehouse at (10, -60, 0), front wall is at z=0
+        // Assert: Warehouse at (10, -59, 0), front wall is at z=0
         // Door command should clear air blocks at x+2 to x+4 (12 to 14), z=0
         var commands = _server.GetCommands();
         var warehouseDoorCommand = commands.FirstOrDefault(c => 

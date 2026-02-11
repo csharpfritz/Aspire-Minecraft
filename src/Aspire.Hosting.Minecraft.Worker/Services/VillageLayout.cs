@@ -66,14 +66,14 @@ internal static class VillageLayout
     /// <para>Calculation: col = index % 2, row = index / 2</para>
     /// <para>X = BaseX + (col × Spacing) → 10, 20, 10, 20, ...</para>
     /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 10, 10, 20, 20, ...</para>
-    /// <para>Y is always SurfaceY (detected terrain height, or -60 fallback)</para>
+    /// <para>Y is always SurfaceY + 1 (one block above detected terrain height)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)
     {
         var col = index % Columns;
         var row = index / Columns;
         var x = BaseX + (col * Spacing);
-        var y = SurfaceY;
+        var y = SurfaceY + 1;
         var z = BaseZ + (row * Spacing);
         return (x, y, z);
     }
