@@ -3,8 +3,18 @@ name: Build & Pack
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'user-docs/**'
+      - '*.md'
+      - '.ai-team/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'user-docs/**'
+      - '*.md'
+      - '.ai-team/**'
 
 concurrency:
   group: build-${{ github.ref }}

@@ -3,6 +3,11 @@ name: Publish to NuGet
 on:
   push:
     tags: ['v*']
+    paths-ignore:
+      - 'docs/**'
+      - 'user-docs/**'
+      - '*.md'
+      - '.ai-team/**'
 
 permissions:
   contents: write

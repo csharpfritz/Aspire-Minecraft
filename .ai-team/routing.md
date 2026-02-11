@@ -14,7 +14,7 @@ How to decide who handles what.
 | Code review | Rhodey | Review PRs, check quality, suggest improvements |
 | Testing | Nebula | Write tests, find edge cases, verify fixes |
 | Scope & priorities | Rhodey | What to build next, trade-offs, decisions |
-| Documentation | Rhodey | README, API docs, usage guides |
+| Documentation | Vision | README, API docs, usage guides, user documentation |
 | Blog posts & comms | Mantis | Release posts, changelogs, developer announcements |
 | CI/CD & GitHub | Wong | Actions workflows, branch policies, NuGet publishing pipeline |
 | Repo config | Wong | Issue labels, PR templates, dependabot, CODEOWNERS |

@@ -85,3 +85,10 @@
 
 📌 Team update (2026-02-10): Azure SDK research completed — separate package recommended, polling for v1 — decided by Shuri
 📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz
+
+### 2026-02-10: Core Architecture Documentation
+
+- **docs/architecture-diagram.md created** — comprehensive visual documentation of the Minecraft coordinate system, village layout, and structure placement. Includes Y-level breakdown (Y=-64 to Y=-59), 2×N grid layout with exact coordinate calculations, structure footprint visualization, fence perimeter math, and 4-resource village example. Uses ASCII art for accessibility. This is the reference for contributors learning the coordinate math.
+- **docs/minecraft-constraints.md created** — authoritative source of truth for all Minecraft building rules. Documents Y-level conventions (BaseY=-60 as grass surface), structure size limits (7×7 footprint, heights: watchtower 10 blocks, warehouse/cottage 5 blocks, workshop 7 blocks), RCON rate limits (10 cmd/sec, 250ms throttle, high-priority bypass), Z-coordinate conventions (hollow vs solid structure front walls), path placement (BaseY-1 with grass cleared), fence placement (BaseY with 4-block clearance), and maximum resource limits (~45 resources before world border issues at 256 blocks).
+- **Key architectural insights captured**: RCON throughput is the hidden bottleneck for large deployments (50 resources = ~75 seconds initial build at 10 cmd/sec). World border at 256 blocks limits village to ~45 resources safely. Azure RG integration will need MaxResources cap and resource type filtering.
+- **Documentation placement rationale**: Both files in docs/ root for high visibility. architecture-diagram.md is educational (helps contributors understand), minecraft-constraints.md is prescriptive (enforces consistency). Together they form complete reference for world-building features.

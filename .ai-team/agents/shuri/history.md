@@ -61,3 +61,19 @@
 - Hologram line-add bug fixed — decided by Rocket
 - Azure RG epic designed — Shuri owns Phases 1 and 3 (ARM client, auth, options, NuGet scaffold) — decided by Rhodey
 - Azure monitoring ships as separate NuGet package — decided by Rhodey, Shuri
+
+### Structure Build Validation (2026-02-10)
+
+- Added validation to StructureBuilder after each structure type builds (Watchtower, Warehouse, Workshop, Cottage).
+- Validation checks door air blocks and window blocks (glass_pane or stained_glass) at expected coordinates.
+- `VerifyBlockAsync()` helper method uses `testforblock` RCON command to verify block placement.
+- Logs warnings on validation failure for graceful degradation — does not throw exceptions.
+- Location: src/Aspire.Hosting.Minecraft.Worker/Services/StructureBuilder.cs
+
+### VillageLayout Unit Tests (2026-02-10)
+
+- Created comprehensive unit tests for VillageLayout static methods in tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/VillageLayoutTests.cs.
+- Tests verify coordinate math correctness for GetStructureOrigin (with 1, 2, 4, 8, 10 resources), GetStructureCenter, GetVillageBounds, GetFencePerimeter.
+- Tests verify topological sort correctness for ReorderByDependency with various dependency chains (simple, chained, diamond, multiple).
+- ResourceInfo constructor requires: Name, Type, Url, TcpHost, TcpPort, Status, Dependencies (optional).
+- All 32 tests pass successfully.
