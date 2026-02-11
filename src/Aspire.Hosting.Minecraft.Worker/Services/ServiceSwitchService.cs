@@ -75,19 +75,20 @@ internal sealed class ServiceSwitchService(
             var name = orderedNames[i];
             if (!monitor.Resources.TryGetValue(name, out var info)) continue;
 
-            _lastKnownStatus.TryGetValue(name, out var lastStatus);
-            if (info.Status == lastStatus) continue;
-
-            _lastKnownStatus[name] = info.Status;
-
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
+            // Always place switches (self-healing if destroyed)
             await PlaceLeverAsync(x + 2, y + 2, z, powered, ct);
             await PlaceLampAsync(x + 2, y + 3, z, powered, ct);
 
-            logger.LogInformation("Service switch updated for {ResourceName}: powered={Powered}",
-                name, powered);
+            _lastKnownStatus.TryGetValue(name, out var lastStatus);
+            if (info.Status != lastStatus)
+            {
+                _lastKnownStatus[name] = info.Status;
+                logger.LogInformation("Service switch updated for {ResourceName}: powered={Powered}",
+                    name, powered);
+            }
         }
     }
 

@@ -36,7 +36,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     // Sprint 1 — Core feedback
     .WithTitleAlerts()
     .WithWeatherEffects()
-    .WithBossBar()
+    .WithBossBar("Minecraft Demo")
     .WithSoundEffects()
     .WithParticleEffects()
 
