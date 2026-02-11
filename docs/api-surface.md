@@ -38,7 +38,7 @@ All methods return `IResourceBuilder<MinecraftServerResource>` for fluent chaini
 |--------|-----------|---------|-------------|
 | `WithTitleAlerts` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_TITLE_ALERTS` | Full-screen title alerts on resource state changes. |
 | `WithWeatherEffects` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_WEATHER` | Weather reflects fleet health (clear/rain/thunder). |
-| `WithBossBar` | `(this IResourceBuilder<MinecraftServerResource> builder, string? appName = null)` | `ASPIRE_FEATURE_BOSSBAR` | Persistent boss bar showing fleet health %. |
+| `WithBossBar` | `(this IResourceBuilder<MinecraftServerResource> builder, string? title = null)` | `ASPIRE_FEATURE_BOSSBAR` | Persistent boss bar showing fleet health %. Optional custom title. |
 | `WithSoundEffects` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_SOUNDS` | Audio cues on health state transitions. |
 | `WithParticleEffects` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_PARTICLES` | Smoke/flame on crash, happy villager on recovery. |
 

@@ -438,20 +438,20 @@ public static class MinecraftServerBuilderExtensions
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
-    /// <param name="appName">Optional application name displayed in the boss bar title.</param>
+    /// <param name="title">Optional custom title for the boss bar. Defaults to "Aspire Fleet Health".</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithBossBar(
         this IResourceBuilder<MinecraftServerResource> builder,
-        string? appName = null)
+        string? title = null)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithBossBar() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_BOSSBAR", "true");
-        if (!string.IsNullOrEmpty(appName))
-            workerBuilder.WithEnvironment("ASPIRE_APP_NAME", appName);
+        if (!string.IsNullOrEmpty(title))
+            workerBuilder.WithEnvironment("ASPIRE_BOSSBAR_TITLE", title);
         return builder;
     }
 
