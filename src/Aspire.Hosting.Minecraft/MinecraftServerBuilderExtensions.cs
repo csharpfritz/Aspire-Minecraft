@@ -15,6 +15,8 @@ public static class MinecraftServerBuilderExtensions
 
     /// <summary>
     /// Adds a Minecraft Paper server to the Aspire application.
+    /// By default, world data is ephemeral — each run starts fresh. Call <see cref="WithPersistentWorld"/>
+    /// to persist world data across restarts using a named Docker volume.
     /// Includes a built-in RCON health check so dependents can use WaitFor().
     /// </summary>
     /// <param name="builder">The Aspire distributed application builder.</param>
@@ -73,8 +75,19 @@ public static class MinecraftServerBuilderExtensions
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
             })
-            .WithVolume($"{name}-data", "/data")
             .WithHealthCheck(healthCheckKey);
+    }
+
+    /// <summary>
+    /// Persists the Minecraft world data across container restarts using a named Docker volume.
+    /// Without this, each run starts with a fresh world (default behavior).
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithPersistentWorld(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        return builder.WithVolume($"{builder.Resource.Name}-data", "/data");
     }
 
     /// <summary>
@@ -232,17 +245,20 @@ public static class MinecraftServerBuilderExtensions
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
     /// <param name="resource">The Aspire resource with endpoints to monitor.</param>
+    /// <param name="dependsOn">Optional list of resource names this resource depends on. Dependent resources are placed adjacent in the village grid.</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
-        IResourceBuilder<IResourceWithEndpoints> resource)
+        IResourceBuilder<IResourceWithEndpoints> resource,
+        params string[] dependsOn)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
 
         var name = resource.Resource.Name;
+        builder.Resource.MonitoredResourceNames.Add(name);
 
         // Determine resource type from the concrete type
         var resourceType = resource.Resource switch
@@ -253,6 +269,22 @@ public static class MinecraftServerBuilderExtensions
         };
 
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+
+        // Collect dependency names: explicit params + IResourceWithParent auto-detection
+        var allDeps = new List<string>(dependsOn);
+        if (resource.Resource is IResourceWithParent parentResource)
+        {
+            var parentName = parentResource.Parent.Name;
+            if (!allDeps.Contains(parentName, StringComparer.OrdinalIgnoreCase))
+                allDeps.Add(parentName);
+        }
+
+        if (allDeps.Count > 0)
+        {
+            workerBuilder.WithEnvironment(
+                $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_DEPENDS_ON",
+                string.Join(",", allDeps));
+        }
 
         // Resolve endpoints for health checking.
         // GetEndpoint() never throws — it creates a dangling reference for missing endpoints.
@@ -305,19 +337,39 @@ public static class MinecraftServerBuilderExtensions
     /// <param name="builder">The Minecraft server resource builder.</param>
     /// <param name="resource">The Aspire resource to monitor.</param>
     /// <param name="resourceType">A display label for the type of resource (e.g., "Database", "Cache").</param>
+    /// <param name="dependsOn">Optional list of resource names this resource depends on.</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithMonitoredResource(
         this IResourceBuilder<MinecraftServerResource> builder,
         IResourceBuilder<IResource> resource,
-        string resourceType)
+        string resourceType,
+        params string[] dependsOn)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithMonitoredResource() requires WithAspireWorldDisplay() to be called first.");
 
         var name = resource.Resource.Name;
+        builder.Resource.MonitoredResourceNames.Add(name);
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
+
+        // Collect dependency names: explicit params + IResourceWithParent auto-detection
+        var allDeps = new List<string>(dependsOn);
+        if (resource.Resource is IResourceWithParent parentResource)
+        {
+            var parentName = parentResource.Parent.Name;
+            if (!allDeps.Contains(parentName, StringComparer.OrdinalIgnoreCase))
+                allDeps.Add(parentName);
+        }
+
+        if (allDeps.Count > 0)
+        {
+            workerBuilder.WithEnvironment(
+                $"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_DEPENDS_ON",
+                string.Join(",", allDeps));
+        }
+
         return builder;
     }
     /// <summary>
@@ -386,20 +438,20 @@ public static class MinecraftServerBuilderExtensions
     /// Requires WithAspireWorldDisplay() to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
-    /// <param name="appName">Optional application name displayed in the boss bar title.</param>
+    /// <param name="title">Optional custom title for the boss bar. Defaults to "Aspire Fleet Health".</param>
     /// <returns>The resource builder for chaining.</returns>
     /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
     public static IResourceBuilder<MinecraftServerResource> WithBossBar(
         this IResourceBuilder<MinecraftServerResource> builder,
-        string? appName = null)
+        string? title = null)
     {
         var workerBuilder = builder.Resource.WorkerBuilder
             ?? throw new InvalidOperationException(
                 "WithBossBar() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_BOSSBAR", "true");
-        if (!string.IsNullOrEmpty(appName))
-            workerBuilder.WithEnvironment("ASPIRE_APP_NAME", appName);
+        if (!string.IsNullOrEmpty(title))
+            workerBuilder.WithEnvironment("ASPIRE_BOSSBAR_TITLE", title);
         return builder;
     }
 
@@ -514,6 +566,151 @@ public static class MinecraftServerBuilderExtensions
                 "WithDeploymentFanfare() requires WithAspireWorldDisplay() to be called first.");
 
         workerBuilder.WithEnvironment("ASPIRE_FEATURE_FANFARE", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables world border pulse on critical fleet health failure.
+    /// When more than 50% of monitored resources are unhealthy, the world border shrinks
+    /// from 200 to 100 blocks over 10 seconds with a red warning tint.
+    /// When health recovers, the border expands back to 200 blocks over 5 seconds.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithWorldBorderPulse(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithWorldBorderPulse() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_WORLDBORDER", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables in-world achievement announcements for infrastructure milestones.
+    /// Grants achievements such as "First Service Online", "Full Fleet Healthy",
+    /// "Survived a Crash", and "Night Shift" using title popups and sounds.
+    /// Each achievement is granted once per session.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithAchievements(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithAchievements() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_ACHIEVEMENTS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables a redstone heartbeat circuit — an audible note block pulse whose tempo and pitch
+    /// reflect overall fleet health. Healthy = steady fast rhythm, degraded = slow labored pulse,
+    /// dead = silence. Runs on its own timing loop independent of the main display update interval.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithHeartbeat(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithHeartbeat() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_HEARTBEAT", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables redstone dependency graph visualization — draws redstone wire circuits between
+    /// dependent resource structures in the Minecraft world. Wire paths show the resource DAG,
+    /// with repeaters every 15 blocks and redstone lamps at structure entrances. When a resource
+    /// goes unhealthy, its outgoing redstone connections break (lamps go dark). On recovery,
+    /// circuits are restored. Runs on its own timing loop as a BackgroundService.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithRedstoneDependencyGraph(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithRedstoneDependencyGraph() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_REDSTONE_GRAPH", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables visual service switches — places Minecraft levers and redstone lamps on each
+    /// resource structure to represent service status. Healthy = lever ON, lamp lit.
+    /// Unhealthy = lever OFF, lamp dark. This is visual only — levers reflect state,
+    /// they do not control Aspire resources.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithServiceSwitches(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithServiceSwitches() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_SWITCHES", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables debug-level logging for RCON commands sent to the Minecraft server.
+    /// When enabled, every RCON command and its response are logged to the Aspire dashboard.
+    /// Useful for troubleshooting world building issues or verifying command execution.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithRconDebugLogging(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithRconDebugLogging() requires WithAspireWorldDisplay() to be called first.");
+
+        // Set log level to Debug for RconService specifically
+        workerBuilder.WithEnvironment("Logging__LogLevel__Aspire.Hosting.Minecraft.Worker.Services.RconService", "Debug");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables peaceful mode — immediately removes all hostile mobs (zombies, skeletons, creepers, etc.)
+    /// and prevents them from spawning. Passive mobs (cows, pigs, sheep) continue to spawn normally.
+    /// Uses the Minecraft <c>/difficulty peaceful</c> command at server startup.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithPeacefulMode(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithPeacefulMode() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_PEACEFUL", "true");
         return builder;
     }
 

@@ -7,6 +7,8 @@
     <Version>0.1.0-dev</Version>
     <Description>A .NET Aspire hosting integration for Minecraft servers — adds a Paper server container with RCON health checks, BlueMap web maps, OpenTelemetry instrumentation, and in-world visualization of Aspire resource health.</Description>
     <PackageTags>aspire;minecraft;dotnet;hosting;otel;opentelemetry;rcon;bluemap</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>

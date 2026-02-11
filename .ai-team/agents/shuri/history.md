@@ -7,78 +7,57 @@
 
 ## Key Facts
 
-- Three NuGet packages: Aspire.Hosting.Minecraft (hosting lib), Aspire.Hosting.Minecraft.Rcon (RCON client), Aspire.Hosting.Minecraft.Worker (in-world display)
-- All packages at version 0.1.0, packable via `dotnet pack -o nupkgs`
-- Hosting lib depends on Aspire.Hosting and the Rcon project
-- Worker depends on Microsoft.Extensions.Hosting, Http, and OpenTelemetry packages
-- Rcon depends only on Microsoft.Extensions.Logging.Abstractions
+- Single packable NuGet package: Fritz.Aspire.Hosting.Minecraft (Rcon embedded via PrivateAssets, Worker is IsPackable=false)
+- Version defaults to `0.1.0-dev`, CI overrides via `-p:Version` from git tag
+- SourceLink, deterministic builds, EnablePackageValidation enabled in Directory.Build.props
+- All deps pinned to exact versions (no floating Version="*")
 - Content files: bluemap/core.conf and otel/opentelemetry-javaagent.jar bundled with hosting package
-- Uses PackageReference with Version="*" for Aspire packages (floating versions)
 
 ## Learnings
-
+
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-### Summary: Sprint 1 NuGet Work (2026-02-10)
+### Consolidated Summary: Sprints 1-3 (2026-02-10)
 
-- **NuGet readiness audit:** Identified blockers — floating `Version="*"` deps, no SourceLink/deterministic builds, no CI/CD, 41 MB hosting package (23 MB OTel jar), no per-package READMEs, no `GenerateDocumentationFile`.
-- **Hardening:** Pinned 6 deps to exact versions, added `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild`, `EmbedUntrackedSources`, `Microsoft.SourceLink.GitHub` to `Directory.Build.props`. Created per-package READMEs. OTel jar kept embedded (Sprint 2 TODO).
-- **Single package consolidation:** Only `Aspire.Hosting.Minecraft` is packable (`Fritz.Aspire.Hosting.Minecraft` on NuGet). Rcon embedded via `PrivateAssets="All"` + `BuildOutputInPackage`. Worker is `IsPackable=false` (standalone service). Rcon's transitive dep surfaced as direct PackageReference in Hosting.
-- **Public API audit (Issue #12):** `MinecraftHealthCheck` → internal. All Worker types → internal. Public: `MinecraftServerBuilderExtensions`, `MinecraftServerResource`, 5 RCON types. Created CONTRIBUTING.md, updated PR template.
-- **PackageId rename:** `Aspire.Hosting.Minecraft` → `Fritz.Aspire.Hosting.Minecraft` (Aspire.Hosting prefix reserved by Microsoft). Namespaces/folders unchanged.
+**Sprint 1 — NuGet hardening:**
+- Pinned 6 floating deps to exact versions. Added GenerateDocumentationFile, EnablePackageValidation, Deterministic, ContinuousIntegrationBuild, EmbedUntrackedSources, Microsoft.SourceLink.GitHub to Directory.Build.props.
+- Single package consolidation: Rcon embedded via PrivateAssets="All" + BuildOutputInPackage. Worker is IsPackable=false.
+- PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (reserved namespace).
+- Public API audit (#12): MinecraftHealthCheck -> internal. All Worker types -> internal. Public: MinecraftServerBuilderExtensions, MinecraftServerResource, 5 RCON types.
 
-📌 Team update (2026-02-10): 18 Minecraft interaction features proposed across 3 tiers — decided by Rocket
-📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Shuri: pin deps, NuGet hardening, extract otel jar, verify pack — decided by Rhodey
-📌 Team update (2026-02-10): CI/CD pipeline created — build.yml + release.yml now build/test/publish your packages — decided by Wong
-📌 Team update (2026-02-10): Test infrastructure created — InternalsVisibleTo added to both source projects, 62 tests passing — decided by Nebula
-📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula
+**Sprint 2 — XML docs, RCON throttle, config APIs:**
+- XML doc comments on all public types/methods across both projects.
+- RCON throttle: optional `minCommandInterval` param (default disabled). 250ms in production. Per-command-string deduplication.
+- Configuration builder review: existing `With*()` fluent pattern is sufficient — no formal options class needed.
+- Server properties API: `WithServerProperty(string, string)`, `WithServerProperties(Dictionary)`, 6 convenience methods (WithGameMode, WithDifficulty, WithMaxPlayers, WithMotd, WithWorldSeed, WithPvp).
+- ServerProperty enum (24 members), MinecraftGameMode enum (4), MinecraftDifficulty enum (4). PascalCase->UPPER_SNAKE_CASE conversion.
+- `WithServerPropertiesFile()` for bulk loading from disk.
+- NuGet version changed to 0.1.0-dev with CI override via -p:Version.
 
-### Sprint 2: XML Documentation & RCON Throttle (Issue #16)
+**Sprint 3 — World border, dependency placement, rate limiting:**
+- WorldBorderService (#28): Shrinks 200->100 blocks over 10s when >50% unhealthy. Restores over 5s. Red warning tint at 5 blocks. Opt-in via ASPIRE_FEATURE_WORLDBORDER.
+- Ephemeral world by default: Removed named Docker volume from AddMinecraftServer(). Added WithPersistentWorld() for opt-in persistence.
+- RCON rate-limiting (#29): CommandPriority enum (Low/Normal/High). Token bucket at 10 cmd/s. High bypasses limits. Low queued in bounded Channel<T> (100, DropOldest).
+- Dependency placement (#29): ResourceInfo.Dependencies from ASPIRE_RESOURCE_{NAME}_DEPENDS_ON env vars. VillageLayout.ReorderByDependency() uses BFS topological sort. WithMonitoredResource() accepts params string[] dependsOn + auto-detects IResourceWithParent.
 
-- **Added XML doc comments to all public types and methods** across both `Aspire.Hosting.Minecraft` and `Aspire.Hosting.Minecraft.Rcon` projects. Every public method now has `<summary>`, `<param>`, `<returns>`, and `<exception>` tags where applicable.
-- **`GenerateDocumentationFile` already enabled** in `Directory.Build.props` from Sprint 1. No csproj changes needed.
-- **Covered types:** `MinecraftServerResource` (constructor, properties), `MinecraftServerBuilderExtensions` (all 15 public methods including Rocket's Sprint 2 additions: `WithActionBarTicker`, `WithBeaconTowers`, `WithBossBar` with `appName`), `RconClient` (all public members), `RconConnection` (constructor, `IsConnected`, `SendCommandAsync`, `DisposeAsync`), `RconResponseParser` (all 5 methods), `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult` (all with param docs).
-- **RCON throttle mechanism added to Worker `RconService`:** New optional `minCommandInterval` parameter (defaults to `TimeSpan.Zero` — disabled). When configured, identical RCON commands sent within the interval are deduplicated. Production Worker configures 250ms throttle. Tests use default (no throttle) to avoid timing sensitivity.
-- **Design rationale for throttle:** Per-command-string deduplication catches the main flooding scenario (rapid health oscillations sending identical `weather`, `bossbar`, or `particle` commands). Default-off ensures backward compatibility and test stability. The Worker's `Program.cs` opts in with 250ms.
-- **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 nullable warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
+**Azure SDK Research:**
+- Separate NuGet package recommended: Fritz.Aspire.Hosting.Minecraft.Azure (~5 MB Azure SDK deps).
+- Packages: Azure.ResourceManager, Azure.Identity, Azure.ResourceManager.ResourceHealth, Azure.Monitor.Query.Metrics.
+- Azure.Monitor.Query is deprecated — use Azure.Monitor.Query.Metrics instead.
+- DefaultAzureCredential for auth. Polling for v1 (not Event Grid).
+- ARM rate limits: 250 reads / 25 per sec per subscription per region — plenty for 10-50 resources at 30-60s intervals.
+- Research doc: docs/epics/azure-sdk-research.md
 
-### Sprint 2: Configuration Builder Pattern Review (Issue #21)
+### Team Updates
 
-- **Determined existing pattern is sufficient.** The current `With*()` fluent extension method pattern already provides the configuration builder experience: `AddMinecraftServer().WithBossBar().WithWeatherEffects().WithParticleEffects()`.
-- **No formal builder options class needed.** A `AddMinecraftServer(opts => opts.EnableBossBars().EnableWeather())` pattern would duplicate functionality without adding value. The per-method approach is idiomatic Aspire, independently opt-in, and backward-compatible by design.
-- **Recommendation:** Close Issue #21 as already-addressed by Sprint 1's `With*()` extension method architecture.
-
-### Server Properties Configuration API
-
-- **Added `WithServerProperty(string, string)` and `WithServerProperties(Dictionary<string, string>)`** — generic methods for setting any Minecraft `server.properties` value via the itzg/minecraft-server env var convention (property name → UPPER_SNAKE_CASE).
-- **Added 6 convenience methods:** `WithGameMode`, `WithDifficulty`, `WithMaxPlayers`, `WithMotd`, `WithWorldSeed`, `WithPvp` — type-safe wrappers for the most commonly configured properties.
-- **itzg env var convention:** The `itzg/minecraft-server` Docker image reads env vars as `server.properties` overrides. Property names are converted by uppercasing and replacing hyphens with underscores (e.g., `max-players` → `MAX_PLAYERS`). The `ConvertPropertyNameToEnvVar` helper centralizes this.
-- **Design decision:** These methods set env vars on the container resource directly (not on the worker builder). This is correct because `server.properties` is a Minecraft server concern, not a worker concern. Later env var calls override earlier ones, so user calls to `WithWorldSeed("custom")` correctly override the default `SEED=aspire2026` set in `AddMinecraftServer()`.
-- **Updated demo AppHost** to show `.WithMaxPlayers(10).WithMotd("Aspire Fleet Monitor")` chained right after `AddMinecraftServer()`.
-- **Verified:** `dotnet build -c Release` ✅ (0 errors), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
-
-### ServerProperty Enum & File-Based Properties Loading
-
-- **Created `ServerProperty` enum** (`ServerProperty.cs`) with 24 PascalCase members covering all commonly configured Minecraft `server.properties` keys: `MaxPlayers`, `Motd`, `Difficulty`, `GameMode`, `Pvp`, `Hardcore`, `ViewDistance`, `SimulationDistance`, `MaxWorldSize`, `SpawnProtection`, `SpawnAnimals`, `SpawnMonsters`, `SpawnNpcs`, `AllowFlight`, `AllowNether`, `ForceGamemode`, `LevelType`, `LevelName`, `Seed`, `WhiteList`, `OnlineMode`, `EnableCommandBlock`, `ServerPort`, `MaxBuildHeight`, `GenerateStructures`. Each member has XML doc comments describing valid values.
-- **Created `MinecraftGameMode` enum** (`MinecraftGameMode.cs`) with `Survival`, `Creative`, `Adventure`, `Spectator` members.
-- **Created `MinecraftDifficulty` enum** (`MinecraftDifficulty.cs`) with `Peaceful`, `Easy`, `Normal`, `Hard` members.
-- **Added `WithServerProperty(ServerProperty, string)` overload** — accepts the enum and converts PascalCase to UPPER_SNAKE_CASE internally via `ConvertEnumToEnvVar()` helper.
-- **Added `WithGameMode(MinecraftGameMode)` overload** — converts enum to lowercase string (e.g., `MinecraftGameMode.Creative` → `"creative"`).
-- **Added `WithDifficulty(MinecraftDifficulty)` overload** — converts enum to lowercase string (e.g., `MinecraftDifficulty.Hard` → `"hard"`).
-- **Added `WithServerPropertiesFile(string)` method** — reads a standard Minecraft `server.properties` file at build/configuration time, parses key=value lines (skipping comments/blanks, splitting on first `=` only), and calls `WithServerProperty()` for each entry. Relative paths resolve from AppHost project directory. Throws `FileNotFoundException` if the file doesn't exist.
-- **PascalCase→UPPER_SNAKE_CASE conversion** (`ConvertEnumToEnvVar`): Inserts `_` before each uppercase letter (except the first), then uppercases everything. E.g., `MaxPlayers` → `MAX_PLAYERS`, `SpawnNpcs` → `SPAWN_NPCS`.
-- **Verified:** `dotnet build -c Release` ✅ (0 errors, 1 pre-existing CS8604 warning), `dotnet test --no-build -c Release` ✅ (248 tests pass: 186 Worker + 45 RCON + 17 Hosting).
-
-### NuGet Package Versioning Fix
-
-- **Changed `<Version>0.1.0</Version>` to `<Version>0.1.0-dev</Version>`** in `src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj`. The `-dev` suffix marks local/dev builds as pre-release.
-- **CI override mechanism:** MSBuild command-line properties (`-p:Version=X.Y.Z`) always override csproj `<Version>`. The release workflow (maintained by Wong) passes the git tag version via `-p:Version`, so published packages get the correct release version (e.g., `0.2.1`). No `<VersionPrefix>`/`<VersionSuffix>` split needed — the single `<Version>` property with CLI override is the simplest approach.
-- **Verified both scenarios:**
-  - `dotnet pack -c Release --no-build -o nupkgs` → `Fritz.Aspire.Hosting.Minecraft.0.1.0-dev.nupkg` ✅
-  - `dotnet pack -c Release --no-build -o nupkgs -p:Version=0.2.1` → `Fritz.Aspire.Hosting.Minecraft.0.2.1.nupkg` ✅
-- **All tests pass:** `dotnet test --no-build -c Release` ✅ (248 tests: 186 Worker + 45 RCON + 17 Hosting).
-
-📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
-📌 Team update (2026-02-10): Sprint 2 API review complete — 5 additive recommendations for Sprint 3 (WithAllFeatures, ParseConnectionString extraction, IRconCommandSender, env var tightening, auto-discovery) — decided by Rhodey
-📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette — decided by Rocket
-📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle dropping duplicate commands) — decided by Rocket
+- 18 Minecraft interaction features proposed across 3 tiers — decided by Rocket
+- 3-sprint roadmap adopted — decided by Rhodey
+- CI/CD pipeline created (build.yml + release.yml) — decided by Wong
+- Test infrastructure created — InternalsVisibleTo, 62 tests passing — decided by Nebula
+- FluentAssertions fully removed — decided by Jeffrey T. Fritz, Nebula
+- Release workflow extracts version from git tag — decided by Wong
+- Sprint 2 API review complete — 5 recommendations for Sprint 3 — decided by Rhodey
+- Beacon tower colors match Aspire dashboard palette — decided by Rocket
+- Hologram line-add bug fixed — decided by Rocket
+- Azure RG epic designed — Shuri owns Phases 1 and 3 (ARM client, auth, options, NuGet scaffold) — decided by Rhodey
+- Azure monitoring ships as separate NuGet package — decided by Rhodey, Shuri

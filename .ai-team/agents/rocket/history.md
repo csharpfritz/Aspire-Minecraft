@@ -9,97 +9,103 @@
 
 - Worker service (Aspire.Hosting.Minecraft.Worker) handles in-world display
 - Uses RCON to communicate with Minecraft server for commands
-- Current features: hologram dashboards, scoreboards, torch-topped structures per resource
 - DecentHolograms plugin for in-world holograms
 - Worker is created internally by WithAspireWorldDisplay<TWorkerProject>()
 - WithMonitoredResource() applies env vars to the internal worker
 - Metrics: TPS, MSPT, players online, worlds loaded, RCON latency
+- `VillageLayout` static class centralizes all per-resource position calculations (2×N grid, 10-block spacing, 7×7 footprint)
 
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-### Summary: Worker Architecture & Sprint 1 Features (2026-02-10)
+### Consolidated Summary: Sprints 1-3 (2026-02-10)
 
-- **Worker service:** `MinecraftWorldWorker` (BackgroundService), polls every 10s, broadcasts every 2 min. Services: `RconService`, `AspireResourceMonitor`, `HologramManager`, `ScoreboardManager`, `StructureBuilder`, `PlayerMessageService`. Resource discovery via env vars: `ASPIRE_RESOURCE_{NAME}_TYPE/URL/HOST/PORT`.
-- **RCON commands in use:** `tps`, `mspt`, `list`, `dh create/delete/line add/set/remove`, `scoreboard *`, `fill`, `setblock`, `data merge block`, `tellraw @a`, `say`, `bossbar *`, `title @a *`, `particle`, `playsound`, `weather`, `summon`.
-- **Key patterns:** All RCON calls via `RconService` (OTEL tracing + latency histogram). Index-based linear layout at Y=-60. Tri-state health: Unknown/Healthy/Unhealthy. Worker created via `WithAspireWorldDisplay<T>()`.
-- **Sprint 1 features (5, all opt-in):** `WithParticleEffects()`, `WithTitleAlerts()`, `WithWeatherEffects()`, `WithBossBar()`, `WithSoundEffects()`. Each toggled by `ASPIRE_FEATURE_{NAME}=true` env var. Services injected as nullable. Particles/titles/sounds per-resource; weather/boss bar aggregate. State tracking avoids redundant RCON.
-- **Health thresholds:** Weather: 100%=clear, ≥50%=rain, <50%=thunder. Boss bar: 100%=green, ≥50%=yellow, <50%=red.
+**Worker architecture:** `MinecraftWorldWorker` (BackgroundService) polls every 10s, broadcasts every 2 min. Core services: `RconService` (OTEL tracing, 250ms dedup throttle, token-bucket rate limiter at 10 cmd/s), `AspireResourceMonitor`, `HologramManager`, `ScoreboardManager`, `StructureBuilder`, `PlayerMessageService`. Resource discovery via `ASPIRE_RESOURCE_{NAME}_TYPE/URL/HOST/PORT/DEPENDS_ON` env vars.
 
-📌 Team update (2026-02-10): NuGet packages blocked — floating deps and bloated jar must be fixed in Sprint 1 — decided by Shuri
-📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Rocket: boss bars, title alerts, sounds, weather, particles (all Size S) — decided by Rhodey
-📌 Team update (2026-02-10): All sprint work tracked as GitHub issues with team member and sprint labels — decided by Jeffrey T. Fritz
-📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — rich demo material — decided by Jeffrey T. Fritz
-📌 Team update (2026-02-10): Single NuGet package consolidation — only one package ships now — decided by Jeffrey T. Fritz, Shuri
-📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+**Feature opt-in pattern (all 13 features):** `With{Feature}()` extension method sets `ASPIRE_FEATURE_{NAME}=true` env var, conditional DI registration in Worker Program.cs, nullable constructor injection. State tracking avoids redundant RCON commands.
 
-### 2026-02-10: Sprint 2 features implemented — 3 new in-world interaction features
+**Sprint 1 features (5):** ParticleEffects, TitleAlerts, WeatherEffects, BossBar (with optional appName via `ASPIRE_APP_NAME`), SoundEffects. Particles/titles/sounds per-resource; weather/boss bar aggregate.
 
-**Features implemented (all opt-in via builder extension methods):**
-1. **Boss bar app name support** (`WithBossBar(appName?)`) — Issue #38. Added `ASPIRE_APP_NAME` env var support. `WithBossBar()` now accepts optional `appName` parameter. `BossBarService` reads `ASPIRE_APP_NAME` at startup, falls back to "Aspire". Boss bar title shows `{appName} Fleet Health: {value} percent`.
-2. **ActionBarTickerService** (`WithActionBarTicker()`) — Issue #20. Cycles through TPS, MSPT, healthy resource count, and RCON latency via `title @a actionbar` command. Rotates each poll cycle. Uses `ASPIRE_FEATURE_ACTIONBAR` env var.
-3. **BeaconTowerService** (`WithBeaconTowers()`) — Issue #22. Builds beacon-powered towers per monitored resource. 3x3 iron block base at Y=-60, beacon center at Y=-59, stained glass at Y=-58. Green glass = healthy, red glass = unhealthy. Towers at Z=8 offset to avoid overlap with existing 3x3 structures at Z=0. Uses `ASPIRE_FEATURE_BEACONS` env var.
+**Sprint 2 features (5):** ActionBarTicker (cycles TPS/MSPT/health/latency), BeaconTowers (resource-type-colored glass matching Aspire dashboard palette), Fireworks (all-recover event), GuardianMobs (iron golem=healthy, zombie=unhealthy with NoAI/Invulnerable NBT), DeploymentFanfare (Unknown->Healthy transitions).
 
-**Architecture decisions:**
-- **Consistent opt-in pattern:** All three features follow the Sprint 1 env var pattern — extension method sets env var, Program.cs registers conditionally, worker injects as nullable.
-- **Action bar ticker design:** Reads metrics live each tick (TPS, MSPT via RCON parse, RCON latency via stopwatch) rather than caching from the main loop. This gives the action bar its own fresh data independent of the poll interval.
-- **Beacon tower placement:** Z=8 offset chosen to separate beacon towers from existing structures (at Z=0) while keeping them visible in the same area. Single-layer iron base is the minimum for beacon activation in Minecraft.
-- **Boss bar % symbol:** Used "percent" instead of "%" in RCON strings to avoid parsing issues, consistent with Sprint 1 pattern.
+**Sprint 3 features (3 + village rework):**
+- **Resource Village** (#25): 4 themed structures (Watchtower/Warehouse/Workshop/Cottage) in 2x N grid. `fill ... hollow` for walls. Health lamp in front wall.
+- **Village Fence** — oak fence perimeter via `GetVillageBounds()`/`GetFencePerimeter()`. Boulevard at X=17, cross paths to each entrance.
+- **Heartbeat** (#27): First `BackgroundService` feature — independent 1-4s pulse loop. Volume micro-variation avoids RCON dedup throttle.
+- **Achievements** (#32): 4 milestones via RCON titles+sounds (no datapacks). Per-session `HashSet<string>` tracking.
+- **Redstone Graph** (#36): L-shaped wire routing, repeaters every 15 blocks, circuit breaking on unhealthy. `CommandPriority.Low` for bulk building.
+- **Service Switches** (#35): Visual-only levers+lamps on structures. Levers reflect state, cannot control resources.
 
-**RCON commands used:**
-- `title @a actionbar "{message}"` — plain string, not JSON text component
-- `fill {x} {y} {z} {x+2} {y} {z+2} minecraft:iron_block` — 3x3 iron base
-- `setblock {x+1} {y+1} {z+1} minecraft:beacon` — beacon on center
-- `setblock {x+1} {y+2} {z+1} minecraft:{color}_stained_glass` — health indicator
+**Key RCON learnings:**
+- Identical commands in tight loops get deduped by throttle — use unique strings or micro-vary parameters.
+- `fill ... hollow` is the most efficient wall-building command.
+- `setblock` doesn't propagate redstone signals — use glowstone/redstone_lamp swap instead.
+- Redstone wire auto-connects; repeater `facing` must point toward destination.
+- Mob cleanup via `kill @e[name=...]` selector is the standard entity management pattern.
+- NBT tags (`NoAI`, `Invulnerable`, `PersistenceRequired`) essential for stationary display mobs.
 
-### 2026-02-10: Sprint 2 remaining features — fireworks, guardians, fanfare, startup optimization
+**Startup optimizations:** `SPAWN_PROTECTION=0`, `VIEW_DISTANCE=6`, `SIMULATION_DISTANCE=4`, `GENERATE_STRUCTURES=false`, no mob spawning, `MAX_WORLD_SIZE=256`.
 
-**Features implemented (Issues #15, #18, #23):**
-1. **FireworksService** (`WithFireworks()`) — Issue #15. Tracks `_wasAnyUnhealthy` state. When ALL resources transition to healthy from at least one being unhealthy, launches `summon firework_rocket` at 5 positions around the resource area. Uses `ASPIRE_FEATURE_FIREWORKS` env var.
-2. **GuardianMobService** (`WithGuardianMobs()`) — Issue #18. Spawns iron golem per healthy resource, zombie per unhealthy resource. Mobs have `NoAI:1b`, `Invulnerable:1b`, `PersistenceRequired:1b` NBT tags to prevent wandering/despawning. Uses `kill @e[name=guardian_{name}]` to clean up before respawning. Tracks `_lastKnownStatus` per resource to avoid redundant respawns. Uses `ASPIRE_FEATURE_GUARDIANS` env var.
-3. **DeploymentFanfareService** (`WithDeploymentFanfare()`) — Issue #23. Fires on `Unknown → Healthy` transitions (representing Starting → Running). Spawns lightning bolt, 2 fireworks, and shows title/subtitle announcement with plain strings. Uses `ASPIRE_FEATURE_FANFARE` env var.
+### Azure Resource Visualization Design (2026-02-10)
 
-**Investigation (Issue #37): Minecraft Server Startup Time**
-- **Current config:** Using `itzg/minecraft-server:latest` with `TYPE=PAPER`, `LEVEL_TYPE=flat`, `SEED=aspire2026`, `MODE=creative`.
-- **Easy wins implemented:**
-  - `SPAWN_PROTECTION=0` — disables spawn protection radius (no need for it in a dashboard world)
-  - `VIEW_DISTANCE=6` — reduced from default 10, less chunk generation on startup
-  - `SIMULATION_DISTANCE=4` — reduced from default 10, less entity/block tick processing
-  - `GENERATE_STRUCTURES=false` — disables structure generation (villages, temples) — saves world gen time
-  - `SPAWN_ANIMALS=FALSE`, `SPAWN_MONSTERS=FALSE`, `SPAWN_NPCS=FALSE` — no mob spawning, saves tick budget
-  - `MAX_WORLD_SIZE=256` — limits world border to 256 blocks radius (plenty for dashboard, prevents chunk gen on exploration)
-- **Why these help:** Flat world + no structures + small world size = minimal chunk generation. No mob spawning = less entity processing. Reduced view/sim distance = fewer chunks loaded/ticked. These are all itzg/minecraft-server env vars that map to server.properties.
-- **Not implemented (deferred):** Pre-generating world via volume mount, custom Paper config (paper-global.yml), Aikar's JVM flags (would conflict with OTEL agent JVM_OPTS), custom startup scripts.
+Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource types to Minecraft structures. Two-universe separation: Aspire village (warm wood/stone) vs Azure citadel (cool prismarine/quartz/end stone) at X=60. 3-column tiered layout by functional tier. Azure beacon colors: Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta. Rich health states: Stopped=cobwebs, Deallocated=soul sand, Failed=netherrack fire. Scale: 3x5 grid for <=15, multiple Z-offset planes for 50+.
 
-**Architecture patterns confirmed:**
-- Fireworks/fanfare are event-driven (fire on health transitions in the changes block)
-- Guardian mobs are continuous (update every cycle, but track state to avoid redundant respawns)
-- Mob cleanup via `kill @e[name=...]` selector is the standard pattern for entity management
-- NBT tags (`NoAI`, `Invulnerable`, `PersistenceRequired`) essential for stationary display mobs
+### Team Updates
 
-### 2026-02-10: Hologram bug fix — RCON throttle eating duplicate line-add commands
+- NuGet packages blocked — floating deps fixed in Sprint 1 — decided by Shuri
+- 3-sprint roadmap adopted — decided by Rhodey
+- All sprint work tracked as GitHub issues with labels — decided by Jeffrey T. Fritz
+- Single NuGet package consolidation + PackageId renamed to Fritz.Aspire.Hosting.Minecraft — decided by Jeffrey T. Fritz, Shuri
+- NuGet package version defaults to 0.1.0-dev; CI overrides via -p:Version — decided by Shuri
+- Release workflow extracts version from git tag — decided by Wong
+- Sprint 2 API review complete — 5 recommendations for Sprint 3 — decided by Rhodey
+- WithServerProperty API and ServerProperty enum added — decided by Shuri
+- Beacon tower colors match Aspire dashboard palette — decided by Rocket
+- Hologram line-add bug fixed (RCON throttle dedup) — decided by Rocket
+- Azure RG epic designed — Rocket owns Phase 2 (Azure structure mapping, visuals) — decided by Rhodey
+- Azure monitoring ships as separate NuGet package Fritz.Aspire.Hosting.Minecraft.Azure — decided by Rhodey, Shuri
 
-**Root cause:** `HologramManager.UpdateHologramLinesAsync()` used identical placeholder text `&7...` for every `dh line add` RCON command when growing the hologram. `RconService` has a 250ms command throttle that deduplicates identical command strings. Since the while loop runs without delays, only the first `dh line add` succeeded — the rest were silently throttled. This caused the hologram to show only 2 lines (title + 1 resource) instead of all registered resources.
+### Sprint 3 Bug Fixes (service startup race + beacon overlap)
 
-**Fix:** Changed placeholder text to `&7line{_lastLineCount}` so each add command has a unique string. The placeholders are immediately overwritten by the `dh line set` calls that follow, so the visible content is unaffected.
+**Bug 1 — Sprint 3 services not running:** HeartbeatService, RedstoneDependencyService, and ServiceSwitchService were registered as `AddHostedService<>()` (independent BackgroundServices). They started executing immediately before RCON was connected and before resources were discovered, causing silent failures. Fix: converted all three to plain singleton classes (`AddSingleton<>()`) and wired them into `MinecraftWorldWorker`'s main loop — same pattern as WorldBorderService, AdvancementService, etc.
 
-**Key learning:** Any RCON command that runs in a tight loop with identical text will be eaten by the throttle. Future services that issue repetitive identical commands must either use unique command strings or add deliberate delays between calls.
+- HeartbeatService: removed BackgroundService inheritance, converted to `PulseAsync()` method called each worker cycle with internal time-based gating (only plays sound when enough time has elapsed since last pulse based on health-derived interval).
+- RedstoneDependencyService: removed BackgroundService inheritance, added `InitializeAsync()` (called once after DiscoverResources) and `UpdateAsync()` (called on health changes).
+- ServiceSwitchService: removed BackgroundService inheritance, added `UpdateAsync()` (called each worker cycle; places switches on first call, then tracks transitions).
 
-### Beacon color fix — match Aspire dashboard resource type colors
+**Bug 2 — Only 2 of 4 beacon beams visible:** Beacon positions used hardcoded `BaseZ = 14` with row-based offsets. For row 1+ structures (index 2, 3), the 7×7 structure footprint (z=10 to z=16) overlapped the beacon at z=14, blocking sky access. Fix: replaced hardcoded position calculation with `GetBeaconOrigin(index)` that derives position from `VillageLayout.GetStructureOrigin(index)` and places the beacon behind the structure at `z + StructureSize + 1`. This guarantees no overlap regardless of grid size.
 
-**Bug:** Beacon towers used simple green/red stained glass for healthy/unhealthy. This didn't match the Aspire dashboard's resource-type-specific color palette.
+**Key learning:** Any service that depends on RCON or discovered resources must NOT be an independent `BackgroundService`. It must be a singleton called from `MinecraftWorldWorker`'s main loop, which handles the RCON wait and resource discovery lifecycle.
 
-**Fix:** Updated `BeaconTowerService` to map resource types to Minecraft stained glass colors matching the dashboard:
-- **Healthy:** Project → `blue_stained_glass`, Container → `purple_stained_glass`, Executable → `cyan_stained_glass`, Unknown type → `light_blue_stained_glass`
-- **Unhealthy:** `red_stained_glass`
-- **Starting (Unknown status):** `yellow_stained_glass`
+### Fence Perimeter Fix (2026-02-10)
 
-**Implementation:** Added `GetGlassBlock(ResourceInfo)` static method with a `ResourceTypeGlassColors` dictionary (case-insensitive). Uses `info.Status` as the primary switch — unhealthy always shows red, unknown shows yellow, healthy fans out to type-specific colors via `info.Type`. Method is `internal static` for testability.
+Fixed two fence bugs: (1) Fence was placed at `BaseY + 1` (y=-59), floating one block above the superflat surface. Changed to `BaseY` (y=-60) so fences sit on ground. (2) `GetFencePerimeter` offsets were only 1-2 blocks from building edges. Changed to 4-block gap on all sides (`minX-4, minZ-4, maxX+4, maxZ+4`) per user request. Entry path from gate to boulevard auto-extends because it reads `fMinZ` from `GetFencePerimeter`. Gate position is boulevard-relative (X=17), unaffected by fence offset. All 303 tests pass.
 
-**Key learning:** `ResourceInfo.Type` is already populated from the `ASPIRE_RESOURCE_{NAME}_TYPE` env var set by `WithMonitoredResource()`. No new plumbing needed — just consume the existing field.
+### Peaceful Mode Feature (2026-02-10)
 
-📌 Team update (2026-02-10): NuGet package version now defaults to 0.1.0-dev; CI overrides via -p:Version from git tag — decided by Shuri
-📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
-📌 Team update (2026-02-10): Sprint 2 API review complete — 5 additive recommendations for Sprint 3 (WithAllFeatures, ParseConnectionString extraction, IRconCommandSender, env var tightening, auto-discovery) — decided by Rhodey
-📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added for server.properties configuration — decided by Shuri
+Added `WithPeacefulMode()` extension method to eliminate hostile mobs from Minecraft world. Implementation uses `/difficulty peaceful` RCON command — the idiomatic Minecraft way to remove hostiles while preserving passive mobs (cows, pigs, sheep). Command executes once at server startup in `MinecraftWorldWorker.ExecuteAsync()` after RCON connection and resource discovery, controlled by `ASPIRE_FEATURE_PEACEFUL` env var. Pattern follows opt-in feature architecture: extension sets env var, worker checks var and executes command. No service class needed — single RCON command is sufficient. All existing tests pass (62 tests).
+
+### Visual Placement Refinements (2026-02-10)
+
+Fixed three placement issues for better village layout: (1) **Levers on side walls** — moved service switch levers from front face (z-min, blocking entrance) to west wall (x-min) at position `(x, y+2, z+3)` with `facing=east` so they face outward, away from buildings. Lamp now above lever at `(x, y+3, z+3)`. (2) **Clear entryways** — fixed watchtower door to be on front face at `z` instead of `z+1` (was inside wall). Moved signs from `x+3` (centered on door) to `x+2` (offset beside entrance) to avoid blocking walkway. (3) **Path ground level verification** — paths already at correct `BaseY` (-60), but added grass foundation pass (`BaseY - 1`, using `replace air`) before placing cobblestone to ensure paths always have solid ground underneath even if extending beyond existing terrain. All 17 tests pass.
+
+### Screenshot-Based Visual Fixes (2026-02-11)
+
+Fixed four critical placement issues identified from in-game screenshots: (1) **Paths floating above ground** — changed all path Y-coordinates from `BaseY` (-60) to `BaseY - 1` (-61). Screenshots showed cobblestone sitting ON TOP of grass blocks; the issue was paths were placed at the grass block level instead of replacing it. Now paths are flush with terrain. (2) **Levers inaccessible on wrong wall** — moved service switches from west wall `(x, y+2, z+3)` facing east to front wall `(x+2, y+2, z)` facing north (outward). Levers are now on the entrance side where players can reach them, not on the side wall. Lamps moved to `(x+2, y+3, z)` above levers. (3) **Building entrances not visible** — increased all door openings from 1-block to 2-blocks wide (x+2 to x+3) for watchtower, workshop, and cottage. Warehouse already had 3-wide opening. This makes entrances obvious and accessible. (4) **Health lamps unchanged** — kept at `(x+3, y+3, z)` as they're correctly embedded in front wall at z=0 (foundation edge where all structure types have walls). Key learning: always verify coordinates against actual in-game geometry when `hollow` fills create walls at different positions than foundation edges.
+
+### Boss Bar Formatting and Configuration (2026-02-11)
+
+Fixed boss bar percentage display and added configurable title support. (1) **Percentage formatting** — changed from "100 percent" to "100%" in `BossBarService.cs` line 53. Boss bar now displays as "Aspire Fleet Health: 100%" instead of "Aspire Fleet Health: 100 percent". (2) **Configurable title** — added optional `title` parameter to `WithBossBar()` extension method. If provided, sets `ASPIRE_BOSSBAR_TITLE` env var. `BossBarService` reads this env var at construction time with default "Aspire Fleet Health". This allows users to customize the boss bar title via Fluent API: `.WithBossBar("Fleet Monitor")`. Updated API surface documentation to reflect the new optional parameter. The old `ASPIRE_APP_NAME` env var is no longer used by boss bar (deprecated in favor of explicit title parameter).
+
+### Village Rendering Bug Fixes (2026-02-11)
+
+Fixed critical village rendering regression causing multiple visual issues: (1) **Buildings glitching every 10 seconds** — root cause was `BuildResourceStructureAsync` being called every display update cycle (10s) without checking if structures already existed. Added `HashSet<string> _builtStructures` to track which resources have had their structures built. Now structures only build once on first appearance, then just update health indicators on subsequent cycles. This prevents the constant rebuilding that caused visible glitching. (2) **Paths invisible underground** — paths were placed at `BaseY - 1` (-61) which is inside the dirt layer in superflat worlds. Reverted all path Y-coordinates from `BaseY - 1` back to `BaseY` (-60) so cobblestone paths sit on the grass block surface where they're visible and walkable. The foundation layer at `BaseY - 1` remains for structural support. (3) **Doorways, switches, and fence already correct** — verified door openings are properly placed at z=0 (foundation edge) for all structure types. Service switches at `(x+2, y+2, z)` and fence at `BaseY` were already correct; they were only affected by the structure rebuild issue. All 303 tests pass after fixes.
+
+**Key learning:** Services that place visual elements (switches, indicators) must coordinate with structure building lifecycle. If structures rebuild every cycle, they overwrite decorative elements. The solution is idempotent building: track what's been built, only build once, then update state in place.
+
+### User Testing Refinements (2026-02-11)
+
+Four key improvements based on user feedback: (1) **Paths flush with ground** — changed all path coordinates to `BaseY - 1` (y=-61, dirt layer) with grass blocks at `BaseY` (y=-60) removed first using `/fill ... minecraft:air replace grass_block`. This creates paths that are recessed one block, sitting flush with the surrounding grass surface instead of raised above it. (2) **Self-healing service switches** — removed health-change check in `ServiceSwitchService.UpdateSwitchStatesAsync()`. Switches now always place every cycle (idempotent `setblock` commands), making them self-healing if accidentally destroyed by players. (3) **Service switches are display-only** — documented in `.ai-team/decisions/inbox/rocket-switches-display-only.md` that switches reflect Aspire resource state but do not control it. Manually flipping levers in Minecraft has no effect on Aspire resources. (4) **Watchtower door visibility** — moved door clearing to END of `BuildWatchtowerAsync()` and increased from 2-wide×2-tall to 2-wide×3-tall to prevent other fills (windows, pillars) from blocking the entrance. (5) **Health lamps higher** — moved health indicator lamps from `y+3` to `y+5` for better visibility on taller structures, and from `z` (foundation edge) to `z+1` (embedded in actual wall). All 5 tests pass.
+
+**Key learning:** For multi-stage structure building, clear critical openings (doors, windows) LAST to prevent subsequent fills from overwriting them. Path depth matters for Minecraft terrain — flush paths need to replace the surface layer, not sit on top of it.

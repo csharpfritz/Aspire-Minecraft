@@ -75,6 +75,16 @@ if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_GUARDIANS"]))
     builder.Services.AddSingleton<GuardianMobService>();
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
     builder.Services.AddSingleton<DeploymentFanfareService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
+    builder.Services.AddSingleton<WorldBorderService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"]))
+    builder.Services.AddSingleton<HeartbeatService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
+    builder.Services.AddSingleton<AdvancementService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"]))
+    builder.Services.AddSingleton<RedstoneDependencyService>();
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SWITCHES"]))
+    builder.Services.AddSingleton<ServiceSwitchService>();
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -121,7 +131,12 @@ file sealed class MinecraftWorldWorker(
     BeaconTowerService? beaconTowers = null,
     FireworksService? fireworks = null,
     GuardianMobService? guardianMobs = null,
-    DeploymentFanfareService? deploymentFanfare = null) : BackgroundService
+    DeploymentFanfareService? deploymentFanfare = null,
+    WorldBorderService? worldBorder = null,
+    AdvancementService? achievements = null,
+    HeartbeatService? heartbeat = null,
+    RedstoneDependencyService? redstoneGraph = null,
+    ServiceSwitchService? serviceSwitches = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -139,6 +154,19 @@ file sealed class MinecraftWorldWorker(
 
         // Discover Aspire resources
         resourceMonitor.DiscoverResources();
+
+        // Initialize opt-in features that need startup commands
+        if (worldBorder is not null)
+            await worldBorder.InitializeAsync(stoppingToken);
+        if (redstoneGraph is not null)
+            await redstoneGraph.InitializeAsync(stoppingToken);
+
+        // Peaceful mode — eliminate hostile mobs (one-time setup)
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL")))
+        {
+            await rcon.SendCommandAsync("difficulty peaceful", stoppingToken);
+            logger.LogInformation("Peaceful mode enabled — hostile mobs disabled");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -168,7 +196,15 @@ file sealed class MinecraftWorldWorker(
                         await fireworks.CheckAndLaunchFireworksAsync(changes, stoppingToken);
                     if (deploymentFanfare is not null)
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
+                    if (achievements is not null)
+                        await achievements.CheckAchievementsAsync(changes, stoppingToken);
+                    if (redstoneGraph is not null)
+                        await redstoneGraph.UpdateAsync(stoppingToken);
                 }
+
+                // Achievement checks that run every cycle (e.g., Night Shift needs time query)
+                if (achievements is not null && changes.Count == 0)
+                    await achievements.CheckAchievementsAsync(changes, stoppingToken);
 
                 // Update in-world displays
                 await holograms.UpdateDashboardAsync(stoppingToken);
@@ -186,6 +222,12 @@ file sealed class MinecraftWorldWorker(
                     await beaconTowers.UpdateBeaconTowersAsync(stoppingToken);
                 if (guardianMobs is not null)
                     await guardianMobs.UpdateGuardianMobsAsync(stoppingToken);
+                if (worldBorder is not null)
+                    await worldBorder.UpdateWorldBorderAsync(stoppingToken);
+                if (heartbeat is not null)
+                    await heartbeat.PulseAsync(stoppingToken);
+                if (serviceSwitches is not null)
+                    await serviceSwitches.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

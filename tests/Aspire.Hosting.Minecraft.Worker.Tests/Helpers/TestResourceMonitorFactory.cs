@@ -25,16 +25,23 @@ internal static class TestResourceMonitorFactory
     /// </summary>
     public static void SetResources(AspireResourceMonitor monitor, params (string name, bool healthy)[] resources)
     {
-        // Access the private _resources field via reflection
+        var typed = resources.Select(r => (r.name, "Project", r.healthy ? ResourceStatus.Healthy : ResourceStatus.Unhealthy)).ToArray();
+        SetResourcesWithTypes(monitor, typed);
+    }
+
+    /// <summary>
+    /// Sets resources with explicit type and status for testing beacon colors, structure types, etc.
+    /// </summary>
+    public static void SetResourcesWithTypes(AspireResourceMonitor monitor, params (string name, string type, ResourceStatus status)[] resources)
+    {
         var field = typeof(AspireResourceMonitor)
             .GetField("_resources", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var dict = (Dictionary<string, ResourceInfo>)field.GetValue(monitor)!;
 
         dict.Clear();
-        foreach (var (name, healthy) in resources)
+        foreach (var (name, type, status) in resources)
         {
-            var status = healthy ? ResourceStatus.Healthy : ResourceStatus.Unhealthy;
-            dict[name] = new ResourceInfo(name, "Project", "", "", 0, status);
+            dict[name] = new ResourceInfo(name, type, "", "", 0, status);
         }
     }
 

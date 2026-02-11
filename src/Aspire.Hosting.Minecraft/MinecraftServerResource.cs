@@ -9,7 +9,7 @@ public class MinecraftServerResource : ContainerResource, IResourceWithConnectio
 {
     internal const string GameEndpointName = "game";
     internal const string RconEndpointName = "rcon";
-    internal const string BlueMapEndpointName = "bluemap";
+    internal const string BlueMapEndpointName = "world-map";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MinecraftServerResource"/> class.
@@ -29,6 +29,11 @@ public class MinecraftServerResource : ContainerResource, IResourceWithConnectio
     /// WithMonitoredResource() applies env vars to this builder.
     /// </summary>
     internal IResourceBuilder<ProjectResource>? WorkerBuilder { get; set; }
+
+    /// <summary>
+    /// Tracks the names of all monitored resources so dependency env vars can reference them.
+    /// </summary>
+    internal List<string> MonitoredResourceNames { get; } = new();
 
     /// <summary>
     /// Gets the connection string expression for RCON access.

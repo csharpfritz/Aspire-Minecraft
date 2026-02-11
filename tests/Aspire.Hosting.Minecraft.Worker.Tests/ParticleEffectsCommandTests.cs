@@ -74,15 +74,15 @@ public class ParticleEffectsCommandTests
     [Fact]
     public void Particle_CoordinatesMatchStructureBuilder_BaseLayout()
     {
-        // StructureBuilder uses BaseX=10, BaseY=-60, BaseZ=0, Spacing=6
-        // Particles should appear above structures at Y=-58 (BaseY + 2)
-        int baseX = 10, baseY = -60, baseZ = 0, spacing = 6;
-
+        // VillageLayout uses 2×N grid: BaseX=10, BaseY=-60, BaseZ=0, Spacing=10, StructureSize=7
+        // Particles appear above structures via VillageLayout.GetAboveStructure (center at +3, height=10)
         for (int i = 0; i < 5; i++)
         {
-            int x = baseX + (i * spacing) + 1; // center of 3x3 structure
-            int y = baseY + 2; // above the structure
-            int z = baseZ + 1;
+            int col = i % 2;
+            int row = i / 2;
+            int x = 10 + (col * 10) + 3; // center of 7x7 structure
+            int y = -60 + 10; // above the structure
+            int z = 0 + (row * 10) + 3;
 
             var cmd = RconCommandFormats.Particle("minecraft:heart", x, y, z, 0.5, 0.5, 0.5, 0.1, 10);
             Assert.Contains($"{x} {y} {z}", cmd);

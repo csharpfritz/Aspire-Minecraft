@@ -101,8 +101,8 @@ public class ParticleEffectServiceIntegrationTests : IAsyncLifetime
         await _sut.ShowParticlesForChangesAsync(changes);
 
         var cmds = _server.GetCommands();
-        // "db" is at index 1 → x = 10 + 1 + (1 * 6) = 17, y = -58, z = 1
-        Assert.Contains(cmds, c => c.Contains("17 -58 1"));
+        // "db" is at index 1 → VillageLayout: col=1, row=0 → center x=23, y=-50, z=3
+        Assert.Contains(cmds, c => c.Contains("23 -50 3"));
     }
 
     [Fact]
@@ -118,8 +118,8 @@ public class ParticleEffectServiceIntegrationTests : IAsyncLifetime
         await _sut.ShowParticlesForChangesAsync(changes);
 
         var cmds = _server.GetCommands();
-        // "api" is at index 0 → x = 10 + 1 + (0 * 6) = 11, y = -58, z = 1
-        Assert.Contains(cmds, c => c.Contains("11 -58 1"));
+        // "api" is at index 0 → VillageLayout: col=0, row=0 → center x=13, y=-50, z=3
+        Assert.Contains(cmds, c => c.Contains("13 -50 3"));
     }
 
     [Fact]
