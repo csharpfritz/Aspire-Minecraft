@@ -35,11 +35,17 @@ internal static class VillageLayout
     public const int BaseX = 10;
 
     /// <summary>
-    /// Surface level Y for superflat world (grass block layer at Y=-60).
-    /// This is where structure floors are placed. Ground level for players is Y=-59 (air above grass).
-    /// Paths are at BaseY-1 (in the dirt layer) with grass blocks removed at BaseY for flush appearance.
+    /// Default surface level Y for superflat world (grass block layer at Y=-60).
+    /// Used as a fallback when terrain detection fails or hasn't run yet.
     /// </summary>
     public const int BaseY = -60;
+
+    /// <summary>
+    /// Detected surface Y coordinate. Set by <see cref="TerrainProbeService"/> at startup.
+    /// Defaults to <see cref="BaseY"/> for backward compatibility with superflat worlds.
+    /// All services should use this instead of <see cref="BaseY"/> for Y positioning.
+    /// </summary>
+    public static int SurfaceY { get; set; } = BaseY;
 
     /// <summary>Base Z coordinate for the village grid.</summary>
     public const int BaseZ = 0;
@@ -60,14 +66,14 @@ internal static class VillageLayout
     /// <para>Calculation: col = index % 2, row = index / 2</para>
     /// <para>X = BaseX + (col × Spacing) → 10, 20, 10, 20, ...</para>
     /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 10, 10, 20, 20, ...</para>
-    /// <para>Y is always BaseY (-60, grass surface)</para>
+    /// <para>Y is always SurfaceY (detected terrain height, or -60 fallback)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)
     {
         var col = index % Columns;
         var row = index / Columns;
         var x = BaseX + (col * Spacing);
-        var y = BaseY;
+        var y = SurfaceY;
         var z = BaseZ + (row * Spacing);
         return (x, y, z);
     }
@@ -88,7 +94,7 @@ internal static class VillageLayout
     public static (int x, int y, int z) GetAboveStructure(int index, int heightAboveBase = 10)
     {
         var (cx, _, cz) = GetStructureCenter(index);
-        return (cx, BaseY + heightAboveBase, cz);
+        return (cx, SurfaceY + heightAboveBase, cz);
     }
 
     /// <summary>

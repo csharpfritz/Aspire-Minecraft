@@ -193,4 +193,69 @@ public class VillageLayoutTests
         Assert.Equal("parent", result[0], StringComparer.OrdinalIgnoreCase);
         Assert.Equal("child", result[1], StringComparer.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void SurfaceY_DefaultsToBaseY()
+    {
+        // Reset to default in case previous tests modified it
+        VillageLayout.SurfaceY = VillageLayout.BaseY;
+        Assert.Equal(VillageLayout.BaseY, VillageLayout.SurfaceY);
+    }
+
+    [Fact]
+    public void GetStructureOrigin_UsesSurfaceY_WhenSet()
+    {
+        var original = VillageLayout.SurfaceY;
+        try
+        {
+            VillageLayout.SurfaceY = 64;
+            var (x, y, z) = VillageLayout.GetStructureOrigin(0);
+
+            Assert.Equal(10, x);
+            Assert.Equal(64, y);
+            Assert.Equal(0, z);
+        }
+        finally
+        {
+            VillageLayout.SurfaceY = original;
+        }
+    }
+
+    [Fact]
+    public void GetStructureCenter_UsesSurfaceY_WhenSet()
+    {
+        var original = VillageLayout.SurfaceY;
+        try
+        {
+            VillageLayout.SurfaceY = 72;
+            var (x, y, z) = VillageLayout.GetStructureCenter(0);
+
+            Assert.Equal(13, x);
+            Assert.Equal(72, y);
+            Assert.Equal(3, z);
+        }
+        finally
+        {
+            VillageLayout.SurfaceY = original;
+        }
+    }
+
+    [Fact]
+    public void GetAboveStructure_UsesSurfaceY_WhenSet()
+    {
+        var original = VillageLayout.SurfaceY;
+        try
+        {
+            VillageLayout.SurfaceY = 64;
+            var (x, y, z) = VillageLayout.GetAboveStructure(0, 10);
+
+            Assert.Equal(13, x);
+            Assert.Equal(74, y); // SurfaceY + 10
+            Assert.Equal(3, z);
+        }
+        finally
+        {
+            VillageLayout.SurfaceY = original;
+        }
+    }
 }

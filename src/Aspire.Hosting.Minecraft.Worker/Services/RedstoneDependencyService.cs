@@ -88,8 +88,8 @@ internal sealed class RedstoneDependencyService(
         var (px, py, pz) = VillageLayout.GetStructureOrigin(parentIndex);
         var (cx, cy, cz) = VillageLayout.GetStructureOrigin(childIndex);
 
-        // Wire runs at ground level (BaseY) offset by -1 in Z (in front of structures)
-        var wireY = VillageLayout.BaseY;
+        // Wire runs at ground level (SurfaceY) offset by -1 in Z (in front of structures)
+        var wireY = VillageLayout.SurfaceY;
 
         // Start point: in front of parent structure entrance (center X, Z-1)
         var startX = px + 3;

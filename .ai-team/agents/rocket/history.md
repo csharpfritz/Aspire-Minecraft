@@ -99,3 +99,24 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 - Always verify coordinates against in-game geometry when `hollow` fills create walls.
  Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
  Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
+
+### Dynamic Terrain Detection (2026-02-11)
+
+**Architecture:** Added `TerrainProbeService` singleton that runs ONCE at startup (after RCON connect, before resource discovery). Uses binary search with `setblock X Y Z yellow_wool keep` to find the highest solid block at (BaseX, BaseZ). Search range: Y=100 to Y=-64, ~8 RCON commands max. Cleans up any probe blocks placed. On failure, gracefully falls back to `BaseY = -60`.
+
+**Key decisions:**
+- `VillageLayout.SurfaceY` is a static mutable property (not const) defaulting to `BaseY`. All services use `SurfaceY` instead of `BaseY` for Y positioning.
+- `VillageLayout.BaseY` kept as const fallback — backward compat preserved.
+- `HologramManager.SpawnY` → `VillageLayout.SurfaceY + 5` (was hardcoded `-55`).
+- `GuardianMobService.BaseY` → `VillageLayout.SurfaceY + 2` (was hardcoded `-58`).
+- `RedstoneDependencyService` wireY → `VillageLayout.SurfaceY` (was `VillageLayout.BaseY`).
+- `StructureBuilder.BuildPathsAsync` made terrain-agnostic: `fill ... air` replaces ALL surface blocks, not just `grass_block`.
+- `StructureBuilder.BuildFencePerimeterAsync` uses `SurfaceY` instead of `BaseY`.
+- `TerrainProbeService` called in `MinecraftWorldWorker.ExecuteAsync` BEFORE `DiscoverResources()` and all feature initialization.
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/TerrainProbeService.cs` — binary search terrain detection via RCON setblock
+- `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs` — `SurfaceY` property added
+- `tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/TerrainProbeServiceTests.cs` — probe fallback and integration tests
+
+**RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.

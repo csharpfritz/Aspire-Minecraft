@@ -90,7 +90,7 @@ internal sealed class StructureBuilder(
         try
         {
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
-            var fenceY = VillageLayout.BaseY;
+            var fenceY = VillageLayout.SurfaceY;
 
             // South side (low Z) — two segments with a gate gap in the center
             var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
@@ -129,14 +129,13 @@ internal sealed class StructureBuilder(
             var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
 
-            // Comprehensive cobblestone coverage: entire village area inside fence, flush with ground
-            // Step 1: Clear all grass blocks at BaseY (surface level)
+            // Step 1: Clear all blocks at surface level (terrain-agnostic, not just grass_block)
             await rcon.SendCommandAsync(
-                $"fill {fMinX + 1} {VillageLayout.BaseY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY} {fMaxZ - 1} minecraft:air replace grass_block", ct);
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:air", ct);
 
-            // Step 2: Place cobblestone at BaseY-1 (one level down, flush with remaining grass)
+            // Step 2: Place cobblestone at SurfaceY-1 (one level down, flush with remaining terrain)
             await rcon.SendCommandAsync(
-                $"fill {fMinX + 1} {VillageLayout.BaseY - 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY - 1} {fMaxZ - 1} minecraft:cobblestone", ct);
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY - 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY - 1} {fMaxZ - 1} minecraft:cobblestone", ct);
 
             logger.LogInformation("Comprehensive village paths built covering fence interior");
         }
