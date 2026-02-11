@@ -208,6 +208,39 @@ AppHost
 
 For a deep-dive into the architecture, see [Behind the Build](docs/blog/behind-the-build.md).
 
+## 🔧 Troubleshooting
+
+### World Not Resetting
+If you make changes to the worker code that affect world generation (paths, structures, etc.) and need a fresh world:
+
+**Without Persistent World (Default):**
+```bash
+# Stop AppHost, delete the unnamed Docker volume
+docker volume ls | grep minecraft
+docker volume rm <volume-id>
+```
+
+**With WithPersistentWorld():**
+```bash
+# Stop AppHost, delete the named volume
+docker volume rm minecraft-data
+```
+
+The Minecraft server creates its world on first startup and won't regenerate unless the volume is cleared. This is normal Docker behavior for stateful containers.
+
+### Village Not Appearing
+- Fly to coordinates **~10, -60, 0** to find the village
+- Ensure you've called `.WithMonitoredResource()` on at least one resource
+- Check worker logs in Aspire dashboard for RCON errors
+
+### Structures Glitching
+If buildings are flickering/rebuilding every 10 seconds, this is a bug (should be fixed in v0.2.1+). Ensure you're on the latest version.
+
+### Performance Issues
+- Reduce monitored resource count (<10 recommended)
+- Disable BlueMap if only using in-game display
+- Check `minecraft.rcon.latency_ms` metric — should be <10ms
+
 ## 📁 Project Structure
 
 ```

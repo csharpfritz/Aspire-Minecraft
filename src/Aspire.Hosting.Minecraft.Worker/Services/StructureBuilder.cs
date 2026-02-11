@@ -108,56 +108,18 @@ internal sealed class StructureBuilder(
     private async Task BuildPathsAsync(int resourceCount, CancellationToken ct)
     {
         var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
+        var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
 
-        // Main boulevard: 3-wide cobblestone path between the two columns along Z axis
-        var boulevardX = VillageLayout.BaseX + VillageLayout.StructureSize; // gap between col 0 and col 1
-        var pathZ1 = VillageLayout.BaseZ;
-        var pathZ2 = VillageLayout.BaseZ + ((rows - 1) * VillageLayout.Spacing) + VillageLayout.StructureSize - 1;
+        // Comprehensive cobblestone coverage: entire village area inside fence, flush with ground
+        // Step 1: Clear all grass blocks at BaseY (surface level)
+        await rcon.SendCommandAsync(
+            $"fill {fMinX + 1} {VillageLayout.BaseY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY} {fMaxZ - 1} minecraft:air replace grass_block", ct);
 
-        if (rows > 0)
-        {
-            // Place cobblestone path at ground level (replaces grass surface)
-            await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
-        }
+        // Step 2: Place cobblestone at BaseY-1 (one level down, flush with remaining grass)
+        await rcon.SendCommandAsync(
+            $"fill {fMinX + 1} {VillageLayout.BaseY - 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY - 1} {fMaxZ - 1} minecraft:cobblestone", ct);
 
-        // Cross paths: 2-wide cobblestone from each structure's entrance to the main boulevard
-        for (var i = 0; i < resourceCount; i++)
-        {
-            var (sx, _, sz) = VillageLayout.GetStructureOrigin(i);
-            var col = i % VillageLayout.Columns;
-            // Entrance is at z-1 of structure, centered on x+3
-            var entranceZ = sz - 1;
-            var entranceX = sx + 3;
-
-            if (col == 0)
-            {
-                // Left column: path runs from entrance (x+3) east to the boulevard (boulevardX - 1)
-                if (entranceX < boulevardX)
-                {
-                    await rcon.SendCommandAsync(
-                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
-                }
-            }
-            else
-            {
-                // Right column: path runs from boulevard east end (boulevardX + 3) to entrance (x+3)
-                var boulevardEnd = boulevardX + 3;
-                if (boulevardEnd <= entranceX)
-                {
-                    await rcon.SendCommandAsync(
-                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
-                }
-            }
-        }
-
-        // Entry path: from fence gate to the start of the main boulevard
-        var (fMinX, fMinZ, _, _) = VillageLayout.GetFencePerimeter(resourceCount);
-        if (fMinZ < pathZ1)
-        {
-            await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
-        }
+        logger.LogInformation("Comprehensive village paths built covering fence interior");
     }
 
     private async Task BuildResourceStructureAsync(ResourceInfo info, int index, CancellationToken ct)
@@ -240,9 +202,10 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + 3} {y + 10} {z + 2} minecraft:blue_banner[rotation=0]", ct);
 
-        // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall, must clear from outside face at z
+        // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall
+        // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
         await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 4} {y + 3} {z} minecraft:air", ct);
+            $"fill {x + 2} {y + 1} {z + 1} {x + 4} {y + 3} {z + 1} minecraft:air", ct);
     }
 
     /// <summary>
