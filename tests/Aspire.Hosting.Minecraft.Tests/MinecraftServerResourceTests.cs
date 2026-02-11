@@ -26,7 +26,7 @@ public class MinecraftServerResourceTests
     [Fact]
     public void BlueMapEndpointName_IsExpectedValue()
     {
-        Assert.Equal("bluemap", MinecraftServerResource.BlueMapEndpointName);
+        Assert.Equal("world-map", MinecraftServerResource.BlueMapEndpointName);
     }
 
     [Fact]
