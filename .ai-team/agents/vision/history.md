@@ -53,3 +53,5 @@ Currently at v0.3.0, Sprint 3 complete. Sprint 3.1 quality improvements just fin
 ### Sprint 3 Features
 
 All documented Sprint 3 features: village visualization with themed structures, health indicators (lamps/beacons/particles/mobs), service switches (display-only levers), redstone dependency graph (L-shaped wires), achievements (milestones), heartbeat (tempo/pitch reflect health), boss bar (aggregate %), world border pulse (shrinks on critical), RCON debug logging (troubleshooting tool).
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz

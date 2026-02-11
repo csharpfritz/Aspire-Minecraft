@@ -109,3 +109,5 @@
 - The `.ai-team/**` folder contains squad-internal state and decisions, also irrelevant to builds.
 - Root-level `*.md` pattern catches README.md, CONTRIBUTING.md, etc. but not markdown files in subdirectories (those would be caught by `docs/**` or `user-docs/**` as appropriate).
 - The scheduled CodeQL run (Monday 06:25 UTC) is unaffected by path filters — it always runs on schedule regardless of recent commits.
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz

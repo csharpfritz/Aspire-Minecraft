@@ -457,3 +457,273 @@
 
 These rules were established after fixing Sprint 3 bugs where fences floated and beacons were blocked by structure overlap.
 
+### 2026-02-11: Use GitHub issues and milestones for planning
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Going forward, record all plans as issues and milestones in GitHub. Each sprint is a milestone.
+**Why:** User directive — centralizes planning in GitHub for visibility and tracking. Replaces ad-hoc SQL/plan.md tracking.
+
+### 2026-02-11: Sprint completion definition includes documentation
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Going forward, all sprints must include updates to README and user documentation to be considered complete.
+**Why:** User directive — documentation is a first-class deliverable, not an afterthought. Ensures features are always properly documented when shipped.
+
+### 2026-02-11: Boss Bar Title Configuration
+
+**Date:** 2026-02-11  
+**Decider:** Rocket  
+**Status:** Implemented
+
+
+**Context:**
+
+The boss bar previously displayed "Aspire Fleet Health: 100 percent" which looked unpolished. Additionally, users wanted the ability to customize the boss bar title text.
+
+
+**Decision:**
+
+1. **Changed percentage formatting** from "100 percent" to "100%" for cleaner display
+2. **Added optional `title` parameter** to `WithBossBar()` extension method
+3. **Used dedicated environment variable** `ASPIRE_BOSSBAR_TITLE` instead of repurposing `ASPIRE_APP_NAME`
+4. **Default title** is "Aspire Fleet Health" when not specified
+
+
+**Implementation:**
+
+- `WithBossBar(string? title = null)` sets `ASPIRE_BOSSBAR_TITLE` env var if title provided
+- `BossBarService` reads env var at construction with fallback to default
+- Boss bar displays as: `"{title}: {percentage}%"`
+
+
+**Rationale:**
+
+- Dedicated env var is clearer than overloading `ASPIRE_APP_NAME`
+- Optional parameter follows existing Fluent API pattern
+- Default value maintains backward compatibility
+- Percentage symbol is more concise and professional than "percent" word
+
+
+**Impact:**
+
+- Breaking change: `ASPIRE_APP_NAME` no longer affects boss bar (only title parameter does)
+- API surface updated to show optional title parameter
+- No change required for users who don't pass a title (default behavior preserved)
+
+### 2026-02-10: Peaceful Mode Implementation
+
+**Date:** 2026-02-10  
+**Decider:** Rocket (Integration Dev)  
+**Status:** Implemented
+
+
+**Context:**
+
+User requested a feature to eliminate hostile mobs (zombies, skeletons, creepers) from the Minecraft world to create a safer environment for monitoring infrastructure.
+
+
+**Decision:**
+
+Implemented `WithPeacefulMode()` extension method using `/difficulty peaceful` Minecraft command instead of gamerules.
+
+
+**Rationale:**
+
+1. **`/difficulty peaceful` vs gamerule approach:**
+   - `difficulty peaceful` is the standard Minecraft way to eliminate hostiles
+   - Immediately removes all existing hostile mobs
+   - Prevents hostile mob spawning
+   - Preserves passive mob spawning (cows, pigs, sheep)
+   - More idiomatic than using `doMobSpawning` gamerule (which stops ALL mobs)
+
+2. **One-time execution pattern:**
+   - Command executes once at server startup after RCON connection
+   - No service class needed — single RCON command is sufficient
+   - Follows initialization pattern similar to `WorldBorderService.InitializeAsync()`
+
+3. **Env var: `ASPIRE_FEATURE_PEACEFUL`**
+   - Consistent with other opt-in features
+   - Checked directly in `MinecraftWorldWorker.ExecuteAsync()` after resource discovery
+   - No conditional DI registration needed (no service class)
+
+
+**Implementation:**
+
+- Extension method: `MinecraftServerBuilderExtensions.WithPeacefulMode()`
+- Worker logic: Direct check in `MinecraftWorldWorker.ExecuteAsync()`
+- Demo updated: Added `.WithPeacefulMode()` to Sprint 3 features
+- API surface doc updated
+
+
+**Alternatives Considered:**
+
+- **Gamerule `doMobSpawning false`:** Stops ALL mob spawning including passives
+- **Separate service class:** Overkill for single one-time command
+- **Server property `DIFFICULTY=peaceful`:** Container-level, but less flexible for opt-in pattern
+
+
+**Impact:**
+
+- Opt-in feature, no effect on existing deployments
+- All existing tests pass
+- Consistent with team's feature opt-in architecture
+
+### 2026-02-11: Service Switches Are Display-Only
+
+**Date:** 2026-02-11  
+**Decided by:** Rocket (Integration Dev)  
+**Status:** Informational
+
+
+**Decision:**
+
+Service switches (levers + lamps) in the Minecraft village are **display-only** indicators. They reflect the current status of Aspire resources but do not control them.
+
+
+**Context:**
+
+User testing revealed confusion: manually flipping a service switch in Minecraft does not affect the corresponding Aspire resource. This is by design.
+
+
+**Rationale:**
+
+- **One-way sync:** Aspire resource state → Minecraft visual state
+- **Safety:** Prevents accidental resource control from game interface
+- **Simplicity:** No reverse RCON → Aspire control flow needed
+- **Consistency:** Matches other display-only features (health lamps, hologram, boss bar)
+
+
+**Implications:**
+
+- Switches are visual feedback, not interactive controls
+- Manually flipping a lever in-game will be overwritten on next update cycle
+- If user wants to control resources, they must use Aspire dashboard or CLI
+- Documentation should clearly state this is a monitoring/visualization tool, not a control panel
+
+
+**Related Features:**
+
+- Health indicator lamps (also display-only)
+- Redstone dependency graph (also display-only)
+- Holograms, boss bar, scoreboards (all display-only)
+
+### 2026-02-11: Village Structure Idempotent Building Pattern
+
+**Date:** 2026-02-11  
+**Decider:** Rocket (Integration Dev)  
+**Status:** Implemented
+
+
+**Context:**
+
+Village structures were being rebuilt every 10-second display update cycle, causing visible glitching in-game. The `StructureBuilder.UpdateStructuresAsync()` method was calling `BuildResourceStructureAsync()` for every resource on every cycle without checking if the structure already existed.
+
+Additionally, cobblestone paths were placed at `BaseY - 1` (Y=-61) which is underground in superflat worlds, making them invisible to players.
+
+
+**Decision:**
+
+Implemented idempotent building pattern for village structures:
+
+1. **Structure Tracking**: Added `HashSet<string> _builtStructures` to track which resources have had their structures built
+2. **Build Once Pattern**: Modified update loop to:
+   - Check if structure already exists via `_builtStructures.Contains(name)`
+   - If not built: call `BuildResourceStructureAsync()` and add to set
+   - If already built: only update health indicator via `PlaceHealthIndicatorAsync()`
+3. **Path Y-Level Fix**: Reverted all cobblestone path placements from `BaseY - 1` to `BaseY` so they sit on grass surface
+
+
+**Rationale:**
+
+- **Performance**: Eliminates redundant RCON commands for structure building every 10 seconds
+- **Visual Stability**: Prevents the "glitching" effect where structures briefly change shape during rebuilds
+- **Element Preservation**: Prevents structure rebuilds from overwriting decorative elements (switches, signs, lamps)
+- **Path Visibility**: Paths at `BaseY` replace grass blocks and are visible/walkable; paths at `BaseY - 1` are buried in dirt
+
+This follows the same pattern already established for fence (`_fenceBuilt` flag) and paths (`_pathsBuilt` flag).
+
+
+**Consequences:**
+
+- *Positive:*
+- Buildings remain stable and don't glitch every 10 seconds
+- Paths are visible and walkable on the ground surface
+- Switches, signs, and other decorative elements persist correctly
+- Reduced RCON command volume (better performance)
+- All 303 existing tests pass
+
+- *Negative:*
+- Structures cannot be "refreshed" if manually destroyed in-game without restarting the worker
+- Resource name is used as tracking key (if a resource is renamed and added again, it would build a new structure)
+
+- *Neutral:*
+- Pattern is consistent with existing fence/path building flags
+- Health indicators still update dynamically every cycle as intended
+
+
+**Implementation Details:**
+
+**File**: `src/Aspire.Hosting.Minecraft.Worker/Services/StructureBuilder.cs`
+
+- Added field: `private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);`
+- Modified `UpdateStructuresAsync()` to check `_builtStructures` before building
+- Reverted path Y-coordinates from `VillageLayout.BaseY - 1` to `VillageLayout.BaseY` in three locations (main boulevard, cross paths, entry path)
+
+
+**Alternatives Considered:**
+
+1. **Time-based rebuild**: Only rebuild structures every N minutes instead of every cycle
+   - Rejected: Still causes glitching, just less frequently
+2. **Change detection**: Compare current vs desired structure state and only update differences
+   - Rejected: Too complex; requires querying and parsing Minecraft world state via RCON
+3. **Manual refresh command**: Add an RCON command to force structure rebuild
+   - Deferred: Could be added later if needed, but not required for normal operation
+
+
+**Related Decisions:**
+
+- Fence perimeter uses `_fenceBuilt` flag (similar pattern)
+- Paths use `_pathsBuilt` flag (similar pattern)
+- Service switches already placed once then only update state on transitions
+
+### 2026-02-10: Structure Build Validation with Graceful Degradation
+
+**By:** Shuri  
+**What:** Added post-build validation to StructureBuilder that verifies door and window blocks were placed successfully after each structure builds.  
+**Why:** RCON commands can fail silently or be rate-limited, leaving incomplete structures. Validation helps detect these failures and logs warnings for observability. Uses graceful degradation (log warnings, don't throw exceptions) to avoid blocking the entire village build process if individual blocks fail validation.
+
+**Implementation:**
+- `VerifyBlockAsync()` helper uses `testforblock` RCON command to check block type at coordinates
+- Each structure type has a corresponding `Validate*Async()` method called after building
+- Validates door air blocks and window blocks (glass_pane, stained_glass variants) at expected coordinates
+- Returns false on any exception to handle RCON failures gracefully
+
+### 2026-02-11: User Documentation Structure in user-docs/
+
+**By:** Vision
+
+**What:** Created comprehensive user documentation in `user-docs/` folder with guides for getting started, configuration, features, troubleshooting, and examples. Documentation follows consistent structure across all feature guides and emphasizes user perspective over technical implementation.
+
+**Why:** 
+
+1. **Separation of concerns:** User documentation (`user-docs/`) is separate from technical documentation (`docs/`). Users need "how to use" guides, not architecture deep-dives.
+
+2. **Consistent structure:** Each feature document follows the same pattern (What It Does → How to Enable → What You'll See → Use Cases → Code Example) making docs scannable and predictable.
+
+3. **User-centric language:** Documentation uses concrete, observable descriptions ("glowing yellow lamp", "fast high-pitched heartbeat") instead of technical implementation details ("glowstone block at Y+5", "1000ms interval, pitch 24").
+
+4. **Comprehensive examples:** Every feature includes working code examples that users can copy-paste. Examples section shows real-world patterns for common scenarios (full stack apps, demos, ambient monitoring, etc.).
+
+5. **Troubleshooting first:** Dedicated troubleshooting guide covers common issues with specific solutions, not generic advice. Organized by category (installation, startup, world generation, features, connection, performance).
+
+6. **Progressive disclosure:** Documentation starts simple (README → Getting Started → Configuration) then provides deep-dives for specific features. Users can go as deep as they need.
+
+**Impact:** Users can now understand and use all features without reading source code or technical architecture documents. Documentation is ready for external users (NuGet package consumers).
+
+### 2026-02-10: Documentation path filters added to GitHub Actions workflows
+
+**By:** Wong
+
+**What:** Added `paths-ignore` filters to build.yml, release.yml, and codeql.yml to skip CI/CD pipelines when only documentation files change. Ignored paths: `docs/**`, `user-docs/**`, `*.md` (root-level), `.ai-team/**`.
+
+**Why:** Documentation updates (README, user docs, team state) don't affect code correctness, test outcomes, or package output. Running full build/test/pack cycles wastes CI runner minutes and creates noise in the workflow history. This change ensures CI resources are spent only on actual code changes.
+
+**Impact:** PRs and commits that only touch markdown files or documentation directories will not trigger builds, tests, or CodeQL scans. The scheduled CodeQL run (Mondays) is unaffected and always runs regardless of path filters.
