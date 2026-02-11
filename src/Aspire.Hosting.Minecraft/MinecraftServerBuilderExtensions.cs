@@ -674,6 +674,26 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables peaceful mode — immediately removes all hostile mobs (zombies, skeletons, creepers, etc.)
+    /// and prevents them from spawning. Passive mobs (cows, pigs, sheep) continue to spawn normally.
+    /// Uses the Minecraft <c>/difficulty peaceful</c> command at server startup.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithPeacefulMode(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithPeacefulMode() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_PEACEFUL", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Sets an arbitrary Minecraft <c>server.properties</c> value via the itzg/minecraft-server
     /// environment variable convention. The property name is converted to UPPER_SNAKE_CASE
     /// (e.g., <c>max-players</c> becomes <c>MAX_PLAYERS</c>).

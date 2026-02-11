@@ -161,6 +161,13 @@ file sealed class MinecraftWorldWorker(
         if (redstoneGraph is not null)
             await redstoneGraph.InitializeAsync(stoppingToken);
 
+        // Peaceful mode — eliminate hostile mobs (one-time setup)
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL")))
+        {
+            await rcon.SendCommandAsync("difficulty peaceful", stoppingToken);
+            logger.LogInformation("Peaceful mode enabled — hostile mobs disabled");
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try

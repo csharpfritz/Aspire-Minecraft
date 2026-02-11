@@ -81,3 +81,7 @@ Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource t
 ### Fence Perimeter Fix (2026-02-10)
 
 Fixed two fence bugs: (1) Fence was placed at `BaseY + 1` (y=-59), floating one block above the superflat surface. Changed to `BaseY` (y=-60) so fences sit on ground. (2) `GetFencePerimeter` offsets were only 1-2 blocks from building edges. Changed to 4-block gap on all sides (`minX-4, minZ-4, maxX+4, maxZ+4`) per user request. Entry path from gate to boulevard auto-extends because it reads `fMinZ` from `GetFencePerimeter`. Gate position is boulevard-relative (X=17), unaffected by fence offset. All 303 tests pass.
+
+### Peaceful Mode Feature (2026-02-10)
+
+Added `WithPeacefulMode()` extension method to eliminate hostile mobs from Minecraft world. Implementation uses `/difficulty peaceful` RCON command — the idiomatic Minecraft way to remove hostiles while preserving passive mobs (cows, pigs, sheep). Command executes once at server startup in `MinecraftWorldWorker.ExecuteAsync()` after RCON connection and resource discovery, controlled by `ASPIRE_FEATURE_PEACEFUL` env var. Pattern follows opt-in feature architecture: extension sets env var, worker checks var and executes command. No service class needed — single RCON command is sufficient. All existing tests pass (62 tests).

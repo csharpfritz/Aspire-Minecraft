@@ -60,6 +60,8 @@ All methods return `IResourceBuilder<MinecraftServerResource>` for fluent chaini
 | `WithHeartbeat` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_HEARTBEAT` | Note block pulse reflecting fleet health tempo. |
 | `WithAchievements` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_ACHIEVEMENTS` | Infrastructure milestone achievements. |
 | `WithRedstoneDependencyGraph` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_REDSTONE_GRAPH` | Redstone wire circuits between dependent resources showing DAG. |
+| `WithServiceSwitches` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_SWITCHES` | Visual levers+lamps on structures reflecting service state. |
+| `WithPeacefulMode` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_PEACEFUL` | Eliminates hostile mobs via `/difficulty peaceful` command. |
 
 #### Server Configuration
 

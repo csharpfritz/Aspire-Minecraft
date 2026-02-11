@@ -53,6 +53,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithAchievements()
     .WithRedstoneDependencyGraph()
     .WithServiceSwitches()
+    .WithPeacefulMode()
 
     // Monitored resources — each gets in-world representation
     .WithMonitoredResource(api)
