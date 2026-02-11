@@ -674,6 +674,27 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables debug-level logging for RCON commands sent to the Minecraft server.
+    /// When enabled, every RCON command and its response are logged to the Aspire dashboard.
+    /// Useful for troubleshooting world building issues or verifying command execution.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithRconDebugLogging(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithRconDebugLogging() requires WithAspireWorldDisplay() to be called first.");
+
+        // Set log level to Debug for RconService specifically
+        workerBuilder.WithEnvironment("Logging__LogLevel__Aspire.Hosting.Minecraft.Worker.Services.RconService", "Debug");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables peaceful mode — immediately removes all hostile mobs (zombies, skeletons, creepers, etc.)
     /// and prevents them from spawning. Passive mobs (cows, pigs, sheep) continue to spawn normally.
     /// Uses the Minecraft <c>/difficulty peaceful</c> command at server startup.

@@ -123,6 +123,8 @@ internal sealed class RconService : IAsyncDisposable
         using var activity = MinecraftMetrics.ActivitySource.StartActivity("minecraft.rcon.command");
         activity?.SetTag("rcon.command", command);
 
+        _logger.LogDebug("Sending RCON command: {Command}", command);
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
@@ -132,6 +134,9 @@ internal sealed class RconService : IAsyncDisposable
             MinecraftMetrics.RecordRconCommand(sw.Elapsed.TotalMilliseconds);
             activity?.SetTag("rcon.response_length", response.Length);
             activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
+
+            _logger.LogTrace("RCON response ({Length} chars, {Latency}ms): {Response}", 
+                response.Length, sw.Elapsed.TotalMilliseconds, response);
 
             return response;
         }
