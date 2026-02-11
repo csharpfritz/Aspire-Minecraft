@@ -116,12 +116,9 @@ internal sealed class StructureBuilder(
 
         if (rows > 0)
         {
-            // Clear grass at surface level (BaseY) so paths sit flush with surrounding grass
+            // Place cobblestone path at ground level (replaces grass surface)
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:air replace grass_block", ct);
-            // Place cobblestone one level down (BaseY-1) in the dirt layer
-            await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY - 1} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ2} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY} {pathZ1} {boulevardX + 2} {VillageLayout.BaseY} {pathZ2} minecraft:cobblestone", ct);
         }
 
         // Cross paths: 2-wide cobblestone from each structure's entrance to the main boulevard
@@ -138,12 +135,8 @@ internal sealed class StructureBuilder(
                 // Left column: path runs from entrance (x+3) east to the boulevard (boulevardX - 1)
                 if (entranceX < boulevardX)
                 {
-                    // Clear grass at surface level
                     await rcon.SendCommandAsync(
-                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:air replace grass_block", ct);
-                    // Place cobblestone one level down
-                    await rcon.SendCommandAsync(
-                        $"fill {entranceX} {VillageLayout.BaseY - 1} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {entranceX} {VillageLayout.BaseY} {entranceZ} {boulevardX - 1} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
             else
@@ -152,12 +145,8 @@ internal sealed class StructureBuilder(
                 var boulevardEnd = boulevardX + 3;
                 if (boulevardEnd <= entranceX)
                 {
-                    // Clear grass at surface level
                     await rcon.SendCommandAsync(
-                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:air replace grass_block", ct);
-                    // Place cobblestone one level down
-                    await rcon.SendCommandAsync(
-                        $"fill {boulevardEnd} {VillageLayout.BaseY - 1} {entranceZ} {entranceX} {VillageLayout.BaseY - 1} {entranceZ + 1} minecraft:cobblestone", ct);
+                        $"fill {boulevardEnd} {VillageLayout.BaseY} {entranceZ} {entranceX} {VillageLayout.BaseY} {entranceZ + 1} minecraft:cobblestone", ct);
                 }
             }
         }
@@ -166,12 +155,8 @@ internal sealed class StructureBuilder(
         var (fMinX, fMinZ, _, _) = VillageLayout.GetFencePerimeter(resourceCount);
         if (fMinZ < pathZ1)
         {
-            // Clear grass at surface level
             await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:air replace grass_block", ct);
-            // Place cobblestone one level down
-            await rcon.SendCommandAsync(
-                $"fill {boulevardX} {VillageLayout.BaseY - 1} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY - 1} {pathZ1 - 1} minecraft:cobblestone", ct);
+                $"fill {boulevardX} {VillageLayout.BaseY} {fMinZ} {boulevardX + 2} {VillageLayout.BaseY} {pathZ1 - 1} minecraft:cobblestone", ct);
         }
     }
 
@@ -255,10 +240,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + 3} {y + 10} {z + 2} minecraft:blue_banner[rotation=0]", ct);
 
-        // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall to ensure visibility
-        // Done AFTER other fills to prevent being overwritten
+        // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall, must clear from outside face at z
         await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 3} {z} minecraft:air", ct);
+            $"fill {x + 2} {y + 1} {z} {x + 4} {y + 3} {z} minecraft:air", ct);
     }
 
     /// <summary>
@@ -411,9 +395,9 @@ internal sealed class StructureBuilder(
             _ => "minecraft:sea_lantern"
         };
 
-        // Place in front wall higher up (y+5) for better visibility, embedded in wall at z+1
+        // Place in front wall at y+4 for visibility, embedded in wall at z+1 (not floating)
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 5} {z + 1} {lampBlock}", ct);
+            $"setblock {x + 3} {y + 4} {z + 1} {lampBlock}", ct);
     }
 
     /// <summary>
