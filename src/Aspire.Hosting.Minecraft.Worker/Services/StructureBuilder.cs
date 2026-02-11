@@ -49,7 +49,8 @@ internal sealed class StructureBuilder(
                 {
                     // Only update health indicator, not rebuild entire structure
                     var (x, y, z) = VillageLayout.GetStructureOrigin(index);
-                    await PlaceHealthIndicatorAsync(x, y, z, info.Status, ct);
+                    var structureType = GetStructureType(info.Type);
+                    await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
                 }
                 index++;
             }
@@ -145,7 +146,7 @@ internal sealed class StructureBuilder(
         }
 
         // Health indicator: redstone lamp in wall, powered = healthy
-        await PlaceHealthIndicatorAsync(x, y, z, info.Status, ct);
+        await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
 
         // Sign with resource name at the entrance
         await PlaceSignAsync(x, y, z, info, ct);
@@ -349,7 +350,11 @@ internal sealed class StructureBuilder(
     /// Places a redstone lamp in the front wall as health indicator.
     /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = air.
     /// </summary>
-    private async Task PlaceHealthIndicatorAsync(int x, int y, int z, ResourceStatus status, CancellationToken ct)
+    /// <summary>
+    /// Places a health indicator lamp in the front wall, adapting position to structure type.
+    /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = sea lantern.
+    /// </summary>
+    private async Task PlaceHealthIndicatorAsync(int x, int y, int z, string structureType, ResourceStatus status, CancellationToken ct)
     {
         var lampBlock = status switch
         {
@@ -358,9 +363,12 @@ internal sealed class StructureBuilder(
             _ => "minecraft:sea_lantern"
         };
 
-        // Place in front wall at y+4 for visibility, embedded in wall at z+1 (not floating)
+        // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
+        var lampZ = structureType == "Watchtower" ? z + 1 : z;
+        
+        // Place in front wall at y+3 (window/door height), centered above entrance
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 4} {z + 1} {lampBlock}", ct);
+            $"setblock {x + 3} {y + 3} {lampZ} {lampBlock}", ct);
     }
 
     /// <summary>

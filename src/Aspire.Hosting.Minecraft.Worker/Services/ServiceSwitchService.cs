@@ -51,16 +51,15 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever on the front wall (z-min side) at x+2, y+2, z, facing outward (north)
-            await PlaceLeverAsync(x + 2, y + 2, z, powered, ct);
-
-            // Place redstone lamp above the lever at x+2, y+3, z
-            await PlaceLampAsync(x + 2, y + 3, z, powered, ct);
+            // Place lever to the right of entrance (door is x+2 to x+4, so lever at x+5)
+            // Lever at ground level (y+1), lamp above it (y+2), both on front wall (z)
+            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            await PlaceLampAsync(x + 5, y + 2, z, powered, ct);
 
             _lastKnownStatus[name] = info.Status;
 
             logger.LogInformation("Service switch placed for {ResourceName} at ({X},{Y},{Z}), powered={Powered}",
-                name, x + 2, y + 2, z, powered);
+                name, x + 5, y + 1, z, powered);
         }
 
         logger.LogInformation("Service switches placed for {Count} resources", orderedNames.Count);
@@ -79,8 +78,9 @@ internal sealed class ServiceSwitchService(
             var powered = info.Status == ResourceStatus.Healthy;
 
             // Always place switches (self-healing if destroyed)
-            await PlaceLeverAsync(x + 2, y + 2, z, powered, ct);
-            await PlaceLampAsync(x + 2, y + 3, z, powered, ct);
+            // Position: to the right of entrance at x+5, y+1 (lever) and y+2 (lamp)
+            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            await PlaceLampAsync(x + 5, y + 2, z, powered, ct);
 
             _lastKnownStatus.TryGetValue(name, out var lastStatus);
             if (info.Status != lastStatus)
