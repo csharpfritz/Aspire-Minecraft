@@ -14,6 +14,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all history to check branch ancestry
+
+      - name: Verify tag is on main branch
+        run: |
+          # Check if the tagged commit is reachable from main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "❌ Tag ${{ github.ref_name }} is not on the main branch. Skipping publish."
+            echo "To publish this release, merge to main first, then re-tag on main."
+            exit 1
+          fi
+          echo "✅ Tag ${{ github.ref_name }} is on main branch. Proceeding with publish."
 
       - name: Extract version from tag
         id: version

@@ -3,13 +3,42 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <summary>
 /// Centralizes the 2×N grid layout coordinates for the resource village.
 /// All services that place things per-resource should use this to get consistent positions.
+/// 
+/// <para><b>Minecraft Superflat Coordinate System (Y-axis):</b></para>
+/// <list type="bullet">
+/// <item>Y=-64 to -62: Bedrock layer (unbreakable foundation)</item>
+/// <item>Y=-61: Dirt block</item>
+/// <item>Y=-60 (BaseY): Grass block surface — where structures place their floors</item>
+/// <item>Y=-59: Air (where players walk)</item>
+/// </list>
+/// 
+/// <para><b>Village Grid Layout (X/Z plane):</b></para>
+/// <list type="bullet">
+/// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
+/// <item>2 columns (Columns=2), infinite rows</item>
+/// <item>Spacing=10 blocks center-to-center between structures</item>
+/// <item>Each structure footprint: 7×7 blocks (StructureSize=7)</item>
+/// <item>Index 0 → (10, -60, 0), Index 1 → (20, -60, 0), Index 2 → (10, -60, 10), etc.</item>
+/// </list>
+/// 
+/// <para><b>Z-Coordinate Conventions:</b></para>
+/// <list type="bullet">
+/// <item>Front wall (entrance): Always on Z-min side (south-facing)</item>
+/// <item>Hollow structures (watchtower): Inner 5×5 box starts at origin+(1,1,1), so front wall is at z+1</item>
+/// <item>Solid structures (warehouse/workshop/cottage): Front wall is at z (origin edge)</item>
+/// <item>Doors must clear at the actual wall Z coordinate, not origin Z</item>
+/// </list>
 /// </summary>
 internal static class VillageLayout
 {
-    /// <summary>Base X coordinate for the village grid.</summary>
+    /// <summary>Base X coordinate for the village grid (southwest corner of first structure).</summary>
     public const int BaseX = 10;
 
-    /// <summary>Surface level Y for superflat world (one above grass at Y=-61).</summary>
+    /// <summary>
+    /// Surface level Y for superflat world (grass block layer at Y=-60).
+    /// This is where structure floors are placed. Ground level for players is Y=-59 (air above grass).
+    /// Paths are at BaseY-1 (in the dirt layer) with grass blocks removed at BaseY for flush appearance.
+    /// </summary>
     public const int BaseY = -60;
 
     /// <summary>Base Z coordinate for the village grid.</summary>
@@ -25,8 +54,13 @@ internal static class VillageLayout
     public const int StructureSize = 7;
 
     /// <summary>
-    /// Gets the origin (corner) position for a structure at the given resource index.
-    /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, etc.
+    /// Gets the origin (southwest corner) position for a structure at the given resource index.
+    /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, index 2 → col 0 row 1, etc.
+    /// 
+    /// <para>Calculation: col = index % 2, row = index / 2</para>
+    /// <para>X = BaseX + (col × Spacing) → 10, 20, 10, 20, ...</para>
+    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 10, 10, 20, 20, ...</para>
+    /// <para>Y is always BaseY (-60, grass surface)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)
     {
@@ -75,8 +109,11 @@ internal static class VillageLayout
     }
 
     /// <summary>
-    /// Gets the fence perimeter coordinates (4 blocks outside the village bounds).
-    /// Returns (minX, minZ, maxX, maxZ) for fence placement.
+    /// Gets the fence perimeter coordinates with 4-block clearance from village bounds.
+    /// Returns (minX, minZ, maxX, maxZ) for fence placement at BaseY (grass surface level).
+    /// 
+    /// <para>The 4-block gap ensures fence doesn't overlap structures and provides walking space.</para>
+    /// <para>Fence is placed at BaseY (same level as grass), not elevated.</para>
     /// </summary>
     public static (int minX, int minZ, int maxX, int maxZ) GetFencePerimeter(int resourceCount)
     {
