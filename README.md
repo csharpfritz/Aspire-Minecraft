@@ -105,6 +105,40 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 - **RCON Debug Logging** — `WithRconDebugLogging()` enables debug-level logging of every command sent to the server, visible in Aspire dashboard logs
 - **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot (~30 seconds)
 
+### 🔧 Using a server.properties File
+
+You can configure the Minecraft server using a standard `server.properties` file instead of individual method calls:
+
+**1. Create a `server.properties` file in your AppHost project:**
+
+```properties
+# server.properties
+motd=Welcome to Aspire Fleet Monitor
+difficulty=easy
+gamemode=creative
+max-players=20
+view-distance=8
+simulation-distance=6
+pvp=false
+spawn-protection=0
+enable-command-block=true
+level-seed=minecraft
+```
+
+**2. Load it in your AppHost:**
+
+```csharp
+builder.AddMinecraftServer("minecraft")
+    .WithServerPropertiesFile("server.properties")  // Load all properties from file
+    .WithPersistentWorld()
+    .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    // Individual properties can override file values
+    .WithMaxPlayers(10)  // This overrides the file's max-players=20
+    .WithMonitoredResource(api);
+```
+
+**Note:** The file is read at build time, and properties become environment variables on the container. Properties set via code (like `WithMaxPlayers()`) will override file values. The file path is relative to the AppHost project directory.
+
 ## 📦 Full Feature Demo
 
 All features enabled — this is what the sample AppHost uses:
