@@ -433,3 +433,27 @@
 **Why:** Independent BackgroundServices start before RCON is connected and before resources are discovered, causing all Sprint 3 features to silently fail. The established pattern (used by WorldBorderService, AdvancementService, BeaconTowerService, etc.) is singleton + nullable constructor injection + calls from the main worker loop. Beacon positions used a hardcoded BaseZ=14 that overlapped with row-1 structures (z=10–16), blocking beacon sky access for 2 of 4 resources.
 **Rule:** Any feature service that uses RCON or depends on discovered resources MUST be registered as `AddSingleton<>()` and called from MinecraftWorldWorker — never as an independent `AddHostedService<>()`.
 **Status:** ✅ Resolved. All 303 tests pass. Build clean (0 errors, 0 warnings).
+### 2026-02-11: Minecraft building rules and constraints
+
+**By:** Jeffrey T. Fritz (via Copilot)
+
+**What:** When building structures and infrastructure in the Minecraft world, follow these mandatory constraints:
+
+1. **Fences and barriers must sit ON the ground surface** — place at `BaseY` (y=-60 for superflat worlds), NOT `BaseY + 1`. Fences at y=-59 float in the air.
+
+2. **Fences must be at least 4 blocks away from any building perimeter** — this provides adequate clearance and visual separation. The previous 1-2 block gap was too tight.
+
+3. **Building footprint accounting** — when calculating fence perimeters around villages/groups, the village bounds already include the full structure footprint (7×7 for current structures). Offsets should be applied FROM those bounds, not from structure origins.
+
+4. **Beacon placement must avoid structure overlap** — beacons require clear sky access. Position them dynamically based on structure size and layout (e.g., `z + StructureSize + 1`) rather than using hardcoded offsets that may conflict with multi-row grids.
+
+5. **Ground level assumption** — for superflat worlds, `BaseY = -60` is the grass surface. Structures place floors at BaseY, walls at BaseY+1 and up, fences/paths at BaseY.
+
+**Why:** These constraints ensure in-world structures render correctly in Minecraft:
+- Floating fences look broken
+- Structures too close to fences feel cramped
+- Beacons without sky access don't show beams
+- Y-level consistency prevents visual glitches
+
+These rules were established after fixing Sprint 3 bugs where fences floated and beacons were blocked by structure overlap.
+
