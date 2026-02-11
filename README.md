@@ -6,6 +6,8 @@ A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry inst
 
 ![Aspire resources visualized in Minecraft — emerald block structures with health signs, floating hologram dashboard, scoreboard sidebar, and player chat alerts](img/sample-1.png)
 
+> 📸 **Sprint 3 Update:** The resource village now features themed structures (watchtower, warehouse, workshop, cottage), redstone dependency graphs, service switches, achievements, and a heartbeat pulse! Screenshots coming soon.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -25,11 +27,15 @@ var builder = DistributedApplication.CreateBuilder(args);
 var api = builder.AddProject<Projects.MyApi>("api");
 
 builder.AddMinecraftServer("minecraft")
+    .WithPersistentWorld()
+    .WithPeacefulMode()
     .WithBlueMap()
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
     .WithBossBar()
     .WithWeatherEffects()
+    .WithHeartbeat()
+    .WithAchievements()
     .WithMonitoredResource(api);
 
 builder.Build().Run();
@@ -56,8 +62,10 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 
 ### 🏗️ World Building
 
-- **Village Structures** — Each Aspire resource gets a themed building: Watchtower (projects), Warehouse (containers), Workshop (executables), Cottage (other). Laid out in a 2×N grid with dependency-aware ordering
+- **Resource Village** — Each Aspire resource gets a themed building: Watchtower (projects), Warehouse (containers), Workshop (executables), Cottage (other). Arranged in a 2×N grid with cobblestone pathways and oak fence perimeter
 - **Beacon Towers** — Per-resource beacons with stained glass matching the Aspire dashboard color palette (blue=project, purple=container, cyan=executable). Beam turns red on failure
+- **Redstone Dependency Graph** — Visual redstone wires connecting dependent resources, showing the flow of your system architecture
+- **Service Switches** — Levers on building fronts that reflect current resource state (up=healthy, down=unhealthy)
 - **Fence & Gate** — Oak fence perimeter around the village with a gated entrance
 - **Cobblestone Paths** — Boulevard between structure columns with cross-paths to each building
 
@@ -78,7 +86,7 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 
 ### 🎮 Gamification
 
-- **Achievements** — Infrastructure milestones as in-game achievements: "First Service Online", "Full Fleet Healthy", "Survived a Crash", "Night Shift" (all healthy during Minecraft nighttime)
+- **Achievements** — Infrastructure milestones as in-game achievements: "First Blood" (first resource unhealthy), "Clean Sweep" (all resources healthy), "Night Shift" (monitoring at night), "The Village" (village built)
 - **Title Alerts** — Full-screen "⚠ SERVICE DOWN" (red) and "✅ BACK ONLINE" (green) on health transitions
 - **Action Bar Ticker** — Rotating HUD metrics above the hotbar: TPS, MSPT, healthy count, RCON latency
 
@@ -86,6 +94,7 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 
 - **Server Properties** — `WithServerProperty()`, `WithGameMode()`, `WithDifficulty()`, `WithMaxPlayers()`, `WithMotd()`, `WithWorldSeed()`, `WithPvp()` — all Minecraft `server.properties` values via a fluent API or `WithServerPropertiesFile()` for bulk loading
 - **Persistent World** — `WithPersistentWorld()` uses a named Docker volume to keep world data across restarts (default: fresh world each run)
+- **Peaceful Mode** — `WithPeacefulMode()` eliminates hostile mobs for distraction-free monitoring
 - **BlueMap** — `WithBlueMap()` adds an interactive 3D web map exposed as a clickable endpoint in the Aspire dashboard
 - **OpenTelemetry** — `WithOpenTelemetry()` injects the OTEL Java agent for automatic JVM metrics (heap, GC, threads, CPU)
 - **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot
@@ -111,6 +120,8 @@ var web = builder.AddProject<Projects.MyWeb>("web")
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
     .WithMaxPlayers(10)
     .WithMotd("Aspire Fleet Monitor")
+    .WithPersistentWorld()
+    .WithPeacefulMode()
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
@@ -121,6 +132,8 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithParticleEffects()
     .WithGuardianMobs()
     .WithBeaconTowers()
+    .WithServiceSwitches()
+    .WithRedstoneGraph()
     // Audio & effects
     .WithHeartbeat()
     .WithSoundEffects()
