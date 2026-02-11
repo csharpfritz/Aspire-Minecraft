@@ -6,7 +6,7 @@ A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry inst
 
 ![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](img/sample-1.png)
 
-> 🎉 **v0.2.1:** Sprint 3 complete! The resource village features themed structures (watchtower/warehouse/workshop/cottage), comprehensive cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and a rhythmic heartbeat that reflects fleet health.
+> 🎉 **v0.3.0:** Sprint 3 complete! The resource village features themed structures (watchtower/warehouse/workshop/cottage), comprehensive cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and a rhythmic heartbeat that reflects fleet health.
 
 ## 🚀 Quick Start
 

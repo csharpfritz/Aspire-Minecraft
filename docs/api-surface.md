@@ -1,6 +1,6 @@
 # API Surface — Fritz.Aspire.Hosting.Minecraft
 
-> **Frozen for:** v0.2.1  
+> **Frozen for:** v0.3.0  
 > **Last updated:** 2026-02-11  
 > **Package:** `Fritz.Aspire.Hosting.Minecraft`
 
