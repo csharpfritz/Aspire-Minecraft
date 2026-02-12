@@ -54,38 +54,46 @@ builder.Services.AddSingleton<HologramManager>();
 builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
+builder.Services.AddSingleton<HorseSpawnService>();
+
+// HealthHistoryTracker is always registered (cheap ring buffer used by dashboard if enabled)
+builder.Services.AddSingleton<HealthHistoryTracker>();
 
 // Opt-in features (enabled via env vars set by builder extension methods)
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_PARTICLES"]))
+if (builder.Configuration["ASPIRE_FEATURE_PARTICLES"] == "true")
     builder.Services.AddSingleton<ParticleEffectService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_TITLE_ALERTS"]))
+if (builder.Configuration["ASPIRE_FEATURE_TITLE_ALERTS"] == "true")
     builder.Services.AddSingleton<TitleAlertService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WEATHER"]))
+if (builder.Configuration["ASPIRE_FEATURE_WEATHER"] == "true")
     builder.Services.AddSingleton<WeatherService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BOSSBAR"]))
+if (builder.Configuration["ASPIRE_FEATURE_BOSSBAR"] == "true")
     builder.Services.AddSingleton<BossBarService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SOUNDS"]))
+if (builder.Configuration["ASPIRE_FEATURE_SOUNDS"] == "true")
     builder.Services.AddSingleton<SoundEffectService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"]))
+if (builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"] == "true")
     builder.Services.AddSingleton<ActionBarTickerService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BEACONS"]))
+if (builder.Configuration["ASPIRE_FEATURE_BEACONS"] == "true")
     builder.Services.AddSingleton<BeaconTowerService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FIREWORKS"]))
+if (builder.Configuration["ASPIRE_FEATURE_FIREWORKS"] == "true")
     builder.Services.AddSingleton<FireworksService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_GUARDIANS"]))
+if (builder.Configuration["ASPIRE_FEATURE_GUARDIANS"] == "true")
     builder.Services.AddSingleton<GuardianMobService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
+if (builder.Configuration["ASPIRE_FEATURE_FANFARE"] == "true")
     builder.Services.AddSingleton<DeploymentFanfareService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
+if (builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"] == "true")
     builder.Services.AddSingleton<WorldBorderService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"]))
+if (builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"] == "true")
     builder.Services.AddSingleton<HeartbeatService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
+if (builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"] == "true")
     builder.Services.AddSingleton<AdvancementService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"]))
+if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"] == "true")
     builder.Services.AddSingleton<RedstoneDependencyService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SWITCHES"]))
+if (builder.Configuration["ASPIRE_FEATURE_SWITCHES"] == "true")
     builder.Services.AddSingleton<ServiceSwitchService>();
+if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_DASHBOARD"] == "true")
+{
+    builder.Services.AddSingleton<RedstoneDashboardService>();
+}
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
@@ -123,6 +131,7 @@ file sealed class MinecraftWorldWorker(
     ScoreboardManager scoreboard,
     StructureBuilder structures,
     TerrainProbeService terrainProbe,
+    HorseSpawnService horseSpawn,
     ILogger<MinecraftWorldWorker> logger,
     ParticleEffectService? particles = null,
     TitleAlertService? titleAlerts = null,
@@ -138,7 +147,8 @@ file sealed class MinecraftWorldWorker(
     AdvancementService? achievements = null,
     HeartbeatService? heartbeat = null,
     RedstoneDependencyService? redstoneGraph = null,
-    ServiceSwitchService? serviceSwitches = null) : BackgroundService
+    ServiceSwitchService? serviceSwitches = null,
+    RedstoneDashboardService? redstoneDashboard = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -156,7 +166,7 @@ file sealed class MinecraftWorldWorker(
 
         // Force-load the village chunks so block commands work before any player joins.
         // Covers a generous area around the village grid (BaseX=10, BaseZ=0) plus margins.
-        await rcon.SendCommandAsync("forceload add -10 -10 80 80", stoppingToken);
+        await rcon.SendCommandAsync("forceload add -20 -20 120 120", stoppingToken);
         logger.LogInformation("Village chunks force-loaded");
 
         // Detect terrain surface height before building anything
@@ -170,9 +180,11 @@ file sealed class MinecraftWorldWorker(
             await worldBorder.InitializeAsync(stoppingToken);
         if (redstoneGraph is not null)
             await redstoneGraph.InitializeAsync(stoppingToken);
+        if (redstoneDashboard is not null)
+            await redstoneDashboard.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL")))
+        if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
         {
             await rcon.SendCommandAsync("difficulty peaceful", stoppingToken);
             logger.LogInformation("Peaceful mode enabled — hostile mobs disabled");
@@ -220,8 +232,9 @@ file sealed class MinecraftWorldWorker(
                 await holograms.UpdateDashboardAsync(stoppingToken);
                 await scoreboard.UpdateScoreboardAsync(stoppingToken);
                 await structures.UpdateStructuresAsync(stoppingToken);
+                await horseSpawn.SpawnHorsesAsync(stoppingToken);
 
-                // Continuous fleet-health features (update every cycle, but only change on transitions)
+                // Continuous fleet-health features(update every cycle, but only change on transitions)
                 if (weather is not null)
                     await weather.UpdateWeatherAsync(stoppingToken);
                 if (bossBar is not null)
@@ -238,6 +251,8 @@ file sealed class MinecraftWorldWorker(
                     await heartbeat.PulseAsync(stoppingToken);
                 if (serviceSwitches is not null)
                     await serviceSwitches.UpdateAsync(stoppingToken);
+                if (redstoneDashboard is not null)
+                    await redstoneDashboard.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

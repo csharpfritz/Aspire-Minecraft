@@ -67,13 +67,45 @@ The village is built automatically when the worker starts and monitors resources
 **Material:** Cobblestone  
 **Height:** 5 blocks  
 **Design:** Humble dwelling  
-**For:** Unknown/other resource types (databases, etc.)
+**For:** Unknown/other resource types
 
 **Visual features:**
 - Cobblestone walls
 - Simple flat roof
 - Modest appearance
 - Health lamp on front at height 5
+
+### Cylinder (Database Resources)
+
+**Material:** Smooth stone  
+**Height:** 7 blocks (including dome)  
+**Design:** Round building with domed roof — evokes the database cylinder icon  
+**For:** Database and data store resources (Postgres, Redis, SQL Server, MongoDB, MySQL, MariaDB, CosmosDB, Oracle, SQLite, RabbitMQ)
+
+**Visual features:**
+- Circular cross-section (radius 3, 7-block diameter)
+- Polished deepslate floor and top band
+- Smooth stone walls
+- Dome roof with polished deepslate cap
+- Copper and iron interior accents
+- 1-wide centered door
+
+### Azure-Themed (Azure Resources)
+
+**Material:** Light blue concrete  
+**Height:** 6 blocks (including roof)  
+**Design:** Blue-themed building with glass roof and banner  
+**For:** Azure resources (Service Bus, Key Vault, Event Hubs, App Configuration, SignalR, Storage)
+
+**Visual features:**
+- Light blue concrete walls
+- Blue concrete trim at top
+- Flat light blue stained glass roof
+- Blue stained glass pane windows
+- Light blue banner on rooftop
+- 2-wide door
+
+**Note:** Azure resources that are also databases (e.g., CosmosDB) get a Cylinder building instead, but still receive an Azure banner.
 
 ## Layout
 

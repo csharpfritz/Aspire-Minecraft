@@ -445,6 +445,65 @@ Eliminates hostile mobs for distraction-free monitoring.
 
 **Result:** No zombies, skeletons, creepers. Passive mobs (cows, pigs) remain.
 
+## Sprint 4 Features
+
+### WithRedstoneDashboard
+
+Adds a Redstone Dashboard wall west of the village showing health history over time.
+
+```csharp
+.WithRedstoneDashboard()
+```
+
+**What you get:**
+- Physical wall of redstone lamps west of the village
+- Each row = one resource (labeled with signs)
+- Each column = one time slot, scrolling left over time
+- Lit lamp = healthy, dark lamp = unhealthy, sea lantern = unknown
+
+**Auto-sizing:** Grid scales with resource count (10 columns for ≤8 resources, 8 for ≤16, 6 for 17+).
+
+**Example:**
+
+```csharp
+builder.AddMinecraftServer("minecraft")
+    .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    .WithRedstoneDashboard()
+    .WithMonitoredResource(api)
+    .WithMonitoredResource(redis);
+```
+
+See [Sprint 4 Features Guide](sprint-4-features.md) for details.
+
+### WithAllFeatures
+
+Convenience method that enables every opt-in feature at once.
+
+```csharp
+.WithAllFeatures()
+```
+
+**What it enables:** All health monitoring, audio/effects, gamification, village, and dashboard features. Equivalent to calling every individual `With*()` method.
+
+**Requires:** `WithAspireWorldDisplay()` must be called first.
+
+**Example:**
+
+```csharp
+builder.AddMinecraftServer("minecraft")
+    .WithPersistentWorld()
+    .WithBlueMap()
+    .WithOpenTelemetry()
+    .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    .WithAllFeatures()
+    .WithMonitoredResource(api)
+    .WithMonitoredResource(redis);
+```
+
+**Best for:** Demos, presentations, and exploring the full feature set.
+
+See [Sprint 4 Features Guide](sprint-4-features.md) for details.
+
 ## Server Configuration
 
 ### WithServerProperty
@@ -656,6 +715,13 @@ builder.AddMinecraftServer("minecraft")
     .WithBlueMap()
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
+    .WithAllFeatures()  // Enables all opt-in features at once
+    // Resources
+    .WithMonitoredResource(api)
+    .WithMonitoredResource(redis);
+```
+
+Or, if you prefer to list features individually:
     
     // Health monitoring
     .WithBossBar("My Fleet")
@@ -748,5 +814,6 @@ All feature flags are controlled via environment variables on the worker service
 | `ASPIRE_FEATURE_REDSTONE_GRAPH` | `WithRedstoneDependencyGraph()` | Redstone dependencies |
 | `ASPIRE_FEATURE_SWITCHES` | `WithServiceSwitches()` | Service switches |
 | `ASPIRE_FEATURE_PEACEFUL` | `WithPeacefulMode()` | Peaceful mode |
+| `ASPIRE_FEATURE_REDSTONE_DASHBOARD` | `WithRedstoneDashboard()` | Redstone dashboard |
 
 You typically don't set these manually — the extension methods set them automatically.

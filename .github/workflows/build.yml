@@ -3,18 +3,22 @@ name: Build & Pack
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'user-docs/**'
-      - '*.md'
-      - '.ai-team/**'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Build.props'
+      - '*.slnx'
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'user-docs/**'
-      - '*.md'
-      - '.ai-team/**'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Build.props'
+      - '*.slnx'
+      - '.github/workflows/build.yml'
 
 concurrency:
   group: build-${{ github.ref }}
