@@ -45,6 +45,22 @@ internal static class TestResourceMonitorFactory
         }
     }
 
+    /// <summary>
+    /// Sets resources with explicit type, status, and dependencies for testing dependency-aware services.
+    /// </summary>
+    public static void SetResourcesWithDependencies(AspireResourceMonitor monitor, params (string name, string type, ResourceStatus status, string[] dependencies)[] resources)
+    {
+        var field = typeof(AspireResourceMonitor)
+            .GetField("_resources", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var dict = (Dictionary<string, ResourceInfo>)field.GetValue(monitor)!;
+
+        dict.Clear();
+        foreach (var (name, type, status, dependencies) in resources)
+        {
+            dict[name] = new ResourceInfo(name, type, "", "", 0, status, dependencies);
+        }
+    }
+
     private sealed class FakeHttpClientFactory : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new();
