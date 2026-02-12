@@ -54,6 +54,7 @@ builder.Services.AddSingleton<HologramManager>();
 builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
+builder.Services.AddSingleton<HorseSpawnService>();
 
 // HealthHistoryTracker is always registered (cheap ring buffer used by dashboard if enabled)
 builder.Services.AddSingleton<HealthHistoryTracker>();
@@ -130,6 +131,7 @@ file sealed class MinecraftWorldWorker(
     ScoreboardManager scoreboard,
     StructureBuilder structures,
     TerrainProbeService terrainProbe,
+    HorseSpawnService horseSpawn,
     ILogger<MinecraftWorldWorker> logger,
     ParticleEffectService? particles = null,
     TitleAlertService? titleAlerts = null,
@@ -230,8 +232,9 @@ file sealed class MinecraftWorldWorker(
                 await holograms.UpdateDashboardAsync(stoppingToken);
                 await scoreboard.UpdateScoreboardAsync(stoppingToken);
                 await structures.UpdateStructuresAsync(stoppingToken);
+                await horseSpawn.SpawnHorsesAsync(stoppingToken);
 
-                // Continuous fleet-health features (update every cycle, but only change on transitions)
+                // Continuous fleet-health features(update every cycle, but only change on transitions)
                 if (weather is not null)
                     await weather.UpdateWeatherAsync(stoppingToken);
                 if (bossBar is not null)

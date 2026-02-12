@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Builds and maintains a physical Redstone Dashboard Wall west of the village.
-/// Displays resource health over time as a scrolling grid of redstone lamps.
+/// Builds and maintains a physical Dashboard Wall west of the village.
+/// Displays resource health over time as a scrolling grid of self-luminous blocks.
 /// Each row represents a resource; each column represents a time slot (oldest left, newest right).
-/// Lit lamps = healthy, dark lamps = unhealthy, sea lanterns = unknown.
-/// Uses /clone to shift the power layer left each update cycle, then writes the newest column.
+/// Glowstone = healthy, redstone_lamp (unlit) = unhealthy, sea lantern = unknown.
+/// Uses /clone to shift the lamp layer left each update cycle, then writes the newest column.
 /// </summary>
 internal sealed class RedstoneDashboardService(
     RconService rcon,
@@ -65,7 +65,7 @@ internal sealed class RedstoneDashboardService(
                 }
             }
 
-            // Scroll the power layer left by 1 column using /clone
+            // Scroll the lamp layer left by 1 column using /clone
             await ScrollDisplayAsync(ct);
 
             // Write the newest column (rightmost)
@@ -103,7 +103,7 @@ internal sealed class RedstoneDashboardService(
         // Wall width: columns + 2 for frame left/right + 1 for sign column
         var wallWidth = _columns + 2;
 
-        // Solid back wall (stone bricks) — supports redstone behind lamps
+        // Solid back wall (stone bricks) — visual backing behind lamp grid
         await rcon.SendCommandAsync(
             $"fill {x - 1} {y - 1} {z} {x - 1} {y - 1 + wallHeight - 1} {z + wallWidth - 1} minecraft:stone_bricks",
             CommandPriority.Low, ct);
@@ -143,7 +143,7 @@ internal sealed class RedstoneDashboardService(
         var z = VillageLayout.BaseZ;
 
         // Place lamps in a grid: each row at y + (r * 2), each column at z + c + 1
-        // Use /fill per row for efficiency
+        // All lamps start as unlit redstone_lamp (dark = no data yet)
         for (var r = 0; r < _rows; r++)
         {
             var lampY = y + (r * 2);
@@ -152,11 +152,6 @@ internal sealed class RedstoneDashboardService(
 
             await rcon.SendCommandAsync(
                 $"fill {x} {lampY} {lampZStart} {x} {lampY} {lampZEnd} minecraft:redstone_lamp",
-                CommandPriority.Low, ct);
-
-            // Initialize power layer behind lamps to air (all lamps start unlit)
-            await rcon.SendCommandAsync(
-                $"fill {x - 1} {lampY} {lampZStart} {x - 1} {lampY} {lampZEnd} minecraft:air",
                 CommandPriority.Low, ct);
         }
     }
@@ -203,7 +198,7 @@ internal sealed class RedstoneDashboardService(
         var y = VillageLayout.SurfaceY + 2;
         var z = VillageLayout.BaseZ;
 
-        // Clone the power layer (behind lamps) left by 1 column in a single command.
+        // Clone the lamp layer left by 1 column in a single command.
         // Source: from column 2 to column N (z+2 to z+columns) across all rows
         // Dest: column 1 (z+1) — shifts everything left
         var yBottom = y;
@@ -211,12 +206,11 @@ internal sealed class RedstoneDashboardService(
         var srcZStart = z + 2;
         var srcZEnd = z + _columns;
         var destZ = z + 1;
-        var powerX = x - 1;
 
         if (_columns > 1)
         {
             await rcon.SendCommandAsync(
-                $"clone {powerX} {yBottom} {srcZStart} {powerX} {yTop} {srcZEnd} {powerX} {yBottom} {destZ} replace",
+                $"clone {x} {yBottom} {srcZStart} {x} {yTop} {srcZEnd} {x} {yBottom} {destZ} replace",
                 CommandPriority.Normal, ct);
         }
     }
@@ -227,7 +221,6 @@ internal sealed class RedstoneDashboardService(
         var y = VillageLayout.SurfaceY + 2;
         var z = VillageLayout.BaseZ;
         var newestZ = z + _columns;
-        var powerX = x - 1;
 
         for (var r = 0; r < _rows; r++)
         {
@@ -237,40 +230,17 @@ internal sealed class RedstoneDashboardService(
             if (!monitor.Resources.TryGetValue(resourceName, out var info))
                 continue;
 
-            switch (info.Status)
+            // Place self-luminous blocks directly — no redstone power layer needed
+            var block = info.Status switch
             {
-                case ResourceStatus.Healthy:
-                    // Ensure it's a lamp (not sea_lantern from previous unknown state)
-                    await rcon.SendCommandAsync(
-                        $"setblock {x} {lampY} {newestZ} minecraft:redstone_lamp",
-                        CommandPriority.Normal, ct);
-                    // Place redstone_block behind lamp AFTER the lamp to trigger block update
-                    await rcon.SendCommandAsync(
-                        $"setblock {powerX} {lampY} {newestZ} minecraft:redstone_block",
-                        CommandPriority.Normal, ct);
-                    break;
+                ResourceStatus.Healthy => "minecraft:glowstone",
+                ResourceStatus.Unhealthy => "minecraft:redstone_lamp",
+                _ => "minecraft:sea_lantern"
+            };
 
-                case ResourceStatus.Unhealthy:
-                    // Remove power behind lamp so it goes dark
-                    await rcon.SendCommandAsync(
-                        $"setblock {powerX} {lampY} {newestZ} minecraft:air",
-                        CommandPriority.Normal, ct);
-                    // Ensure it's a lamp
-                    await rcon.SendCommandAsync(
-                        $"setblock {x} {lampY} {newestZ} minecraft:redstone_lamp",
-                        CommandPriority.Normal, ct);
-                    break;
-
-                default:
-                    // Unknown: replace lamp with sea_lantern
-                    await rcon.SendCommandAsync(
-                        $"setblock {x} {lampY} {newestZ} minecraft:sea_lantern",
-                        CommandPriority.Normal, ct);
-                    await rcon.SendCommandAsync(
-                        $"setblock {powerX} {lampY} {newestZ} minecraft:air",
-                        CommandPriority.Normal, ct);
-                    break;
-            }
+            await rcon.SendCommandAsync(
+                $"setblock {x} {lampY} {newestZ} {block}",
+                CommandPriority.Normal, ct);
         }
     }
 }
