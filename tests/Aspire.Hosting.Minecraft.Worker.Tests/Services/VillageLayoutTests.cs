@@ -268,6 +268,8 @@ public class VillageLayoutTests
         Assert.Equal(24, VillageLayout.Spacing);
         Assert.Equal(7, VillageLayout.StructureSize);
         Assert.Equal(10, VillageLayout.FenceClearance);
+        Assert.Equal(3, VillageLayout.GateWidth);
+        Assert.False(VillageLayout.IsGrandLayout);
     }
 
     [Fact]
@@ -279,6 +281,8 @@ public class VillageLayoutTests
             Assert.Equal(24, VillageLayout.Spacing);
             Assert.Equal(15, VillageLayout.StructureSize);
             Assert.Equal(6, VillageLayout.FenceClearance);
+            Assert.Equal(5, VillageLayout.GateWidth);
+            Assert.True(VillageLayout.IsGrandLayout);
         }
         finally
         {
@@ -410,5 +414,7 @@ public class VillageLayoutTests
         Assert.Equal(24, VillageLayout.Spacing);
         Assert.Equal(7, VillageLayout.StructureSize);
         Assert.Equal(10, VillageLayout.FenceClearance);
+        Assert.Equal(3, VillageLayout.GateWidth);
+        Assert.False(VillageLayout.IsGrandLayout);
     }
 }
