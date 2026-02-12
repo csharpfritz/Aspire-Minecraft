@@ -234,3 +234,19 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 **Key files:**
 - `src/Aspire.Hosting.Minecraft.Worker/Services/HorseSpawnService.cs` — horse spawn logic
 - `src/Aspire.Hosting.Minecraft.Worker/Program.cs` — singleton registration + worker constructor wiring
+
+### Village Spacing & Horse Fixes (2026-02-12)
+
+**Spacing doubled (12 → 24):** `VillageLayout.Spacing` increased from 12 to 24, giving a 17-block walking gap between 7×7 structures (was 5 blocks). All structure placement derives from `GetStructureOrigin()` which uses `Spacing`, so all services automatically get the new positions.
+
+**Fence clearance increased (4 → 10):** `GetFencePerimeter()` now uses 10-block clearance from village bounds instead of 4. Gives horses plenty of room to roam between buildings and the fence.
+
+**Forceload area expanded:** Updated from `forceload add -10 -10 80 80` to `forceload add -20 -20 120 120` to cover the larger village footprint with doubled spacing and wider fence clearance.
+
+**Horse CustomName fix:** Changed from JSON text component format (`'{"text":"Charmer","color":"dark_gray","bold":true}'`) to simple quoted string format (`"\"Charmer\""`) matching the pattern used by `GuardianMobService`. The JSON text component was rendering as raw JSON in the hover tooltip on Paper servers.
+
+**Horse spawn position:** Changed Z coordinate from `BaseZ - 2` to `BaseZ - 6` to place horses in the middle of the now-larger clearance area between the south fence and the first row of structures.
+
+**Test updates:** Updated hardcoded coordinate expectations in 4 test files: VillageLayoutTests, HealthTransitionRconMappingTests, StructureBuilderTests, ParticleEffectServiceIntegrationTests. All 382 tests pass.
+
+**Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.

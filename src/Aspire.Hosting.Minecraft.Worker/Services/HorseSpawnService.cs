@@ -40,10 +40,10 @@ internal sealed class HorseSpawnService(
             var (name, variant, color) = Horses[i];
             // Place horses in the clearance area between the south fence and the first row of structures
             var x = VillageLayout.BaseX + 1 + (i * 2);
-            var z = VillageLayout.BaseZ - 2;
+            var z = VillageLayout.BaseZ - 6;
 
             var command = $"summon minecraft:horse {x} {y} {z} " +
-                $"{{CustomName:'{{\"text\":\"{name}\",\"color\":\"{color}\",\"bold\":true}}',Variant:{variant},Tame:1b,NoAI:0b,PersistenceRequired:1b}}";
+                "{{" + $"CustomName:\"\\\"" + name + "\\\"\",Variant:{variant},Tame:1b,NoAI:0b,PersistenceRequired:1b" + "}}";
 
             await rcon.SendCommandAsync(command, ct);
 

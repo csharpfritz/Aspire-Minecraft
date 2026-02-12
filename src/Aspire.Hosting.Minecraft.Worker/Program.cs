@@ -166,7 +166,7 @@ file sealed class MinecraftWorldWorker(
 
         // Force-load the village chunks so block commands work before any player joins.
         // Covers a generous area around the village grid (BaseX=10, BaseZ=0) plus margins.
-        await rcon.SendCommandAsync("forceload add -10 -10 80 80", stoppingToken);
+        await rcon.SendCommandAsync("forceload add -20 -20 120 120", stoppingToken);
         logger.LogInformation("Village chunks force-loaded");
 
         // Detect terrain surface height before building anything

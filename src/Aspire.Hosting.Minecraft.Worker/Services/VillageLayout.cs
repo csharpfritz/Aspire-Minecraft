@@ -16,9 +16,9 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
 /// <item>2 columns (Columns=2), infinite rows</item>
-/// <item>Spacing=12 blocks center-to-center between structures</item>
+/// <item>Spacing=24 blocks center-to-center between structures</item>
 /// <item>Each structure footprint: 7×7 blocks (StructureSize=7)</item>
-/// <item>Index 0 → (10, -60, 0), Index 1 → (22, -60, 0), Index 2 → (10, -60, 12), etc.</item>
+/// <item>Index 0 → (10, -60, 0), Index 1 → (34, -60, 0), Index 2 → (10, -60, 24), etc.</item>
 /// </list>
 /// 
 /// <para><b>Z-Coordinate Conventions:</b></para>
@@ -51,7 +51,7 @@ internal static class VillageLayout
     public const int BaseZ = 0;
 
     /// <summary>Spacing between structure origins (center-to-center) in blocks.</summary>
-    public const int Spacing = 12;
+    public const int Spacing = 24;
 
     /// <summary>Number of columns in the village grid.</summary>
     public const int Columns = 2;
@@ -70,8 +70,8 @@ internal static class VillageLayout
     /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, index 2 → col 0 row 1, etc.
     /// 
     /// <para>Calculation: col = index % 2, row = index / 2</para>
-    /// <para>X = BaseX + (col × Spacing) → 10, 22, 10, 22, ...</para>
-    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 12, 12, 24, 24, ...</para>
+    /// <para>X = BaseX + (col × Spacing) → 10, 34, 10, 34, ...</para>
+    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 24, 24, 48, 48, ...</para>
     /// <para>Y is always SurfaceY + 1 (one block above detected terrain height)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)
@@ -121,16 +121,16 @@ internal static class VillageLayout
     }
 
     /// <summary>
-    /// Gets the fence perimeter coordinates with 4-block clearance from village bounds.
+    /// Gets the fence perimeter coordinates with 10-block clearance from village bounds.
     /// Returns (minX, minZ, maxX, maxZ) for fence placement at BaseY (grass surface level).
     /// 
-    /// <para>The 4-block gap ensures fence doesn't overlap structures and provides walking space.</para>
+    /// <para>The 10-block gap gives horses plenty of room to roam between buildings and the fence.</para>
     /// <para>Fence is placed at BaseY (same level as grass), not elevated.</para>
     /// </summary>
     public static (int minX, int minZ, int maxX, int maxZ) GetFencePerimeter(int resourceCount)
     {
         var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
-        return (minX - 4, minZ - 4, maxX + 4, maxZ + 4);
+        return (minX - 10, minZ - 10, maxX + 10, maxZ + 10);
     }
 
     /// <summary>
