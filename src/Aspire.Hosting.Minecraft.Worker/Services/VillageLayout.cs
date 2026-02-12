@@ -16,8 +16,8 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
 /// <item>2 columns (Columns=2), infinite rows</item>
-/// <item>Spacing=24 blocks center-to-center between structures</item>
-/// <item>Each structure footprint: 7×7 blocks (StructureSize=7)</item>
+/// <item>Spacing=24 blocks center-to-center between structures (configurable via <see cref="ConfigureGrandLayout"/>)</item>
+/// <item>Each structure footprint: 7×7 blocks by default (configurable via <see cref="ConfigureGrandLayout"/>)</item>
 /// <item>Index 0 → (10, -60, 0), Index 1 → (34, -60, 0), Index 2 → (10, -60, 24), etc.</item>
 /// </list>
 /// 
@@ -51,19 +51,47 @@ internal static class VillageLayout
     public const int BaseZ = 0;
 
     /// <summary>Spacing between structure origins (center-to-center) in blocks.</summary>
-    public const int Spacing = 24;
+    public static int Spacing { get; private set; } = 24;
 
     /// <summary>Number of columns in the village grid.</summary>
     public const int Columns = 2;
 
-    /// <summary>Structure footprint width/depth (7×7).</summary>
-    public const int StructureSize = 7;
+    /// <summary>Structure footprint width/depth. Default 7×7 (standard), 15×15 (grand).</summary>
+    public static int StructureSize { get; private set; } = 7;
+
+    /// <summary>
+    /// Clearance (in blocks) between village bounds and fence perimeter.
+    /// Default 10 (standard), 6 (grand).
+    /// </summary>
+    public static int FenceClearance { get; private set; } = 10;
 
     /// <summary>Dashboard wall X position (west of village).</summary>
     public const int DashboardX = BaseX - 15;
 
     /// <summary>Number of time columns on the dashboard.</summary>
     public const int DashboardColumns = 10;
+
+    /// <summary>
+    /// Switches to Grand Village layout with larger structures and tighter fence clearance.
+    /// Must be called once at startup before any structure placement.
+    /// Sets StructureSize=15 and FenceClearance=6. Spacing remains 24.
+    /// </summary>
+    public static void ConfigureGrandLayout()
+    {
+        StructureSize = 15;
+        FenceClearance = 6;
+    }
+
+    /// <summary>
+    /// Resets layout properties to their default (standard) values.
+    /// Intended for test isolation only.
+    /// </summary>
+    internal static void ResetLayout()
+    {
+        Spacing = 24;
+        StructureSize = 7;
+        FenceClearance = 10;
+    }
 
     /// <summary>
     /// Gets the origin (southwest corner) position for a structure at the given resource index.
@@ -86,12 +114,13 @@ internal static class VillageLayout
 
     /// <summary>
     /// Gets the center position of a structure at the given resource index.
-    /// Center is offset by half the structure size (3 blocks in from origin).
+    /// Center is offset by half the structure size from the origin.
     /// </summary>
     public static (int x, int y, int z) GetStructureCenter(int index)
     {
         var (ox, oy, oz) = GetStructureOrigin(index);
-        return (ox + 3, oy, oz + 3);
+        var half = StructureSize / 2;
+        return (ox + half, oy, oz + half);
     }
 
     /// <summary>
@@ -101,6 +130,18 @@ internal static class VillageLayout
     {
         var (cx, _, cz) = GetStructureCenter(index);
         return (cx, SurfaceY + heightAboveBase, cz);
+    }
+
+    /// <summary>
+    /// Gets the rail entrance position centered in front of the building entrance.
+    /// Positioned at the center X of the structure, one block south of the front wall (Z - 1),
+    /// at surface level + 1 (on top of ground).
+    /// </summary>
+    public static (int x, int y, int z) GetRailEntrance(int index)
+    {
+        var (ox, _, oz) = GetStructureOrigin(index);
+        var half = StructureSize / 2;
+        return (ox + half, SurfaceY + 1, oz - 1);
     }
 
     /// <summary>
@@ -121,16 +162,16 @@ internal static class VillageLayout
     }
 
     /// <summary>
-    /// Gets the fence perimeter coordinates with 10-block clearance from village bounds.
+    /// Gets the fence perimeter coordinates with <see cref="FenceClearance"/> gap from village bounds.
     /// Returns (minX, minZ, maxX, maxZ) for fence placement at BaseY (grass surface level).
     /// 
-    /// <para>The 10-block gap gives horses plenty of room to roam between buildings and the fence.</para>
+    /// <para>The clearance gap gives horses room to roam between buildings and the fence.</para>
     /// <para>Fence is placed at BaseY (same level as grass), not elevated.</para>
     /// </summary>
     public static (int minX, int minZ, int maxX, int maxZ) GetFencePerimeter(int resourceCount)
     {
         var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
-        return (minX - 10, minZ - 10, maxX + 10, maxZ + 10);
+        return (minX - FenceClearance, minZ - FenceClearance, maxX + FenceClearance, maxZ + FenceClearance);
     }
 
     /// <summary>

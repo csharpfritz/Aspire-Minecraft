@@ -47,6 +47,12 @@ builder.Services.AddSingleton(sp =>
         minCommandInterval: TimeSpan.FromMilliseconds(250));
 });
 
+// Grand Village mode — configure larger layout before any structure placement
+if (builder.Configuration["ASPIRE_FEATURE_GRAND_VILLAGE"] == "true")
+{
+    VillageLayout.ConfigureGrandLayout();
+}
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
