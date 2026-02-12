@@ -1190,14 +1190,14 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 4} minecraft:redstone_lamp[lit=true]", ct);
 
         // === IRON DOOR ENTRANCE (placed last so nothing overwrites it) ===
-        // Clear the entrance path from outer wall through to interior (z+0 to z+2)
+        // Clear only a 1-wide passage through the circular wall (z+0 to z+1), 3 tall
         await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 1} {z} {x + 8} {y + 3} {z + 2} minecraft:air", ct);
-        // Place door at z+1 (inside the wall thickness)
+            $"fill {x + 7} {y + 1} {z} {x + 7} {y + 3} {z + 1} minecraft:air", ct);
+        // Place door at z+0 (outer wall face)
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 1} {z + 1} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
+            $"setblock {x + 7} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 2} {z + 1} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
+            $"setblock {x + 7} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
 
         // === LADDER ACCESS to upper floor: along the central pillar ===
         for (int ly = 1; ly <= 6; ly++)
@@ -1450,34 +1450,30 @@ internal sealed class StructureBuilder(
 
         var isGrand = VillageLayout.StructureSize >= 15;
 
-        // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
-        // Grand cylinder has front wall at z+4 (circular geometry, door in circle perimeter)
-        var lampZ = structureType switch
-        {
-            "Watchtower" => z + 1,
-            "Cylinder" when isGrand => z + 4,
-            _ => z
-        };
-        
-        // Grand Workshop has 3-tall door (y+1 to y+3), so lamp at y+4.
-        // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
-        // Grand Warehouse has 4-tall cargo door (y+1 to y+4), so lamp goes at y+5.
-        // Grand Cylinder has iron door (y+1 to y+2) + air at y+3, so lamp at y+4.
-        // Workshop, Cottage, Cylinder, and AzureThemed have 2-tall doors (y+1 to y+2), so y+3 is fine.
+        // RULE: Glow block is ALWAYS placed just above the door, flush with the front wall.
+        // All buildings have doors on the front (z-min) face.
+        // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), all others at z.
+        var lampZ = structureType == "Watchtower" ? z + 1 : z;
+
+        // Lamp Y is one block above the top of the door opening.
+        // Standard buildings: 2-tall doors (y+1 to y+2) → lamp at y+3
+        // Watchtower: 3-tall door (y+1 to y+3) → lamp at y+4
+        // Grand Warehouse: 4-tall cargo door (y+1 to y+4) → lamp at y+5
+        // Grand Workshop/Cylinder: 3-tall door opening (y+1 to y+3) → lamp at y+4
         var lampY = structureType switch
         {
             "Warehouse" when isGrand => y + 5,
-            "Watchtower" or "Warehouse" => y + 4,
+            "Watchtower" => y + 4,
             "Workshop" when isGrand => y + 4,
             "Cylinder" when isGrand => y + 4,
-            "Cylinder" or "AzureThemed" or "Workshop" or "Cottage" or _ => y + 3
+            _ => y + 3
         };
 
-        // Center X adapts to structure size for grand variants
+        // Center X: centered above the door
         var half = VillageLayout.StructureSize / 2;
         var lampX = isGrand ? x + half : x + 3;
-        
-        // Place in front wall centered above entrance
+
+        // Place flush with the front wall, centered above the entrance
         await rcon.SendCommandAsync(
             $"setblock {lampX} {lampY} {lampZ} {lampBlock}", ct);
     }
