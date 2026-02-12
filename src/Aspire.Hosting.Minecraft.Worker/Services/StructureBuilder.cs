@@ -14,6 +14,7 @@ internal sealed class StructureBuilder(
 {
     private bool _pathsBuilt;
     private bool _fenceBuilt;
+    private bool _initialBuildComplete;
     private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -62,6 +63,13 @@ internal sealed class StructureBuilder(
                 index++;
             }
 
+            // After the first complete build, flush world to disk and trigger BlueMap re-render
+            if (!_initialBuildComplete && _fenceBuilt && _pathsBuilt && _builtStructures.Count == monitor.TotalCount)
+            {
+                _initialBuildComplete = true;
+                await TriggerBlueMapUpdateAsync(ct);
+            }
+
             logger.LogInformation("Village structures updated for {Count} resources", monitor.TotalCount);
         }
         catch (Exception ex)
@@ -72,10 +80,100 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
+    /// Saves the world to disk and tells BlueMap to re-render the village area.
+    /// Called once after the initial village build so the map shows the structures.
+    /// </summary>
+    private async Task TriggerBlueMapUpdateAsync(CancellationToken ct)
+    {
+        try
+        {
+            await rcon.SendCommandAsync("save-all", ct);
+            // Small delay to let the server flush chunks to disk
+            await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            await rcon.SendCommandAsync("bluemap update", ct);
+            logger.LogInformation("BlueMap render update triggered after village build");
+        }
+        catch (Exception ex)
+        {
+            // BlueMap may not be installed — don't fail the build
+            logger.LogDebug(ex, "BlueMap update command failed (plugin may not be installed)");
+        }
+    }
+
+    /// <summary>
+    /// Returns the wool, banner, and wall banner block IDs for a resource based on its type and name.
+    /// .NET Projects = purple, JavaScript/Node = yellow, Python = blue, Go = cyan,
+    /// Java = orange, Rust = brown, default/unknown = white.
+    /// </summary>
+    internal static (string wool, string banner, string wallBanner) GetLanguageColor(string resourceType, string resourceName)
+    {
+        if (resourceType.Equals("Project", StringComparison.OrdinalIgnoreCase))
+            return ("minecraft:purple_wool", "minecraft:purple_banner", "minecraft:purple_wall_banner");
+
+        var combined = (resourceType + " " + resourceName).ToLowerInvariant();
+
+        if (combined.Contains("node") || combined.Contains("javascript") || combined.Contains("js"))
+            return ("minecraft:yellow_wool", "minecraft:yellow_banner", "minecraft:yellow_wall_banner");
+        if (combined.Contains("python") || combined.Contains("flask") || combined.Contains("django"))
+            return ("minecraft:blue_wool", "minecraft:blue_banner", "minecraft:blue_wall_banner");
+        if (combined.Contains("go") || combined.Contains("golang"))
+            return ("minecraft:cyan_wool", "minecraft:cyan_banner", "minecraft:cyan_wall_banner");
+        if (combined.Contains("java") || combined.Contains("spring"))
+            return ("minecraft:orange_wool", "minecraft:orange_banner", "minecraft:orange_wall_banner");
+        if (combined.Contains("rust"))
+            return ("minecraft:brown_wool", "minecraft:brown_banner", "minecraft:brown_wall_banner");
+
+        return ("minecraft:white_wool", "minecraft:white_banner", "minecraft:white_wall_banner");
+    }
+
+    /// <summary>
+    /// Determines if a resource type represents a database or data store.
+    /// </summary>
+    internal static bool IsDatabaseResource(string resourceType)
+    {
+        var lower = resourceType.ToLowerInvariant();
+        return lower.Contains("postgres")
+            || lower.Contains("redis")
+            || lower.Contains("sqlserver")
+            || lower.Contains("sql-server")
+            || lower.Contains("mongodb")
+            || lower.Contains("mysql")
+            || lower.Contains("mariadb")
+            || lower.Contains("cosmosdb")
+            || lower.Contains("oracle")
+            || lower.Contains("sqlite")
+            || lower.Contains("rabbitmq");
+    }
+
+    /// <summary>
+    /// Determines if a resource type represents an Azure-hosted resource.
+    /// </summary>
+    internal static bool IsAzureResource(string resourceType)
+    {
+        var lower = resourceType.ToLowerInvariant();
+        return lower.Contains("azure")
+            || lower.Contains("cosmos")
+            || lower.Contains("servicebus")
+            || lower.Contains("eventhub")
+            || lower.Contains("keyvault")
+            || lower.Contains("appconfiguration")
+            || lower.Contains("signalr")
+            || lower.Contains("storage");
+    }
+
+    /// <summary>
     /// Selects the structure type based on Aspire resource type.
+    /// Database resources get Cylinder, Azure (non-database) resources get AzureThemed,
+    /// then falls through to standard type mapping.
     /// </summary>
     internal static string GetStructureType(string resourceType)
     {
+        if (IsDatabaseResource(resourceType))
+            return "Cylinder";
+
+        if (IsAzureResource(resourceType))
+            return "AzureThemed";
+
         return resourceType.ToLowerInvariant() switch
         {
             "project" => "Watchtower",
@@ -156,7 +254,7 @@ internal sealed class StructureBuilder(
             switch (structureType)
             {
                 case "Watchtower":
-                    await BuildWatchtowerAsync(x, y, z, ct);
+                    await BuildWatchtowerAsync(x, y, z, info, ct);
                     break;
                 case "Warehouse":
                     await BuildWarehouseAsync(x, y, z, ct);
@@ -164,9 +262,21 @@ internal sealed class StructureBuilder(
                 case "Workshop":
                     await BuildWorkshopAsync(x, y, z, ct);
                     break;
-                default:
-                    await BuildCottageAsync(x, y, z, ct);
+                case "Cylinder":
+                    await BuildCylinderAsync(x, y, z, ct);
                     break;
+                case "AzureThemed":
+                    await BuildAzureThemedAsync(x, y, z, ct);
+                    break;
+                default:
+                    await BuildCottageAsync(x, y, z, info, ct);
+                    break;
+            }
+
+            // Azure resources get a light blue banner on the rooftop
+            if (IsAzureResource(info.Type))
+            {
+                await PlaceAzureBannerAsync(x, y, z, structureType, ct);
             }
 
             // Health indicator: redstone lamp in wall, powered = healthy
@@ -186,10 +296,12 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Watchtower — tall, narrow tower with flag. Project (.NET app) resources.
-    /// Stone brick walls, blue wool/banner accents, ~7×7 footprint, 10 blocks tall.
+    /// Stone brick walls, language-colored wool/banner accents, ~7×7 footprint, 10 blocks tall.
     /// </summary>
-    private async Task BuildWatchtowerAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
+
         // Foundation: 7×7 stone brick floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:stone_bricks", ct);
@@ -218,19 +330,19 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + 5} {y + 4} {z + 3} minecraft:glass_pane", ct);
 
-        // Blue wool trim at top
+        // Language-colored wool trim at top
         await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} minecraft:blue_wool", ct);
+            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} {wool}", ct);
 
         // Roof cap (3×3 stone brick slab)
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y + 9} {z + 2} {x + 4} {y + 9} {z + 4} minecraft:stone_brick_slab", ct);
 
-        // Flag pole + banner on top
+        // Flag pole + standing banner on top
         await rcon.SendCommandAsync(
             $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 10} {z + 3} minecraft:oak_fence", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 10} {z + 2} minecraft:blue_banner[rotation=0]", ct);
+            $"setblock {x + 3} {y + 11} {z + 3} {banner}[rotation=0]", ct);
 
         // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall
         // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
@@ -334,10 +446,12 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Cottage — humble default dwelling. Unknown/Other resource types.
-    /// Cobblestone walls, light blue wool trim, ~7×7 footprint, 5 blocks tall.
+    /// Cobblestone walls, language-colored wool trim, ~7×7 footprint, 5 blocks tall.
     /// </summary>
-    private async Task BuildCottageAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
+
         // Foundation: 7×7 cobblestone floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:cobblestone", ct);
@@ -346,15 +460,15 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:cobblestone hollow", ct);
 
-        // Light blue wool trim at top of walls
+        // Language-colored wool trim at top of walls
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} {wool}", ct);
 
         // Flat roof with slab
         await rcon.SendCommandAsync(
@@ -376,9 +490,195 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
-    /// Places a redstone lamp in the front wall as health indicator.
-    /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = air.
+    /// Cylinder — round building evoking the database cylinder icon. Database resources.
+    /// Smooth stone walls, polished deepslate floor and top band, dome roof.
+    /// Radius 3 = 7-block diameter, fits in the existing 7×7 grid cell.
     /// </summary>
+    private async Task BuildCylinderAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // === FLOOR (y+0): polished deepslate disc ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y} {z} {x + 4} {y} {z} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y} {z + 1} {x + 5} {y} {z + 1} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z + 2} {x + 6} {y} {z + 2} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z + 3} {x + 6} {y} {z + 3} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z + 4} {x + 6} {y} {z + 4} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y} {z + 5} {x + 5} {y} {z + 5} minecraft:polished_deepslate", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y} {z + 6} {x + 4} {y} {z + 6} minecraft:polished_deepslate", ct);
+
+        // === WALLS (y+1 to y+4): smooth_stone perimeter, polished_deepslate top band ===
+        for (int layer = 1; layer <= 4; layer++)
+        {
+            string wallBlock = layer <= 3
+                ? "minecraft:smooth_stone"
+                : "minecraft:polished_deepslate";
+
+            // North face (z+0): 3 blocks
+            await rcon.SendCommandAsync(
+                $"fill {x + 2} {y + layer} {z} {x + 4} {y + layer} {z} {wallBlock}", ct);
+            // South face (z+6): 3 blocks
+            await rcon.SendCommandAsync(
+                $"fill {x + 2} {y + layer} {z + 6} {x + 4} {y + layer} {z + 6} {wallBlock}", ct);
+            // Upper diagonals
+            await rcon.SendCommandAsync(
+                $"setblock {x + 1} {y + layer} {z + 1} {wallBlock}", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 5} {y + layer} {z + 1} {wallBlock}", ct);
+            // Lower diagonals
+            await rcon.SendCommandAsync(
+                $"setblock {x + 1} {y + layer} {z + 5} {wallBlock}", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 5} {y + layer} {z + 5} {wallBlock}", ct);
+            // East/west faces (z+2 to z+4)
+            await rcon.SendCommandAsync(
+                $"fill {x} {y + layer} {z + 2} {x} {y + layer} {z + 4} {wallBlock}", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 6} {y + layer} {z + 2} {x + 6} {y + layer} {z + 4} {wallBlock}", ct);
+        }
+
+        // === INTERIOR AIR (y+1 to y+4): clear inside the cylinder ===
+        for (int layer = 1; layer <= 4; layer++)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + 2} {y + layer} {z + 1} {x + 4} {y + layer} {z + 1} minecraft:air", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 1} {y + layer} {z + 2} {x + 5} {y + layer} {z + 2} minecraft:air", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 1} {y + layer} {z + 3} {x + 5} {y + layer} {z + 3} minecraft:air", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 1} {y + layer} {z + 4} {x + 5} {y + layer} {z + 4} minecraft:air", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 2} {y + layer} {z + 5} {x + 4} {y + layer} {z + 5} minecraft:air", ct);
+        }
+
+        // === DOME ROOF (y+5): smooth_stone_slab outer ring ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 5} {z} {x + 4} {y + 5} {z} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 5} {z + 1} {x + 5} {y + 5} {z + 1} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 2} {x + 6} {y + 5} {z + 2} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 3} {x + 6} {y + 5} {z + 3} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 4} {x + 6} {y + 5} {z + 4} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 5} {z + 5} {x + 5} {y + 5} {z + 5} minecraft:smooth_stone_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 5} {z + 6} {x + 4} {y + 5} {z + 6} minecraft:smooth_stone_slab", ct);
+
+        // === DOME CAP (y+6): polished_deepslate_slab inner cap ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 6} {z + 1} {x + 4} {y + 6} {z + 1} minecraft:polished_deepslate_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 6} {z + 2} {x + 5} {y + 6} {z + 2} minecraft:polished_deepslate_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 6} {z + 3} {x + 5} {y + 6} {z + 3} minecraft:polished_deepslate_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 6} {z + 4} {x + 5} {y + 6} {z + 4} minecraft:polished_deepslate_slab", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 6} {z + 5} {x + 4} {y + 6} {z + 5} minecraft:polished_deepslate_slab", ct);
+
+        // === DOOR (south face, z+0): 1-wide centered at x+3, 2-tall ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+
+        // === INTERIOR ACCENTS ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y} {z + 3} minecraft:copper_block", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y} {z + 3} minecraft:copper_block", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y} {z + 3} minecraft:copper_block", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 1} {z + 1} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + 1} minecraft:iron_block", ct);
+    }
+
+    /// <summary>
+    /// AzureThemed — modified Cottage with Azure color palette. Non-database Azure resources.
+    /// Light blue concrete walls, blue concrete trim, light blue stained glass roof, azure banner.
+    /// Same dimensions as Cottage.
+    /// </summary>
+    private async Task BuildAzureThemedAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Foundation: 7×7 light blue concrete floor
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:light_blue_concrete", ct);
+
+        // Walls: hollow box, 4 blocks tall
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:light_blue_concrete hollow", ct);
+
+        // Blue concrete trim at top of walls
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} minecraft:blue_concrete", ct);
+
+        // Flat roof with light blue stained glass
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:light_blue_stained_glass", ct);
+
+        // Door - 2 blocks wide
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
+
+        // Windows (blue stained glass panes on sides)
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 2} {z} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 2} {z} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x} {y + 2} {z + 3} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 2} {z + 3} minecraft:blue_stained_glass_pane", ct);
+
+        // Azure banner on roof (always for AzureThemed)
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 6} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
+    }
+
+    /// <summary>
+    /// Places an Azure light blue banner on the rooftop of any structure type.
+    /// Uses a flagpole (oak fence) with the banner beside it.
+    /// </summary>
+    private async Task PlaceAzureBannerAsync(int x, int y, int z, string structureType, CancellationToken ct)
+    {
+        // AzureThemed already places its banner in BuildAzureThemedAsync
+        if (structureType == "AzureThemed")
+            return;
+
+        int roofY = structureType switch
+        {
+            "Watchtower" => y + 9,
+            "Warehouse" => y + 6,
+            "Workshop" => y + 7,
+            "Cylinder" => y + 7,
+            "Cottage" => y + 6,
+            _ => y + 6,
+        };
+
+        // Flagpole
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 1} {z + 3} minecraft:oak_fence", ct);
+
+        // Azure standing banner on top of flagpole
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {roofY + 2} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
+    }
+
     /// <summary>
     /// Places a health indicator lamp in the front wall, adapting position to structure type.
     /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = sea lantern.
@@ -396,8 +696,12 @@ internal sealed class StructureBuilder(
         var lampZ = structureType == "Watchtower" ? z + 1 : z;
         
         // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
-        // Workshop and Cottage have 2-tall doors (y+1 to y+2), so y+3 is fine.
-        var lampY = (structureType is "Watchtower" or "Warehouse") ? y + 4 : y + 3;
+        // Workshop, Cottage, Cylinder, and AzureThemed have 2-tall doors (y+1 to y+2), so y+3 is fine.
+        var lampY = structureType switch
+        {
+            "Watchtower" or "Warehouse" => y + 4,
+            "Cylinder" or "AzureThemed" or "Workshop" or "Cottage" or _ => y + 3
+        };
         
         // Place in front wall centered above entrance
         await rcon.SendCommandAsync(

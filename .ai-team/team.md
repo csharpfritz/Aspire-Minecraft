@@ -20,6 +20,7 @@
 | Wong | GitHub Ops | `.ai-team/agents/wong/charter.md` | ✅ Active |
 | Vision | Technical Writer | `.ai-team/agents/vision/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.ai-team/agents/scribe/charter.md` | 📋 Silent |
+| Ralph | Work Monitor | — | 🔄 Monitor |
 
 ## Issue Source
 

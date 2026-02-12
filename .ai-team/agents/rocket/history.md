@@ -154,3 +154,100 @@ Created `docs/designs/minecraft-building-reference.md` — the implementation bi
 - Block-swap for lamp state (glowstone=lit, redstone_lamp=unlit, gray_concrete=unknown) — avoids all redstone wiring complexity.
 - `/clone` for scrolling: `clone 12 {SY+2} -12 28 {SY+9} -12 11 {SY+2} -12` shifts all columns left by 1, then write new data at rightmost column (X=28).
 - `/clone` is 1 RCON command regardless of grid size — extremely efficient for scrolling animation.
+- `/clone` is 1 RCON command regardless of grid size — extremely efficient for scrolling animation.
+
+### Sprint 4 Issue #66 & #67: Cylinder & Azure-Themed Buildings (2026-02-12)
+
+**Cylinder building (Issue #66):**
+- Implemented `IsDatabaseResource()` with case-insensitive `.Contains()` matching for: postgres, redis, sqlserver, sql-server, mongodb, mysql, mariadb, cosmosdb, oracle, sqlite, rabbitmq.
+- `BuildCylinderAsync()` uses the radius-3 circular geometry from the building reference doc. Floor is polished_deepslate disc, walls are smooth_stone (layers 1-3) with polished_deepslate top band (layer 4), dome is smooth_stone_slab at y+5, polished_deepslate_slab cap at y+6.
+- Door is 1-wide centered at (x+3, z+0) — 2-tall opening. Narrow door is architecturally appropriate for round buildings per the design doc.
+- Interior clearing runs per-layer to match the circular shape (can't use `fill ... hollow` for circles).
+- Interior accents: copper_block center cross on floor, iron_block door frame accents.
+- ~60 RCON commands per cylinder. Acceptable for one-time build with idempotent tracking.
+
+**Azure-themed building (Issue #67):**
+- Implemented `IsAzureResource()` with case-insensitive `.Contains()` matching for: azure, cosmos, servicebus, eventhub, keyvault, appconfiguration, signalr, storage.
+- `GetStructureType()` now checks `IsDatabaseResource()` first (returns "Cylinder"), then `IsAzureResource()` (returns "AzureThemed"), then falls through to existing switch. This ensures database+azure resources get Cylinder shape with azure banner overlay.
+- `BuildAzureThemedAsync()` is a Cottage variant with light_blue_concrete walls, blue_concrete trim, light_blue_stained_glass roof, blue_stained_glass_pane windows. Azure banner always placed on roof at (x+3, y+6, z+3).
+- `PlaceAzureBannerAsync()` places a flagpole + light_blue_banner on any structure type when `IsAzureResource()` returns true. Roof Y varies by structure type per the banner placement table. AzureThemed is skipped because it already places its own banner.
+- Health indicator: Cylinder and AzureThemed both use front wall at z (same as Workshop/Cottage) with 2-tall doors, so lamp at y+3. No changes needed to `PlaceHealthIndicatorAsync` — existing logic already handles them correctly via the `is "Watchtower" or "Warehouse"` check.
+
+**Key decision:** `cosmos` appears in both detection methods (IsAzureResource and IsDatabaseResource). Since `IsDatabaseResource` is checked first in `GetStructureType()`, a "cosmosdb" resource gets Cylinder shape + azure banner. This is intentional — the database shape takes priority with the azure banner as an additive overlay.
+
+### Village Spacing Increase (Spacing 10 → 12)
+
+Increased `VillageLayout.Spacing` from 10 to 12 to give a comfortable 5-block walking gap between 7×7 structures (was 3 blocks). Updated XML doc comments in VillageLayout.cs. Updated hardcoded position expectations in 5 test files: VillageLayoutTests, ParticleEffectsCommandTests, ParticleEffectServiceIntegrationTests, HealthTransitionRconMappingTests, StructureBuilderTests. DashboardX (`BaseX - 15 = -5`) remains fine — no overlap with the village at BaseX=10. Fence perimeter's 4-block clearance via `GetFencePerimeter` is unaffected since it derives from `GetVillageBounds` dynamically. All 382 tests pass.
+
+### Banner Placement Fix & Language-Based Color Coding (2026-02-12)
+
+**Bug fix — Watchtower banner floating in air:** The banner at `(x+3, y+10, z+2)` was a standing banner (`blue_banner[rotation=0]`) placed one block south of the flagpole at z+3, disconnected in mid-air. Fix: extended the flagpole from `y+9..y+10` to `y+9..y+11` (one block taller), and changed the banner to `wall_banner[facing=south]` at `(x+3, y+10, z+2)` which visually hangs from the fence block at z+3. Applied the same fix to `PlaceAzureBannerAsync` — the Azure banner on any structure type now uses `light_blue_wall_banner[facing=south]` with a 3-block flagpole instead of a 2-block pole with a floating standing banner.
+
+**Language-based color coding:** Added `GetLanguageColor(string resourceType, string resourceName)` that returns `(wool, banner, wallBanner)` block IDs based on the resource's technology:
+- Project (all .NET) → purple
+- Node/JavaScript → yellow
+- Python/Flask/Django → blue
+- Go/Golang → cyan
+- Java/Spring → orange
+- Rust → brown
+- Default/Unknown → white
+
+Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo` and use `GetLanguageColor` for wool trim and banner blocks. Cylinder and AzureThemed buildings keep their own identity materials (smooth_stone/polished_deepslate and light_blue_concrete/blue_concrete respectively). Workshop and Warehouse don't have wool trim, so no color changes needed.
+
+**Key learning:** Minecraft `wall_banner` blocks require a solid block behind them (in the `facing` direction). Oak fence counts as support. Standing banners (`banner[rotation=N]`) need a solid block beneath them. For flagpole-mounted banners, wall banners facing away from the pole are the correct approach.
+
+### Dashboard Redstone Elimination Fix (2026-02-12)
+
+**Bug:** Dashboard lamps lit briefly then went dark. Root cause: `redstone_block` power propagation via RCON `/setblock` and `/clone` is unreliable on Paper servers — block updates don't propagate consistently, especially during scroll cycles.
+
+**Fix:** Eliminated the entire redstone power layer (`x-1`). Replaced indirect lighting (redstone_block → redstone_lamp) with direct self-luminous blocks at the lamp layer (`x`):
+- **Healthy** → `minecraft:glowstone` (warm glow, always lit)
+- **Unhealthy** → `minecraft:redstone_lamp` (unlit by default when unpowered — dark = unhealthy)
+- **Unknown** → `minecraft:sea_lantern` (blue-green glow, distinct from healthy)
+
+**Changes to `RedstoneDashboardService.cs`:**
+1. `BuildLampGridAsync` — removed power layer initialization (`fill x-1 ... air` lines).
+2. `ScrollDisplayAsync` — `/clone` now operates on `x` (lamp layer) instead of `x-1` (power layer). Removed `powerX` variable.
+3. `WriteNewestColumnAsync` — replaced per-status switch with switch expression placing the appropriate self-luminous block directly at `(x, lampY, newestZ)`. Reduced from 2 RCON commands per resource per status to 1. Removed `powerX` variable.
+4. `BuildFrameAsync` — back wall at `x-1` kept as visual backing; updated comment only.
+
+**Impact:** Halved RCON commands per update cycle (no power layer operations). Dashboard now uses 100% reliable self-luminous blocks that never depend on redstone signal propagation. All 382 tests pass.
+
+**Key learning:** On Paper servers, RCON-issued `setblock redstone_block` does not reliably trigger block updates for adjacent `redstone_lamp`. Always prefer self-luminous blocks (glowstone, sea_lantern) over redstone-powered lighting for RCON-driven displays.
+
+### Team Updates
+
+📌 Team update (2026-02-12): Dashboard lamps use self-luminous blocks instead of redstone power (glowstone=healthy, redstone_lamp unlit=unhealthy, sea_lantern=unknown). All 382 tests pass. — decided by Rocket
+📌 Team update (2026-02-12): Village buildings use language-based color coding (Project=purple, Node=yellow, Python=blue, Go=cyan, Java=orange, Rust=brown, Unknown=white) for wool trim and banners instead of uniform colors. All 382 tests pass. — decided by Rocket
+
+### Easter Egg: Fritz's Horses (2026-02-12)
+
+**Implementation:** `HorseSpawnService` — singleton (not feature-gated) spawns three named horses inside the village fence. Charmer (black, variant 4), Dancer (brown paint, variant 515), Toby (appaloosa, variant 768). Spawned once after structures are built, tracked by `_horsesSpawned` bool.
+
+**Key decisions:**
+- Registered as always-on singleton, NOT behind a feature flag — easter eggs should just be there.
+- Non-nullable constructor parameter in `MinecraftWorldWorker` (unlike opt-in features which are nullable).
+- Horses placed in the south clearance area between fence and first structure row (BaseZ - 2), spaced 2 blocks apart.
+- `Tame:1b` keeps them calm; `NoAI:0b` lets them wander; `PersistenceRequired:1b` prevents despawn.
+- JSON text component `CustomName` with per-horse color coding (dark_gray/gold/white) and bold text.
+- Horse variant formula: `color + (marking * 256)`. Colors: 0=white, 1=creamy, 2=chestnut, 3=brown, 4=black. Markings: 0=none, 1=stockings, 2=white_field, 3=white_dots.
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/HorseSpawnService.cs` — horse spawn logic
+- `src/Aspire.Hosting.Minecraft.Worker/Program.cs` — singleton registration + worker constructor wiring
+
+### Village Spacing & Horse Fixes (2026-02-12)
+
+**Spacing doubled (12 → 24):** `VillageLayout.Spacing` increased from 12 to 24, giving a 17-block walking gap between 7×7 structures (was 5 blocks). All structure placement derives from `GetStructureOrigin()` which uses `Spacing`, so all services automatically get the new positions.
+
+**Fence clearance increased (4 → 10):** `GetFencePerimeter()` now uses 10-block clearance from village bounds instead of 4. Gives horses plenty of room to roam between buildings and the fence.
+
+**Forceload area expanded:** Updated from `forceload add -10 -10 80 80` to `forceload add -20 -20 120 120` to cover the larger village footprint with doubled spacing and wider fence clearance.
+
+**Horse CustomName fix:** Changed from JSON text component format (`'{"text":"Charmer","color":"dark_gray","bold":true}'`) to simple quoted string format (`"\"Charmer\""`) matching the pattern used by `GuardianMobService`. The JSON text component was rendering as raw JSON in the hover tooltip on Paper servers.
+
+**Horse spawn position:** Changed Z coordinate from `BaseZ - 2` to `BaseZ - 6` to place horses in the middle of the now-larger clearance area between the south fence and the first row of structures.
+
+**Test updates:** Updated hardcoded coordinate expectations in 4 test files: VillageLayoutTests, HealthTransitionRconMappingTests, StructureBuilderTests, ParticleEffectServiceIntegrationTests. All 382 tests pass.
+
+**Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.

@@ -110,3 +110,57 @@
 - **Key design principle:** Azure detection is a visual signal (banner), not an architectural integration. String matching on resource types keeps the main package free of Azure SDK dependencies, consistent with the separate-package decision from Sprint 2.
 - **Cylinder RCON cost is ~88 commands** (4× a watchtower) due to circular geometry. Acceptable as one-time build; databases are typically <30% of resources.
 - **Decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint4-design.md` (7 decisions).
+- **Decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint4-design.md` (7 decisions).
+
+### 2026-02-12: BlueMap Integration Testing Strategy Design
+
+- **BlueMap has no block-level REST API.** Its web server serves pre-rendered tile files (geometry JSON and PNGs). There is no endpoint to query "what block is at X,Y,Z?" — only a Java API for server-side plugins. This rules out BlueMap REST as a primary test verification method.
+- **RCON `execute if block` is the right primary approach.** The command checks if a specific block type exists at exact coordinates and returns empty string on match. It's immediate (no render delay), deterministic, and uses our existing `RconClient` library. Combined with `VillageLayout` constants, we can assert exact block placement.
+- **Playwright/BlueMap screenshots are secondary, not primary.** 3D rendering is non-deterministic (lighting, camera angle, anti-aliasing). BlueMap needs 30–60s to render after blocks are placed. Screenshot comparison requires reference images and tolerance tuning. Good for visual regression but not for correctness assertions.
+- **Shared fixture is mandatory for test performance.** Minecraft server takes 45–60s to start. A single `MinecraftAppFixture` using `DistributedApplicationTestingBuilder` starts the AppHost once per test run. Tests share the fixture via xUnit `[CollectionFixture]`.
+- **Poll-based readiness beats fixed delays.** The fixture polls `execute if block` on a known coordinate (first structure corner) every 5s until the village is confirmed built. This adapts to variable server startup times instead of hoping a `Task.Delay(90000)` is enough.
+- **Integration tests belong in a separate project with Linux-only CI.** They're slow (2–3 min), require Docker, and should not block PR CI. Run as a gated job after unit tests pass, on `main` and release branches only.
+- **Design document written** at `docs/designs/bluemap-integration-tests.md` with architecture, sample code, first 5 tests, CI considerations, and risk analysis.
+
+📌 Team update (2026-02-12): BlueMap integration testing strategy designed — hybrid RCON verification + BlueMap smoke tests, shared Aspire test fixture, Linux-only CI job — decided by Rhodey
+
+### 2026-02-12: Sprint 5 "Grand Village" Architecture Design
+
+- **Full technical design created** at `docs/designs/sprint-5-design.md` covering three pillars: Walk-in Buildings (15×15), Ornate Project Towers (20 blocks tall, 3 floors), and Minecart Rail Network (powered rails between dependent resources).
+- **VillageLayout constants become properties.** `Spacing`, `StructureSize`, `FenceClearance` change from `const` to `static { get; private set; }` with a `ConfigureGrandLayout()` method. Backward compatible — default values match Sprint 4. This is the least-disruptive approach; all existing services adapt automatically through `VillageLayout.GetStructureOrigin()`.
+- **15×15 is the sweet spot for structure size.** 11×11 (9×9 interior) was too cramped for meaningful multi-floor buildings with staircases. 21×21 would balloon RCON costs (>200 commands per watchtower) and exceed world border with 4 resources. 15×15 gives 13×13 usable interior — room for spiral staircases, furniture, multiple floors.
+- **Spacing 24 = building 15 + gap 9 (walking + rail corridor).** This doubles village footprint per row, requiring `MAX_WORLD_SIZE` bump from 256 to 512. Supports ~20 resources comfortably.
+- **RCON burst mode is critical for Grand Village.** 600 commands at 10 cmd/sec = 60 seconds. With burst mode at 40 cmd/sec = 15 seconds. The Minecraft server handles 40 `/setblock`+`/fill` per second in bursts since each command completes in <1ms.
+- **Rails coexist with redstone, not replace.** `WithMinecartRails()` runs alongside `WithRedstoneDependencyGraph()` with 1-block X offset. Both visual systems provide different information: redstone shows health reactivity, rails show physical connection.
+- **Grand Village is opt-in** via `WithGrandVillage()`. Standard 7×7 layout remains the default. No breaking changes for existing consumers.
+- **15 GitHub issues created** (#76-90) covering: layout foundation, extension methods, 6 building redesigns, rail service, burst mode, fence/paths/forceload, service adaptation, tests, documentation, and release prep.
+- **7 architectural decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint5-grand-village.md`.
+- **Key risk: Grand Silo (radius 7 cylinder) at ~130 commands** is the most expensive building due to circular geometry not being `/fill`-friendly. Octagonal approximation may reduce by ~30%.
+- **Phased plan:** Phase 1 Layout (Shuri), Phase 2 Buildings (Rocket, 3 parallel tracks), Phase 3 Rails (Rocket), Phase 4 Tests/Docs (Nebula/Rhodey), Phase 5 Polish (Rhodey). ~2 weeks total with parallel execution.
+
+📌 Team update (2026-02-12): Sprint 5 "Grand Village" architecture designed — 15×15 walkable buildings, multi-story watchtowers, minecart rail network, RCON burst mode — 15 issues created (#76-90) — decided by Rhodey
+
+### Upcoming Sprint 5 Planning
+
+- **Three pillars requested by Jeff:** (1) Larger walkable buildings — scale up to 20+ blocks, navigable interiors. (2) Ornate project towers — themed materials by technology stack. (3) Minecart rail network — connects dependent resources, visual build order representation.
+- **Technical feasibility assessed:** Language color coding logic is foundation for ornate towers. Pathfinding via `execute` commands feasible. No hard blockers identified.
+- **Out of scope for Sprint 4:** All three pillars are multi-sprint features for v0.4/Sprint 5+.
+
+### 2026-02-12: Famous Buildings Feature — API Design
+
+- **New API pattern: extension method on monitored resources, not on Minecraft server.** `AsMinecraftFamousBuilding()` extends `IResourceBuilder<T> where T : IResource`, using `FamousBuildingAnnotation` to store the selection. This is the first extension method in the project that targets arbitrary Aspire resources rather than `MinecraftServerResource`. The annotation-based approach with deferred env var callback guarantees call-order independence.
+- **Data flow pattern for resource metadata:** AppHost annotation → `WithMonitoredResource` reads annotation → sets `ASPIRE_RESOURCE_{NAME}_FAMOUS_BUILDING` env var on worker → `AspireResourceMonitor.DiscoverResources()` reads it → `StructureBuilder` checks before auto-detection. This extends the existing `_TYPE`/`_URL`/`_HOST`/`_PORT`/`_DEPENDS_ON` env var convention.
+- **Building models are pure C#, one file per building.** Located in `src/Aspire.Hosting.Minecraft.Worker/Services/FamousBuildingModels/`. Implements `IFamousBuildingModel` interface with `Width`, `Depth`, `Height`, and `BuildAsync()`. Shared geometry helpers in `BuildingHelpers.cs`.
+- **FamousBuilding enum has 15 members** spanning 6 continents. All constrained to 15×15 footprint, 200 RCON command cap. Requires `WithGrandVillage()` — falls back to auto-detection on 7×7 grid.
+- **Two-sprint phasing:** Sprint A = API + infrastructure + 3 starter models (Pyramid, Castle, Lighthouse). Sprint B = remaining 12 models. Depends on Sprint 5 Grand Village layout landing first.
+- **Design document:** `docs/designs/famous-buildings-design.md`. Decision log: `.ai-team/decisions/inbox/rhodey-famous-buildings-design.md`.
+- **Key files:** `FamousBuilding.cs` (enum), `FamousBuildingAnnotation.cs` (annotation), `FamousBuildingExtensions.cs` (extension method) — all in `src/Aspire.Hosting.Minecraft/`.
+
+### 2026-02-12: MonitorAllResources Convenience API — Architecture Design
+
+- **Eager discovery over deferred eventing.** `MonitorAllResources()` iterates `builder.ApplicationBuilder.Resources` at call time (Option A) rather than subscribing to `BeforeStartEvent` (Option B). Rationale: consistency with existing `WithMonitoredResource` (which is eager), predictability for debugging, and avoidance of builder-state risks during Aspire's `BeforeStartEvent`. The constraint that resources must exist before the call is naturally satisfied by AppHost coding patterns.
+- **Structural exclusion, not name-based.** Minecraft infrastructure (server, worker, children) is excluded via object identity (`ReferenceEquals`) and `IResourceWithParent` graph traversal. This automatically covers BlueMap sidecars and any future infrastructure without maintaining name allowlists.
+- **ExcludeFromMonitoring ships alongside.** Annotation-based opt-out via `ExcludeFromMonitoringAnnotation` — trivial to implement (1 annotation class + 1 extension method + 1 line in exclusion check) and completes the user story.
+- **Naming: `MonitorAllResources()` not `WithAllMonitoredResources()`.** Breaks the `With*` convention intentionally — it's a convenience aggregate, not a feature toggle. The verb phrase reads naturally and distinguishes it from the per-resource method.
+- **Duplicate prevention is bidirectional.** `MonitoredResourceNames.Contains()` check prevents duplicates when manual calls precede `MonitorAllResources()`. Calls after are additive and safe (env vars are idempotent).
+- **Design document:** `docs/designs/monitor-all-resources-design.md`. Decision: `.ai-team/decisions/inbox/rhodey-monitor-all-resources.md`.
