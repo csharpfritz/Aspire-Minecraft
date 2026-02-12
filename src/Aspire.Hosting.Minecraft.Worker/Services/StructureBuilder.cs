@@ -14,6 +14,7 @@ internal sealed class StructureBuilder(
 {
     private bool _pathsBuilt;
     private bool _fenceBuilt;
+    private bool _initialBuildComplete;
     private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -62,6 +63,13 @@ internal sealed class StructureBuilder(
                 index++;
             }
 
+            // After the first complete build, flush world to disk and trigger BlueMap re-render
+            if (!_initialBuildComplete && _fenceBuilt && _pathsBuilt && _builtStructures.Count == monitor.TotalCount)
+            {
+                _initialBuildComplete = true;
+                await TriggerBlueMapUpdateAsync(ct);
+            }
+
             logger.LogInformation("Village structures updated for {Count} resources", monitor.TotalCount);
         }
         catch (Exception ex)
@@ -69,6 +77,53 @@ internal sealed class StructureBuilder(
             logger.LogWarning(ex, "Failed to update structures");
             activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Saves the world to disk and tells BlueMap to re-render the village area.
+    /// Called once after the initial village build so the map shows the structures.
+    /// </summary>
+    private async Task TriggerBlueMapUpdateAsync(CancellationToken ct)
+    {
+        try
+        {
+            await rcon.SendCommandAsync("save-all", ct);
+            // Small delay to let the server flush chunks to disk
+            await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            await rcon.SendCommandAsync("bluemap update", ct);
+            logger.LogInformation("BlueMap render update triggered after village build");
+        }
+        catch (Exception ex)
+        {
+            // BlueMap may not be installed — don't fail the build
+            logger.LogDebug(ex, "BlueMap update command failed (plugin may not be installed)");
+        }
+    }
+
+    /// <summary>
+    /// Returns the wool, banner, and wall banner block IDs for a resource based on its type and name.
+    /// .NET Projects = purple, JavaScript/Node = yellow, Python = blue, Go = cyan,
+    /// Java = orange, Rust = brown, default/unknown = white.
+    /// </summary>
+    internal static (string wool, string banner, string wallBanner) GetLanguageColor(string resourceType, string resourceName)
+    {
+        if (resourceType.Equals("Project", StringComparison.OrdinalIgnoreCase))
+            return ("minecraft:purple_wool", "minecraft:purple_banner", "minecraft:purple_wall_banner");
+
+        var combined = (resourceType + " " + resourceName).ToLowerInvariant();
+
+        if (combined.Contains("node") || combined.Contains("javascript") || combined.Contains("js"))
+            return ("minecraft:yellow_wool", "minecraft:yellow_banner", "minecraft:yellow_wall_banner");
+        if (combined.Contains("python") || combined.Contains("flask") || combined.Contains("django"))
+            return ("minecraft:blue_wool", "minecraft:blue_banner", "minecraft:blue_wall_banner");
+        if (combined.Contains("go") || combined.Contains("golang"))
+            return ("minecraft:cyan_wool", "minecraft:cyan_banner", "minecraft:cyan_wall_banner");
+        if (combined.Contains("java") || combined.Contains("spring"))
+            return ("minecraft:orange_wool", "minecraft:orange_banner", "minecraft:orange_wall_banner");
+        if (combined.Contains("rust"))
+            return ("minecraft:brown_wool", "minecraft:brown_banner", "minecraft:brown_wall_banner");
+
+        return ("minecraft:white_wool", "minecraft:white_banner", "minecraft:white_wall_banner");
     }
 
     /// <summary>
@@ -199,7 +254,7 @@ internal sealed class StructureBuilder(
             switch (structureType)
             {
                 case "Watchtower":
-                    await BuildWatchtowerAsync(x, y, z, ct);
+                    await BuildWatchtowerAsync(x, y, z, info, ct);
                     break;
                 case "Warehouse":
                     await BuildWarehouseAsync(x, y, z, ct);
@@ -214,7 +269,7 @@ internal sealed class StructureBuilder(
                     await BuildAzureThemedAsync(x, y, z, ct);
                     break;
                 default:
-                    await BuildCottageAsync(x, y, z, ct);
+                    await BuildCottageAsync(x, y, z, info, ct);
                     break;
             }
 
@@ -241,10 +296,12 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Watchtower — tall, narrow tower with flag. Project (.NET app) resources.
-    /// Stone brick walls, blue wool/banner accents, ~7×7 footprint, 10 blocks tall.
+    /// Stone brick walls, language-colored wool/banner accents, ~7×7 footprint, 10 blocks tall.
     /// </summary>
-    private async Task BuildWatchtowerAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var (wool, _, wallBanner) = GetLanguageColor(info.Type, info.Name);
+
         // Foundation: 7×7 stone brick floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:stone_bricks", ct);
@@ -273,19 +330,19 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + 5} {y + 4} {z + 3} minecraft:glass_pane", ct);
 
-        // Blue wool trim at top
+        // Language-colored wool trim at top
         await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} minecraft:blue_wool", ct);
+            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} {wool}", ct);
 
         // Roof cap (3×3 stone brick slab)
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y + 9} {z + 2} {x + 4} {y + 9} {z + 4} minecraft:stone_brick_slab", ct);
 
-        // Flag pole + banner on top
+        // Flag pole (extends to y+11) + wall banner hanging from flagpole
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 10} {z + 3} minecraft:oak_fence", ct);
+            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 11} {z + 3} minecraft:oak_fence", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 10} {z + 2} minecraft:blue_banner[rotation=0]", ct);
+            $"setblock {x + 3} {y + 10} {z + 2} {wallBanner}[facing=south]", ct);
 
         // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall
         // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
@@ -389,10 +446,12 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Cottage — humble default dwelling. Unknown/Other resource types.
-    /// Cobblestone walls, light blue wool trim, ~7×7 footprint, 5 blocks tall.
+    /// Cobblestone walls, language-colored wool trim, ~7×7 footprint, 5 blocks tall.
     /// </summary>
-    private async Task BuildCottageAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
+
         // Foundation: 7×7 cobblestone floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:cobblestone", ct);
@@ -401,15 +460,15 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:cobblestone hollow", ct);
 
-        // Light blue wool trim at top of walls
+        // Language-colored wool trim at top of walls
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} minecraft:light_blue_wool", ct);
+            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} {wool}", ct);
 
         // Flat roof with slab
         await rcon.SendCommandAsync(
@@ -611,13 +670,13 @@ internal sealed class StructureBuilder(
             _ => y + 6,
         };
 
-        // Flagpole
+        // Flagpole (extends 3 blocks for wall banner support)
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 1} {z + 3} minecraft:oak_fence", ct);
+            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 2} {z + 3} minecraft:oak_fence", ct);
 
-        // Azure banner beside flagpole
+        // Azure wall banner hanging from flagpole, facing south
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {roofY + 1} {z + 2} minecraft:light_blue_banner[rotation=0]", ct);
+            $"setblock {x + 3} {roofY + 1} {z + 2} minecraft:light_blue_wall_banner[facing=south]", ct);
     }
 
     /// <summary>

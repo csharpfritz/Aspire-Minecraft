@@ -177,3 +177,20 @@ Created `docs/designs/minecraft-building-reference.md` — the implementation bi
 ### Village Spacing Increase (Spacing 10 → 12)
 
 Increased `VillageLayout.Spacing` from 10 to 12 to give a comfortable 5-block walking gap between 7×7 structures (was 3 blocks). Updated XML doc comments in VillageLayout.cs. Updated hardcoded position expectations in 5 test files: VillageLayoutTests, ParticleEffectsCommandTests, ParticleEffectServiceIntegrationTests, HealthTransitionRconMappingTests, StructureBuilderTests. DashboardX (`BaseX - 15 = -5`) remains fine — no overlap with the village at BaseX=10. Fence perimeter's 4-block clearance via `GetFencePerimeter` is unaffected since it derives from `GetVillageBounds` dynamically. All 382 tests pass.
+
+### Banner Placement Fix & Language-Based Color Coding (2026-02-12)
+
+**Bug fix — Watchtower banner floating in air:** The banner at `(x+3, y+10, z+2)` was a standing banner (`blue_banner[rotation=0]`) placed one block south of the flagpole at z+3, disconnected in mid-air. Fix: extended the flagpole from `y+9..y+10` to `y+9..y+11` (one block taller), and changed the banner to `wall_banner[facing=south]` at `(x+3, y+10, z+2)` which visually hangs from the fence block at z+3. Applied the same fix to `PlaceAzureBannerAsync` — the Azure banner on any structure type now uses `light_blue_wall_banner[facing=south]` with a 3-block flagpole instead of a 2-block pole with a floating standing banner.
+
+**Language-based color coding:** Added `GetLanguageColor(string resourceType, string resourceName)` that returns `(wool, banner, wallBanner)` block IDs based on the resource's technology:
+- Project (all .NET) → purple
+- Node/JavaScript → yellow
+- Python/Flask/Django → blue
+- Go/Golang → cyan
+- Java/Spring → orange
+- Rust → brown
+- Default/Unknown → white
+
+Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo` and use `GetLanguageColor` for wool trim and banner blocks. Cylinder and AzureThemed buildings keep their own identity materials (smooth_stone/polished_deepslate and light_blue_concrete/blue_concrete respectively). Workshop and Warehouse don't have wool trim, so no color changes needed.
+
+**Key learning:** Minecraft `wall_banner` blocks require a solid block behind them (in the `facing` direction). Oak fence counts as support. Standing banners (`banner[rotation=N]`) need a solid block beneath them. For flagpole-mounted banners, wall banners facing away from the pole are the correct approach.

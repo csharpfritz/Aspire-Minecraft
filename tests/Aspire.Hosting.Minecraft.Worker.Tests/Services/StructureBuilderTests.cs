@@ -95,9 +95,9 @@ public class StructureBuilderTests : IAsyncLifetime
 
         // === 3. STRUCTURE-SPECIFIC BLOCKS ===
         
-        // Watchtower (Project): stone_bricks, blue_wool, blue_banner
+        // Watchtower (Project): stone_bricks, purple_wool, purple_wall_banner
         var watchtowerCommands = commands.Where(c => 
-            c.Contains("stone_bricks") || c.Contains("blue_wool") || c.Contains("blue_banner")).ToList();
+            c.Contains("stone_bricks") || c.Contains("purple_wool") || c.Contains("purple_wall_banner")).ToList();
         Assert.True(watchtowerCommands.Count >= 3,
             $"Expected Watchtower structure commands but got {watchtowerCommands.Count}");
 
@@ -114,9 +114,9 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.True(workshopCommands.Count >= 3,
             $"Expected Workshop structure commands but got {workshopCommands.Count}");
 
-        // Cottage (Unknown): cobblestone, light_blue_wool
+        // Cottage (Unknown): cobblestone, white_wool
         var cottageCommands = commands.Where(c => 
-            c.Contains("light_blue_wool")).ToList();
+            c.Contains("white_wool")).ToList();
         Assert.True(cottageCommands.Count >= 1,
             $"Expected Cottage structure commands but got {cottageCommands.Count}");
 
