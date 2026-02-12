@@ -189,16 +189,17 @@ internal sealed class StructureBuilder(
         {
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
             var fenceY = VillageLayout.SurfaceY + 1;
+            var gateWidth = VillageLayout.GateWidth;
 
             // South side (low Z) — two segments with a gate gap in the center
             var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
             await rcon.SendCommandAsync(
                 $"fill {fMinX} {fenceY} {fMinZ} {gateX - 1} {fenceY} {fMinZ} minecraft:oak_fence", ct);
             await rcon.SendCommandAsync(
-                $"fill {gateX + 2} {fenceY} {fMinZ} {fMaxX} {fenceY} {fMinZ} minecraft:oak_fence", ct);
-            // Gate (3-wide to match the boulevard width)
+                $"fill {gateX + gateWidth - 1} {fenceY} {fMinZ} {fMaxX} {fenceY} {fMinZ} minecraft:oak_fence", ct);
+            // Gate (width adapts to layout: 3 for standard, 5 for grand)
             await rcon.SendCommandAsync(
-                $"fill {gateX} {fenceY} {fMinZ} {gateX + 2} {fenceY} {fMinZ} minecraft:oak_fence_gate[facing=south]", ct);
+                $"fill {gateX} {fenceY} {fMinZ} {gateX + gateWidth - 1} {fenceY} {fMinZ} minecraft:oak_fence_gate[facing=south]", ct);
 
             // North side (high Z)
             await rcon.SendCommandAsync(
@@ -234,6 +235,14 @@ internal sealed class StructureBuilder(
             // Step 2: Place cobblestone at SurfaceY (the grass surface level, one below new floor level)
             await rcon.SendCommandAsync(
                 $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:cobblestone", ct);
+
+            // Step 3: For Grand layout, add a central boulevard (3-wide stone brick) between columns
+            if (VillageLayout.IsGrandLayout && rows > 0)
+            {
+                var boulevardX = VillageLayout.BaseX + VillageLayout.StructureSize; // between column 0 and column 1
+                await rcon.SendCommandAsync(
+                    $"fill {boulevardX} {VillageLayout.SurfaceY} {fMinZ + 1} {boulevardX + 2} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:stone_bricks", ct);
+            }
 
             logger.LogInformation("Comprehensive village paths built covering fence interior");
         }
@@ -616,11 +625,17 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Cylinder — round building evoking the database cylinder icon. Database resources.
-    /// Smooth stone walls, polished deepslate floor and top band, dome roof.
-    /// Radius 3 = 7-block diameter, fits in the existing 7×7 grid cell.
+    /// Standard (7×7): Smooth stone walls, polished deepslate floor and dome, radius 3.
+    /// Grand (15×15): Two-floor silo with copper pillar, iron server racks, bookshelf ring.
     /// </summary>
     private async Task BuildCylinderAsync(int x, int y, int z, CancellationToken ct)
     {
+        if (VillageLayout.StructureSize >= 15)
+        {
+            await BuildGrandCylinderAsync(x, y, z, ct);
+            return;
+        }
+
         // === FLOOR (y+0): polished deepslate disc ===
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y} {z} {x + 4} {y} {z} minecraft:polished_deepslate", ct);
