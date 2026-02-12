@@ -112,6 +112,16 @@
 - 11 new tests added (329 total Worker tests pass). Tests cover both standard and grand layout configurations.
 - Key file paths: `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs`, `tests/.../Services/VillageLayoutTests.cs`.
 
+### Milestone 5: Grand Village Fence, Paths, Forceload (#84)
+
+- **Fence perimeter** now uses `VillageLayout.GateWidth` (3 standard, 5 grand) instead of hardcoded `gateX + 2`. Gate position adapts via `BaseX + StructureSize`. Fence clearance uses `VillageLayout.FenceClearance` property.
+- **Paths** cover full fence interior via `GetFencePerimeter()`. Grand layout adds a 3-wide stone brick central boulevard between columns using `VillageLayout.IsGrandLayout`.
+- **Forceload** coordinates computed dynamically from `VillageLayout.GetFencePerimeter(10)` with 10-block margin — replaces hardcoded `forceload add -20 -20 120 120`.
+- **MAX_WORLD_SIZE** bumped from 256 to 512 in `MinecraftServerBuilderExtensions.cs` to support Grand Village with up to 20 resources.
+- **New VillageLayout properties:** `GateWidth` (default 3, grand 5), `IsGrandLayout` (default false) — both configured by `ConfigureGrandLayout()` and reset by `ResetLayout()`.
+- **Test coverage:** Added `GateWidth` and `IsGrandLayout` assertions to `DefaultLayout_MatchesSprint4Values`, `ConfigureGrandLayout_SetsGrandValues`, and `ResetLayout_RestoresDefaults` tests.
+- Standard layout (no `WithGrandVillage`) is unaffected — all 393 unit tests pass (45 Rcon + 19 Hosting + 329 Worker).
+
 ### Milestone 5: Grand Warehouse (#81)
 
 - Redesigned `BuildWarehouseAsync()` to branch on `VillageLayout.StructureSize >= 15` — grand mode dispatches to `BuildGrandWarehouseAsync()`, standard mode preserves existing 7×7 behavior unchanged.
