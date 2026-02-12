@@ -251,3 +251,5 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 **Test updates:** Updated hardcoded coordinate expectations in 4 test files: VillageLayoutTests, HealthTransitionRconMappingTests, StructureBuilderTests, ParticleEffectServiceIntegrationTests. All 382 tests pass.
 
 **Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.
+ Team update (2026-02-12): Village spacing doubled to 24 blocks (15 + 9 gap between buildings) with enhanced fence clearance (10 blocks)  decided by Rocket
+ Team update (2026-02-12): Sprint 4 building designs specified: database cylinders (77 cell, smooth stone + deepslate, ~88 RCON commands), Azure banners (light_blue with patterns on all Azure resources), enhanced palettes (Watchtower, Warehouse, Workshop, Cottage with detailed interior)  decided by Rocket

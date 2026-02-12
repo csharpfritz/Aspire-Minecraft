@@ -1,4 +1,0 @@
-### 2026-02-12: MonitorAllResources convenience API design
-**By:** Rhodey
-**What:** Design for a `.MonitorAllResources()` extension method that auto-discovers all non-Minecraft resources in the Aspire application and monitors them in-world, replacing manual `.WithMonitoredResource()` calls. Includes `ExcludeFromMonitoring()` opt-out API, structural exclusion of Minecraft infrastructure (server, worker, children), duplicate prevention, and Famous Building annotation passthrough.
-**Why:** Jeff's directive to reduce AppHost boilerplate. Five manual `WithMonitoredResource` calls → one `MonitorAllResources()` call. The convenience API composes cleanly with existing manual calls and doesn't introduce new paradigms. Eager discovery (Option A) chosen over deferred eventing for predictability, debuggability, and consistency with existing `WithMonitoredResource` behavior. Full design at `docs/designs/monitor-all-resources-design.md`.

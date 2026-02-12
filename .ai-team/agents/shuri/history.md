@@ -96,3 +96,5 @@
 - The `ContainerLifetime` enum lives in `Aspire.Hosting.ApplicationModel` (already imported). Available since Aspire.Hosting 9.x, confirmed in our 13.1.1 dependency.
 - Without `WithPersistentWorld()`, world data lives in the container's writable layer at `/data`. Session lifetime ensures Docker Desktop doesn't cache the container between runs.
 - Build: 0 errors, 2 pre-existing warnings (CS8604 nullable, xUnit1026 unused param).
+ Team update (2026-02-12): SourceLink removed from Directory.Build.props per user directive (v0.4.0 release)  decided by Jeffrey T. Fritz
+ Team update (2026-02-12): Sprint 4 and Sprint 5 feature sets finalized; Sprint 4 scope confirmed: Redstone Dashboard, Enhanced Buildings, Dragon Egg monument, DX polish, documentation  decided by Rhodey

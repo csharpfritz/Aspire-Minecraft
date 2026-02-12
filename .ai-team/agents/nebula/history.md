@@ -72,3 +72,4 @@
  Team update (2026-02-11): Boss bar title now configurable via WithBossBar(title) parameter and ASPIRE_BOSSBAR_TITLE env var; ASPIRE_APP_NAME no longer affects boss bar  decided by Rocket
  Team update (2026-02-11): Village structures now use idempotent build pattern (build once, then only update health indicators)  decided by Rocket
 � Team update (2026-02-11): CI pipelines now skip docs-only changes (docs/**, user-docs/**, *.md, .ai-team/**)  decided by Wong
+ Team update (2026-02-12): Sprint 4 scope finalized (14 issues: Redstone Dashboard, Enhanced Buildings, Dragon Egg, DX polish, documentation)  tests needed for HealthHistoryTracker, village spacing changes (382 passing), and new building structures  decided by Rhodey
