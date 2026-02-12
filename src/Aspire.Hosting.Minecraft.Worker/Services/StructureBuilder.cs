@@ -1114,12 +1114,7 @@ internal sealed class StructureBuilder(
             }
         }
 
-        // === FRONT DOORWAY: clear a 3-wide × 3-tall passage through the wall (dz=0..1) ===
-        for (int dz = 0; dz <= 1; dz++)
-        {
-            await rcon.SendCommandAsync(
-                $"fill {x + 6} {y + 1} {z + dz} {x + 8} {y + 3} {z + dz} minecraft:air", ct);
-        }
+        // (Doorway cleared after interior furnishing — see IRON DOOR ENTRANCE below)
 
         // === UPPER FLOOR (y+6): polished deepslate disc at mid-height ===
         foreach (var (dz, x1, x2) in interiorRows)
@@ -1173,12 +1168,6 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 7} {y} {z + 7} {x + 7} {y + 12} {z + 7} minecraft:copper_block", ct);
 
-        // === IRON DOOR ENTRANCE: centered at x+7 on the outer face of the front wall ===
-        await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
-
         // === LOWER FLOOR (y+1 to y+5): Server rack ring + copper center island ===
         // Iron block server rack ring along interior perimeter (y+1)
         await rcon.SendCommandAsync(
@@ -1194,11 +1183,21 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 6} {y} {z + 6} {x + 8} {y} {z + 8} minecraft:copper_block", ct);
 
-        // 4 Redstone lamps at cardinal positions inside the lower floor
-        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 3} minecraft:redstone_lamp[lit=true]", ct);
+        // 4 Redstone lamps at cardinal positions (avoiding the entrance path at z+2..z+3)
         await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 10} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 3} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 11} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
+        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 4} minecraft:redstone_lamp[lit=true]", ct);
+
+        // === IRON DOOR ENTRANCE (placed last so nothing overwrites it) ===
+        // Clear the entrance path from outer wall through to interior (z+0 to z+2)
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 1} {z} {x + 8} {y + 3} {z + 2} minecraft:air", ct);
+        // Place door at z+1 (inside the wall thickness)
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 1} {z + 1} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 2} {z + 1} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
 
         // === LADDER ACCESS to upper floor: along the central pillar ===
         for (int ly = 1; ly <= 6; ly++)
@@ -1493,10 +1492,10 @@ internal sealed class StructureBuilder(
         var half = VillageLayout.StructureSize / 2;
         var structureType = GetStructureType(info.Type);
 
-        // Grand cylinder: sign in front of the circular entrance (door at z+4)
+        // Grand cylinder: sign outside the front entrance
         var signX = structureType == "Cylinder" && isGrand ? x + half - 1 : x + half - 1;
         var signY = y + 1;
-        var signZ = structureType == "Cylinder" && isGrand ? z + 3 : z - 1;
+        var signZ = structureType == "Cylinder" && isGrand ? z - 1 : z - 1;
 
         await rcon.SendCommandAsync(
             $"setblock {signX} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
