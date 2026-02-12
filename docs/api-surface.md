@@ -1,6 +1,6 @@
 # API Surface — Fritz.Aspire.Hosting.Minecraft
 
-> **Frozen for:** v0.3.0  
+> **Frozen for:** v0.4.0  
 > **Last updated:** 2026-02-11  
 > **Package:** `Fritz.Aspire.Hosting.Minecraft`
 
@@ -62,6 +62,13 @@ All methods return `IResourceBuilder<MinecraftServerResource>` for fluent chaini
 | `WithRedstoneDependencyGraph` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_REDSTONE_GRAPH` | Redstone wire circuits between dependent resources showing DAG. |
 | `WithServiceSwitches` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_SWITCHES` | Visual levers+lamps on structures reflecting service state. |
 | `WithPeacefulMode` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_PEACEFUL` | Eliminates hostile mobs via `/difficulty peaceful` command. |
+
+#### Sprint 4 — Smart Buildings & Dashboard
+
+| Method | Signature | Env Var | Description |
+|--------|-----------|---------|-------------|
+| `WithRedstoneDashboard` | `(this IResourceBuilder<MinecraftServerResource> builder)` | `ASPIRE_FEATURE_REDSTONE_DASHBOARD` | Scrolling redstone lamp wall showing health history over time. |
+| `WithAllFeatures` | `(this IResourceBuilder<MinecraftServerResource> builder)` | _(all feature env vars)_ | Convenience method that enables every opt-in feature at once. |
 
 #### Sprint 3.1 — Quality & Developer Experience
 

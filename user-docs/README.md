@@ -13,6 +13,7 @@ Welcome to the **Fritz.Aspire.Hosting.Minecraft** user documentation. This integ
 
 Detailed guides for each feature:
 
+- **[Sprint 4 Features](sprint-4-features.md)** — Cylinder buildings, Azure-themed buildings, Redstone Dashboard, WithAllFeatures
 - **[Village Visualization](features/village-visualization.md)** — Resource village with themed buildings
 - **[Health Monitoring](features/health-monitoring.md)** — Visual health indicators (lamps, beacons, particles)
 - **[Service Switches](features/service-switches.md)** — Interactive levers showing service state
@@ -62,6 +63,8 @@ Each Aspire resource becomes a building in a 2-column village grid:
 - **Watchtower** (stone brick, tall) — .NET Projects
 - **Warehouse** (iron block, cargo bay) — Docker Containers
 - **Workshop** (oak planks, peaked roof) — Executables
+- **Cylinder** (smooth stone, domed) — Database resources (Postgres, Redis, SQL Server, etc.)
+- **Azure-Themed** (light blue concrete, blue glass roof) — Azure resources
 - **Cottage** (cobblestone, humble) — Other resources
 
 ### Health Visualization

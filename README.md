@@ -6,7 +6,7 @@ A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry inst
 
 ![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](img/sample-1.png)
 
-> 🎉 **v0.3.0:** Sprint 3 complete! The resource village features themed structures (watchtower/warehouse/workshop/cottage), comprehensive cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and a rhythmic heartbeat that reflects fleet health.
+> 🎉 **v0.4.0:** Sprint 4 complete! New database **Cylinder** buildings, **Azure-themed** structures with blue banners, a **Redstone Dashboard** wall showing health history over time, and **WithAllFeatures()** to enable everything in one call. Plus all Sprint 3 features: themed structures, cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and heartbeat.
 
 ## 🚀 Quick Start
 
@@ -66,9 +66,12 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
   - **Watchtower** (stone brick, 10 blocks tall) — .NET Projects
   - **Warehouse** (iron block, cargo bay style) — Docker Containers  
   - **Workshop** (oak planks, peaked roof) — Executables
+  - **Cylinder** (smooth stone, domed roof) — Database resources (Postgres, Redis, SQL Server, MongoDB, etc.)
+  - **Azure-Themed** (light blue concrete, blue glass roof, banner) — Azure resources (Service Bus, Key Vault, etc.)
   - **Cottage** (cobblestone, humble dwelling) — Other resources
 - **Comprehensive Paths** — Complete cobblestone coverage throughout the village, flush with the ground for seamless walking
 - **Beacon Towers** — Per-resource beacons with color-coded stained glass matching Aspire dashboard colors (blue/purple/cyan). Beam turns red when resource fails
+- **Redstone Dashboard** — A wall west of the village showing scrolling health history using redstone lamps. Each row is a resource, each column is a time slot. Lit = healthy, dark = unhealthy, sea lantern = unknown. Enable with `.WithRedstoneDashboard()`
 - **Redstone Dependency Graph** — Visual L-shaped redstone wires connecting dependent resources, showing your system's dependency architecture
 - **Service Switches** — Interactive levers positioned to the right of each building entrance. Lever up + glowing lamp = healthy, lever down + dark lamp = unhealthy (display-only)
 - **Fence & Gate** — Oak fence perimeter with a gated south entrance, 4-block clearance from buildings
@@ -103,6 +106,7 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 - **BlueMap** — `WithBlueMap()` adds an interactive 3D web map exposed as a clickable "world-map" endpoint in the Aspire dashboard
 - **OpenTelemetry** — `WithOpenTelemetry()` injects the OTEL Java agent for automatic JVM metrics (heap, GC, threads, CPU)
 - **RCON Debug Logging** — `WithRconDebugLogging()` enables debug-level logging of every command sent to the server, visible in Aspire dashboard logs
+- **All Features** — `WithAllFeatures()` enables every opt-in feature in a single call — perfect for demos or when you want everything
 - **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot (~30 seconds)
 
 ### 🔧 Using a server.properties File
@@ -165,24 +169,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
-    // Health monitoring
-    .WithBossBar()
-    .WithWeatherEffects()
-    .WithWorldBorderPulse()
-    .WithParticleEffects()
-    .WithGuardianMobs()
-    .WithBeaconTowers()
-    .WithServiceSwitches()
-    .WithRedstoneGraph()
-    // Audio & effects
-    .WithHeartbeat()
-    .WithSoundEffects()
-    .WithFireworks()
-    .WithDeploymentFanfare()
-    // Gamification
-    .WithAchievements()
-    .WithTitleAlerts()
-    .WithActionBarTicker()
+    .WithAllFeatures()  // Enables all opt-in features at once
     // Resources to monitor
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
@@ -192,7 +179,9 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
 builder.Build().Run();
 ```
 
-The worker service is created internally by `WithAspireWorldDisplay` — it appears as a child of the Minecraft resource in the Aspire dashboard. Every feature is opt-in: if you don't call `.WithWeatherEffects()`, no weather commands are sent. Zero overhead for disabled features.
+The worker service is created internally by `WithAspireWorldDisplay` — it appears as a child of the Minecraft resource in the Aspire dashboard. Every feature is opt-in: if you don't call `.WithWeatherEffects()`, no weather commands are sent. Zero overhead for disabled features. Use `.WithAllFeatures()` to enable everything at once.
+
+> 📖 For detailed feature guides, see the [user documentation](user-docs/README.md) and the [Sprint 4 Features Guide](user-docs/sprint-4-features.md).
 
 ## 📊 Telemetry
 
