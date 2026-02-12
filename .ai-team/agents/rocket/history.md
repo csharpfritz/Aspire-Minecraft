@@ -253,3 +253,17 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 **Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.
  Team update (2026-02-12): Village spacing doubled to 24 blocks (15 + 9 gap between buildings) with enhanced fence clearance (10 blocks)  decided by Rocket
  Team update (2026-02-12): Sprint 4 building designs specified: database cylinders (77 cell, smooth stone + deepslate, ~88 RCON commands), Azure banners (light_blue with patterns on all Azure resources), enhanced palettes (Watchtower, Warehouse, Workshop, Cottage with detailed interior)  decided by Rocket
+
+### RCON Burst Mode (Milestone 5, Issue #85)
+
+Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `IDisposable` — callers wrap construction in a `using` block and the rate limit auto-restores on dispose.
+
+**Implementation details:**
+- `_maxCommandsPerSecond` changed from `readonly` to mutable. `_defaultCommandsPerSecond` stores the original value.
+- Thread safety via `_burstModeSemaphore` (SemaphoreSlim(1,1)): `Wait(0)` for non-blocking acquire; throws `InvalidOperationException` if already active.
+- `BurstModeScope` inner class: `IDisposable` with `Interlocked.Exchange` guard preventing double-dispose.
+- Logs at INFO on enter and exit with before/after rate values.
+- Token bucket (`RefillTokens()`) automatically adapts because it reads `_maxCommandsPerSecond` dynamically — no bucket reset needed.
+- `_burstModeSemaphore` disposed in `DisposeAsync`.
+
+**Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
