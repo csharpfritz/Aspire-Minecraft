@@ -123,6 +123,22 @@
 
 📌 Team update (2026-02-12): BlueMap integration testing strategy designed — hybrid RCON verification + BlueMap smoke tests, shared Aspire test fixture, Linux-only CI job — decided by Rhodey
 
+### 2026-02-12: Sprint 5 "Grand Village" Architecture Design
+
+- **Full technical design created** at `docs/designs/sprint-5-design.md` covering three pillars: Walk-in Buildings (15×15), Ornate Project Towers (20 blocks tall, 3 floors), and Minecart Rail Network (powered rails between dependent resources).
+- **VillageLayout constants become properties.** `Spacing`, `StructureSize`, `FenceClearance` change from `const` to `static { get; private set; }` with a `ConfigureGrandLayout()` method. Backward compatible — default values match Sprint 4. This is the least-disruptive approach; all existing services adapt automatically through `VillageLayout.GetStructureOrigin()`.
+- **15×15 is the sweet spot for structure size.** 11×11 (9×9 interior) was too cramped for meaningful multi-floor buildings with staircases. 21×21 would balloon RCON costs (>200 commands per watchtower) and exceed world border with 4 resources. 15×15 gives 13×13 usable interior — room for spiral staircases, furniture, multiple floors.
+- **Spacing 24 = building 15 + gap 9 (walking + rail corridor).** This doubles village footprint per row, requiring `MAX_WORLD_SIZE` bump from 256 to 512. Supports ~20 resources comfortably.
+- **RCON burst mode is critical for Grand Village.** 600 commands at 10 cmd/sec = 60 seconds. With burst mode at 40 cmd/sec = 15 seconds. The Minecraft server handles 40 `/setblock`+`/fill` per second in bursts since each command completes in <1ms.
+- **Rails coexist with redstone, not replace.** `WithMinecartRails()` runs alongside `WithRedstoneDependencyGraph()` with 1-block X offset. Both visual systems provide different information: redstone shows health reactivity, rails show physical connection.
+- **Grand Village is opt-in** via `WithGrandVillage()`. Standard 7×7 layout remains the default. No breaking changes for existing consumers.
+- **15 GitHub issues created** (#76-90) covering: layout foundation, extension methods, 6 building redesigns, rail service, burst mode, fence/paths/forceload, service adaptation, tests, documentation, and release prep.
+- **7 architectural decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint5-grand-village.md`.
+- **Key risk: Grand Silo (radius 7 cylinder) at ~130 commands** is the most expensive building due to circular geometry not being `/fill`-friendly. Octagonal approximation may reduce by ~30%.
+- **Phased plan:** Phase 1 Layout (Shuri), Phase 2 Buildings (Rocket, 3 parallel tracks), Phase 3 Rails (Rocket), Phase 4 Tests/Docs (Nebula/Rhodey), Phase 5 Polish (Rhodey). ~2 weeks total with parallel execution.
+
+📌 Team update (2026-02-12): Sprint 5 "Grand Village" architecture designed — 15×15 walkable buildings, multi-story watchtowers, minecart rail network, RCON burst mode — 15 issues created (#76-90) — decided by Rhodey
+
 ### Upcoming Sprint 5 Planning
 
 - **Three pillars requested by Jeff:** (1) Larger walkable buildings — scale up to 20+ blocks, navigable interiors. (2) Ornate project towers — themed materials by technology stack. (3) Minecart rail network — connects dependent resources, visual build order representation.

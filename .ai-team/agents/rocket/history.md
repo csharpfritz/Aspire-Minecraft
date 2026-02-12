@@ -218,3 +218,19 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 
 📌 Team update (2026-02-12): Dashboard lamps use self-luminous blocks instead of redstone power (glowstone=healthy, redstone_lamp unlit=unhealthy, sea_lantern=unknown). All 382 tests pass. — decided by Rocket
 📌 Team update (2026-02-12): Village buildings use language-based color coding (Project=purple, Node=yellow, Python=blue, Go=cyan, Java=orange, Rust=brown, Unknown=white) for wool trim and banners instead of uniform colors. All 382 tests pass. — decided by Rocket
+
+### Easter Egg: Fritz's Horses (2026-02-12)
+
+**Implementation:** `HorseSpawnService` — singleton (not feature-gated) spawns three named horses inside the village fence. Charmer (black, variant 4), Dancer (brown paint, variant 515), Toby (appaloosa, variant 768). Spawned once after structures are built, tracked by `_horsesSpawned` bool.
+
+**Key decisions:**
+- Registered as always-on singleton, NOT behind a feature flag — easter eggs should just be there.
+- Non-nullable constructor parameter in `MinecraftWorldWorker` (unlike opt-in features which are nullable).
+- Horses placed in the south clearance area between fence and first structure row (BaseZ - 2), spaced 2 blocks apart.
+- `Tame:1b` keeps them calm; `NoAI:0b` lets them wander; `PersistenceRequired:1b` prevents despawn.
+- JSON text component `CustomName` with per-horse color coding (dark_gray/gold/white) and bold text.
+- Horse variant formula: `color + (marking * 256)`. Colors: 0=white, 1=creamy, 2=chestnut, 3=brown, 4=black. Markings: 0=none, 1=stockings, 2=white_field, 3=white_dots.
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/HorseSpawnService.cs` — horse spawn logic
+- `src/Aspire.Hosting.Minecraft.Worker/Program.cs` — singleton registration + worker constructor wiring
