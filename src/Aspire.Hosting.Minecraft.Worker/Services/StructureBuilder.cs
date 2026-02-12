@@ -3,6 +3,22 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
+/// Describes the entrance to a structure: where the door is, and derived positions
+/// for the health indicator glow block and resource name sign.
+/// </summary>
+/// <param name="CenterX">X coordinate at the center of the door opening.</param>
+/// <param name="TopY">Y coordinate of the topmost block of the door opening.</param>
+/// <param name="FaceZ">Z coordinate of the wall face containing the door.</param>
+internal readonly record struct DoorPosition(int CenterX, int TopY, int FaceZ)
+{
+    /// <summary>The glow block goes directly above the door, centered, flush with the wall.</summary>
+    public (int X, int Y, int Z) GlowBlock => (CenterX, TopY + 1, FaceZ);
+
+    /// <summary>The sign goes outside the door (one block in front), offset one block to the right.</summary>
+    public (int X, int Y, int Z) Sign => (CenterX - 1, TopY - 1, FaceZ - 1);
+}
+
+/// <summary>
 /// Builds themed village structures in the Minecraft world representing each Aspire resource.
 /// Structure type is selected by resource type: Project=Watchtower, Container=Warehouse,
 /// Executable=Workshop, Unknown=Cottage. Laid out in a 2×N grid with cobblestone paths.
@@ -16,6 +32,7 @@ internal sealed class StructureBuilder(
     private bool _fenceBuilt;
     private bool _initialBuildComplete;
     private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DoorPosition> _doorPositions = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Builds or updates structures for all monitored resources.
@@ -51,9 +68,10 @@ internal sealed class StructureBuilder(
                     // Only update health indicator, not rebuild entire structure
                     try
                     {
-                        var (x, y, z) = VillageLayout.GetStructureOrigin(index);
-                        var structureType = GetStructureType(info.Type);
-                        await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
+                        if (_doorPositions.TryGetValue(name, out var doorPos))
+                        {
+                            await PlaceHealthIndicatorAsync(doorPos, info.Status, ct);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -260,27 +278,18 @@ internal sealed class StructureBuilder(
 
             var structureType = GetStructureType(info.Type);
 
-            switch (structureType)
+            // Each builder returns its door position — single source of truth
+            DoorPosition door = structureType switch
             {
-                case "Watchtower":
-                    await BuildWatchtowerAsync(x, y, z, info, ct);
-                    break;
-                case "Warehouse":
-                    await BuildWarehouseAsync(x, y, z, info, ct);
-                    break;
-                case "Workshop":
-                    await BuildWorkshopAsync(x, y, z, ct);
-                    break;
-                case "Cylinder":
-                    await BuildCylinderAsync(x, y, z, ct);
-                    break;
-                case "AzureThemed":
-                    await BuildAzureThemedAsync(x, y, z, info, ct);
-                    break;
-                default:
-                    await BuildCottageAsync(x, y, z, info, ct);
-                    break;
-            }
+                "Watchtower" => await BuildWatchtowerAsync(x, y, z, info, ct),
+                "Warehouse" => await BuildWarehouseAsync(x, y, z, info, ct),
+                "Workshop" => await BuildWorkshopAsync(x, y, z, ct),
+                "Cylinder" => await BuildCylinderAsync(x, y, z, ct),
+                "AzureThemed" => await BuildAzureThemedAsync(x, y, z, info, ct),
+                _ => await BuildCottageAsync(x, y, z, info, ct),
+            };
+
+            _doorPositions[info.Name] = door;
 
             // Azure resources get a light blue banner on the rooftop
             if (IsAzureResource(info.Type))
@@ -288,11 +297,11 @@ internal sealed class StructureBuilder(
                 await PlaceAzureBannerAsync(x, y, z, structureType, ct);
             }
 
-            // Health indicator: redstone lamp in wall, powered = healthy
-            await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
+            // Health indicator glow block — placed directly above the door
+            await PlaceHealthIndicatorAsync(door, info.Status, ct);
 
-            // Sign with resource name at the entrance
-            await PlaceSignAsync(x, y, z, info, ct);
+            // Sign with resource name — placed just outside the door
+            await PlaceSignAsync(door, info, ct);
 
             logger.LogInformation("Village structure built: {ResourceName} ({StructureType}) at ({X},{Y},{Z})",
                 info.Name, structureType, x, y, z);
@@ -307,7 +316,7 @@ internal sealed class StructureBuilder(
     /// Watchtower — tall, narrow tower with flag. Project (.NET app) resources.
     /// Stone brick walls, language-colored wool/banner accents, ~7×7 footprint, 10 blocks tall.
     /// </summary>
-    private async Task BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
 
@@ -357,6 +366,8 @@ internal sealed class StructureBuilder(
         // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y + 1} {z + 1} {x + 4} {y + 3} {z + 1} minecraft:air", ct);
+
+        return new DoorPosition(x + 3, y + 3, z + 1);
     }
 
     /// <summary>
@@ -365,12 +376,11 @@ internal sealed class StructureBuilder(
     /// Grand: Iron block frame with deepslate brick infill, 15×15 footprint, 8 blocks tall,
     /// 5-wide cargo bay entrance, loading dock, furnished interior.
     /// </summary>
-    private async Task BuildWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         if (VillageLayout.StructureSize >= 15)
         {
-            await BuildGrandWarehouseAsync(x, y, z, info, ct);
-            return;
+            return await BuildGrandWarehouseAsync(x, y, z, info, ct);
         }
 
         // Foundation: 7×7 iron block floor
@@ -408,6 +418,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + 1} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 5} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
+
+        return new DoorPosition(x + 3, y + 3, z);
     }
 
     /// <summary>
@@ -416,7 +428,7 @@ internal sealed class StructureBuilder(
     /// purple stained glass clerestory windows, stone brick loading dock with fence railings,
     /// 8 barrels, 2 chest rows, iron block columns, hanging lanterns, resource name sign.
     /// </summary>
-    private async Task BuildGrandWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var s = VillageLayout.StructureSize - 1; // 14
 
@@ -537,6 +549,8 @@ internal sealed class StructureBuilder(
             "\"(Container)\"," +
             "\"\"]}}";
         await rcon.SendCommandAsync(signCmd, ct);
+
+        return new DoorPosition(x + 7, y + 4, z);
     }
 
     /// <summary>
@@ -544,12 +558,11 @@ internal sealed class StructureBuilder(
     /// Standard (7×7): Oak planks walls, cyan stained glass accents, 6 blocks tall.
     /// Grand (15×15): Spruce log frame, A-frame peaked roof, loft, full tool stations, 10 blocks tall.
     /// </summary>
-    private async Task BuildWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildWorkshopAsync(int x, int y, int z, CancellationToken ct)
     {
         if (VillageLayout.StructureSize >= 15)
         {
-            await BuildGrandWorkshopAsync(x, y, z, ct);
-            return;
+            return await BuildGrandWorkshopAsync(x, y, z, ct);
         }
 
         // Foundation: 7×7 oak planks floor
@@ -595,6 +608,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + 2} {y + 1} {z + 5} minecraft:crafting_table", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 4} {y + 1} {z + 5} minecraft:anvil", ct);
+
+        return new DoorPosition(x + 3, y + 2, z);
     }
 
     /// <summary>
@@ -606,7 +621,7 @@ internal sealed class StructureBuilder(
     /// Loft at y+6: half-floor accessible by ladder, storage barrels, bookshelf.
     /// ~60 RCON commands.
     /// </summary>
-    private async Task BuildGrandWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandWorkshopAsync(int x, int y, int z, CancellationToken ct)
     {
         var s = VillageLayout.StructureSize - 1; // 14
 
@@ -742,6 +757,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + s - 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 7} {y + 5} {z + s - 4} minecraft:lantern[hanging=true]", ct);
+
+        return new DoorPosition(x + 7, y + 3, z);
     }
 
     /// <summary>
@@ -751,12 +768,11 @@ internal sealed class StructureBuilder(
     /// language-colored wool trim at roof level, cobblestone slab pitched roof,
     /// flower pots and window boxes on front face, furnished interior.
     /// </summary>
-    private async Task BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         if (VillageLayout.StructureSize == 15)
         {
-            await BuildGrandCottageAsync(x, y, z, info, ct);
-            return;
+            return await BuildGrandCottageAsync(x, y, z, info, ct);
         }
 
         var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
@@ -796,6 +812,8 @@ internal sealed class StructureBuilder(
             $"setblock {x} {y + 2} {z + 3} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 6} {y + 2} {z + 3} minecraft:glass_pane", ct);
+
+        return new DoorPosition(x + 3, y + 2, z);
     }
 
     /// <summary>
@@ -806,7 +824,7 @@ internal sealed class StructureBuilder(
     /// Interior: bed, crafting table, bookshelf, furnace, 2 chests, potted flowers, 4 torches.
     /// ~40-50 RCON commands.
     /// </summary>
-    private async Task BuildGrandCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
         var s = VillageLayout.StructureSize - 1; // 14
@@ -912,6 +930,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + s - 1} {y + 3} {z + s - 1} minecraft:wall_torch[facing=north]", ct);
 
         logger.LogInformation("Grand Cottage built at ({X},{Y},{Z})", x, y, z);
+
+        return new DoorPosition(x + half, y + 2, z);
     }
 
     /// <summary>
@@ -919,12 +939,11 @@ internal sealed class StructureBuilder(
     /// Standard (7×7): Smooth stone walls, polished deepslate floor and dome, radius 3.
     /// Grand (15×15): Two-floor silo with copper pillar, iron server racks, bookshelf ring.
     /// </summary>
-    private async Task BuildCylinderAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildCylinderAsync(int x, int y, int z, CancellationToken ct)
     {
         if (VillageLayout.StructureSize >= 15)
         {
-            await BuildGrandCylinderAsync(x, y, z, ct);
-            return;
+            return await BuildGrandCylinderAsync(x, y, z, ct);
         }
 
         // === FLOOR (y+0): polished deepslate disc ===
@@ -1031,6 +1050,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + 1} {y + 1} {z + 1} minecraft:iron_block", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 5} {y + 1} {z + 1} minecraft:iron_block", ct);
+
+        return new DoorPosition(x + 3, y + 2, z);
     }
 
     /// <summary>
@@ -1042,7 +1063,7 @@ internal sealed class StructureBuilder(
     /// Central copper pillar from floor to ceiling.
     /// ~120-140 RCON commands — uses pre-calculated circle coordinates and /fill per row.
     /// </summary>
-    private async Task BuildGrandCylinderAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandCylinderAsync(int x, int y, int z, CancellationToken ct)
     {
         // Pre-calculated radius-7 circle row spans: (dz, xMin, xMax) relative to origin
         // Symmetric circle inscribed in the 15×15 footprint (indices 0–14)
@@ -1227,6 +1248,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + 9} {y + 8} {z + 3} minecraft:oak_wall_sign[facing=south]", ct);
 
         logger.LogInformation("Grand Silo (database cylinder) built at ({X},{Y},{Z})", x, y, z);
+
+        return new DoorPosition(x + 7, y + 2, z);
     }
 
     /// <summary>
@@ -1235,12 +1258,11 @@ internal sealed class StructureBuilder(
     /// Grand (15×15): 8 blocks tall, pilaster strips, 3×3 skylight, banners on all 4 roof corners,
     /// light blue carpet floor, blue stained glass internal windows, brewing stand and cauldron.
     /// </summary>
-    private async Task BuildAzureThemedAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildAzureThemedAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         if (VillageLayout.StructureSize == 15)
         {
-            await BuildGrandAzurePavilionAsync(x, y, z, info, ct);
-            return;
+            return await BuildGrandAzurePavilionAsync(x, y, z, info, ct);
         }
 
         // Foundation: 7×7 light blue concrete floor
@@ -1282,6 +1304,8 @@ internal sealed class StructureBuilder(
         // Azure banner on roof (always for AzureThemed)
         await rcon.SendCommandAsync(
             $"setblock {x + 3} {y + 6} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
+
+        return new DoorPosition(x + 3, y + 2, z);
     }
 
     /// <summary>
@@ -1293,7 +1317,7 @@ internal sealed class StructureBuilder(
     /// brewing stand and cauldron (cloud services aesthetic).
     /// ~50-60 RCON commands.
     /// </summary>
-    private async Task BuildGrandAzurePavilionAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandAzurePavilionAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var s = VillageLayout.StructureSize - 1; // 14
         var half = s / 2; // 7
@@ -1399,6 +1423,8 @@ internal sealed class StructureBuilder(
             $"setblock {x + 10} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
 
         logger.LogInformation("Grand Azure Pavilion built at ({X},{Y},{Z})", x, y, z);
+
+        return new DoorPosition(x + half, y + 2, z);
     }
 
     /// <summary>
@@ -1436,10 +1462,11 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
-    /// Places a health indicator lamp in the front wall, adapting position to structure type.
+    /// Places a health indicator lamp directly above the door.
+    /// Position is derived from the door — no per-building-type logic needed.
     /// Healthy = glowstone (always lit), Unhealthy = redstone lamp (unlit), Unknown = sea lantern.
     /// </summary>
-    private async Task PlaceHealthIndicatorAsync(int x, int y, int z, string structureType, ResourceStatus status, CancellationToken ct)
+    private async Task PlaceHealthIndicatorAsync(DoorPosition door, ResourceStatus status, CancellationToken ct)
     {
         var lampBlock = status switch
         {
@@ -1448,50 +1475,18 @@ internal sealed class StructureBuilder(
             _ => "minecraft:sea_lantern"
         };
 
-        var isGrand = VillageLayout.StructureSize >= 15;
-
-        // RULE: Glow block is ALWAYS placed just above the door, flush with the front wall.
-        // All buildings have doors on the front (z-min) face.
-        // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), all others at z.
-        var lampZ = structureType == "Watchtower" ? z + 1 : z;
-
-        // Lamp Y is one block above the top of the door opening.
-        // Standard buildings: 2-tall doors (y+1 to y+2) → lamp at y+3
-        // Watchtower: 3-tall door (y+1 to y+3) → lamp at y+4
-        // Grand Warehouse: 4-tall cargo door (y+1 to y+4) → lamp at y+5
-        // Grand Workshop/Cylinder: 3-tall door opening (y+1 to y+3) → lamp at y+4
-        var lampY = structureType switch
-        {
-            "Warehouse" when isGrand => y + 5,
-            "Watchtower" => y + 4,
-            "Workshop" when isGrand => y + 4,
-            "Cylinder" when isGrand => y + 4,
-            _ => y + 3
-        };
-
-        // Center X: centered above the door
-        var half = VillageLayout.StructureSize / 2;
-        var lampX = isGrand ? x + half : x + 3;
-
-        // Place flush with the front wall, centered above the entrance
+        var (lampX, lampY, lampZ) = door.GlowBlock;
         await rcon.SendCommandAsync(
             $"setblock {lampX} {lampY} {lampZ} {lampBlock}", ct);
     }
 
     /// <summary>
-    /// Places a sign in front of the structure with the resource name and status.
-    /// Sign is placed offset from the door entrance (at x+2 instead of x+3).
+    /// Places a sign just outside the door with the resource name and status.
+    /// Position is derived from the door — one block in front, offset to the right.
     /// </summary>
-    private async Task PlaceSignAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    private async Task PlaceSignAsync(DoorPosition door, ResourceInfo info, CancellationToken ct)
     {
-        var isGrand = VillageLayout.StructureSize >= 15;
-        var half = VillageLayout.StructureSize / 2;
-        var structureType = GetStructureType(info.Type);
-
-        // Grand cylinder: sign outside the front entrance
-        var signX = structureType == "Cylinder" && isGrand ? x + half - 1 : x + half - 1;
-        var signY = y + 1;
-        var signZ = structureType == "Cylinder" && isGrand ? z - 1 : z - 1;
+        var (signX, signY, signZ) = door.Sign;
 
         await rcon.SendCommandAsync(
             $"setblock {signX} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);

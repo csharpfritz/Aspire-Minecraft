@@ -419,7 +419,7 @@ public class StructureBuilderTests : IAsyncLifetime
     // ====================================================================
 
     /// <summary>
-    /// Watchtower (Project): front wall at z+1, 3-tall door → lamp at y+4, z+1.
+    /// Watchtower (Project): 3-tall door (y+1 to y+3) at z+1 → glow at TopY+1 = y+4.
     /// Standard layout: structure at (10, -59, 0) → lamp at (13, -55, 1).
     /// </summary>
     [Fact]
@@ -441,8 +441,8 @@ public class StructureBuilderTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Warehouse (Container): front wall at z, 2-tall door → lamp at y+3, z.
-    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
+    /// Warehouse (Container): 3-tall door (y+1 to y+3) → glow at TopY+1 = y+4.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -55, 0).
     /// </summary>
     [Fact]
     public async Task HealthIndicator_Warehouse_PlacedAboveDoorFlushWithFrontWall()
@@ -455,15 +455,15 @@ public class StructureBuilderTests : IAsyncLifetime
         await _structureBuilder.UpdateStructuresAsync();
 
         var commands = _server.GetCommands();
-        // Warehouse at (10, -59, 0): lampX=13, lampY=-56, lampZ=0
+        // Warehouse at (10, -59, 0): door top y+3=-56, glow at -55
         var healthCmd = commands.FirstOrDefault(c =>
-            c.Contains("setblock 13 -56 0 minecraft:glowstone"));
+            c.Contains("setblock 13 -55 0 minecraft:glowstone"));
 
         Assert.NotNull(healthCmd);
     }
 
     /// <summary>
-    /// Workshop (Executable): front wall at z, 2-tall door → lamp at y+3, z.
+    /// Workshop (Executable): 2-tall door (y+1 to y+2) → glow at TopY+1 = y+3.
     /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
     /// </summary>
     [Fact]
@@ -627,8 +627,8 @@ public class StructureBuilderTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Grand Cylinder/Silo: 3-tall door opening → lamp at y+4, front wall z.
-    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -55, 0).
+    /// Grand Cylinder/Silo: 2-tall iron door (y+1 to y+2) → lamp at y+3, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -56, 0).
     /// NOT at z+4 (which would be inside the building).
     /// </summary>
     [Fact]
@@ -643,9 +643,9 @@ public class StructureBuilderTests : IAsyncLifetime
         await _structureBuilder.UpdateStructuresAsync();
 
         var commands = _server.GetCommands();
-        // Grand Cylinder at (10, -59, 0): lampX=17, lampY=-55, lampZ=0
+        // Grand Cylinder at (10, -59, 0): lampX=17, lampY=-56, lampZ=0
         var healthCmd = commands.FirstOrDefault(c =>
-            c.Contains("setblock 17 -55 0 minecraft:glowstone"));
+            c.Contains("setblock 17 -56 0 minecraft:glowstone"));
 
         Assert.NotNull(healthCmd);
     }
