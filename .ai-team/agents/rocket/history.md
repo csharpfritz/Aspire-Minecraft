@@ -268,4 +268,32 @@ Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `ID
 
 **Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
 
+### Grand Watchtower (Milestone 5, Issue #78)
+
+**Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize == 15` (Grand mode); standard 7×7 watchtower remains the fallback.
+
+**Architecture:**
+- Stone brick walls built in 3 sections using `fill ... hollow` (y+1..y+6, y+7..y+12, y+13..y+18), each defining one floor.
+- 4 polished andesite corner buttresses (2×2) rising full height to y+19.
+- Interior cleared per floor after walls are built to create walkable rooms.
+- Language-colored wool bands at each floor boundary (y+6, y+12, y+18) on all 4 faces.
+- 24 arrow slit windows (8 per floor, 2 per face per floor) using glass panes.
+- Crenellated battlements at y+19 — solid stone brick row then every-other-block carved to air.
+- Spiral staircase: 2 flights of 6 oak stairs along north interior wall (z+s-2), with oak plank landings.
+- Floor 1: entrance hall with crafting table and 4 wall torches.
+- Floor 2: enchanting table centered with 2 rows of bookshelves against south wall.
+- Floor 3: observation deck with lectern and 4 hanging lanterns.
+- Roof: stone brick slab cap at y+19, 4 language-colored banners at corner posts (y+20).
+- Iron door entrance: archway (stone brick frame at x+5 and x+9) with 3-wide × 3-tall door opening at z+1. Door cleared LAST.
+- Health indicator: adapted to grand layout — lamp at x+7 (centered on 15-wide) instead of x+3.
+- Azure banner: roof Y adjusted to y+19 for grand variant.
+
+**RCON command count:** ~95 commands (within the 85-100 budget). Maximizes `/fill` for walls, wool bands, and battlements. Uses `/setblock` for windows, stairs, and furniture.
+
+**Key learnings:**
+- For multi-story structures, building walls with separate `fill ... hollow` per floor section and then clearing interiors works well — more reliable than trying to clear a 20-tall interior column.
+- Crenellations: fill a complete row of stone brick, then carve gaps with air at every-other-block. More efficient than placing individual merlons.
+- Door openings in multi-layer builds must be cleared LAST to avoid being overwritten by subsequent wall/wool fills.
+- Grand variant branching inside the existing method (check `VillageLayout.StructureSize`) keeps the routing in `BuildResourceStructureAsync` unchanged.
+
 📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket
