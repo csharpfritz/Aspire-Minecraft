@@ -717,6 +717,24 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables a Redstone Dashboard wall west of the village that displays real-time health history using redstone lamps.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithRedstoneDashboard(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithRedstoneDashboard() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_REDSTONE_DASHBOARD", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
@@ -724,7 +742,7 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithBeaconTowers"/>, <see cref="WithFireworks"/>, <see cref="WithGuardianMobs"/>,
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
     /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
-    /// <see cref="WithPeacefulMode"/>, and <see cref="WithRconDebugLogging"/>.
+    /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, and <see cref="WithRconDebugLogging"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -754,6 +772,7 @@ public static class MinecraftServerBuilderExtensions
             .WithRedstoneDependencyGraph()
             .WithServiceSwitches()
             .WithPeacefulMode()
+            .WithRedstoneDashboard()
             .WithRconDebugLogging();
     }
 

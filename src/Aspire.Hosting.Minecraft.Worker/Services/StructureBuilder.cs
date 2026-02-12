@@ -637,8 +637,12 @@ internal sealed class StructureBuilder(
         var lampZ = structureType == "Watchtower" ? z + 1 : z;
         
         // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
-        // Workshop and Cottage have 2-tall doors (y+1 to y+2), so y+3 is fine.
-        var lampY = (structureType is "Watchtower" or "Warehouse") ? y + 4 : y + 3;
+        // Workshop, Cottage, Cylinder, and AzureThemed have 2-tall doors (y+1 to y+2), so y+3 is fine.
+        var lampY = structureType switch
+        {
+            "Watchtower" or "Warehouse" => y + 4,
+            "Cylinder" or "AzureThemed" or "Workshop" or "Cottage" or _ => y + 3
+        };
         
         // Place in front wall centered above entrance
         await rcon.SendCommandAsync(

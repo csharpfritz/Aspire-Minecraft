@@ -86,6 +86,10 @@ if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"] == "true")
     builder.Services.AddSingleton<RedstoneDependencyService>();
 if (builder.Configuration["ASPIRE_FEATURE_SWITCHES"] == "true")
     builder.Services.AddSingleton<ServiceSwitchService>();
+if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_DASHBOARD"] == "true")
+{
+    // Will be wired up when RedstoneDashboardService is implemented
+}
 
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
