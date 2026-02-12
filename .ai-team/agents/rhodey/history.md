@@ -144,3 +144,22 @@
 - **Three pillars requested by Jeff:** (1) Larger walkable buildings — scale up to 20+ blocks, navigable interiors. (2) Ornate project towers — themed materials by technology stack. (3) Minecart rail network — connects dependent resources, visual build order representation.
 - **Technical feasibility assessed:** Language color coding logic is foundation for ornate towers. Pathfinding via `execute` commands feasible. No hard blockers identified.
 - **Out of scope for Sprint 4:** All three pillars are multi-sprint features for v0.4/Sprint 5+.
+
+### 2026-02-12: Famous Buildings Feature — API Design
+
+- **New API pattern: extension method on monitored resources, not on Minecraft server.** `AsMinecraftFamousBuilding()` extends `IResourceBuilder<T> where T : IResource`, using `FamousBuildingAnnotation` to store the selection. This is the first extension method in the project that targets arbitrary Aspire resources rather than `MinecraftServerResource`. The annotation-based approach with deferred env var callback guarantees call-order independence.
+- **Data flow pattern for resource metadata:** AppHost annotation → `WithMonitoredResource` reads annotation → sets `ASPIRE_RESOURCE_{NAME}_FAMOUS_BUILDING` env var on worker → `AspireResourceMonitor.DiscoverResources()` reads it → `StructureBuilder` checks before auto-detection. This extends the existing `_TYPE`/`_URL`/`_HOST`/`_PORT`/`_DEPENDS_ON` env var convention.
+- **Building models are pure C#, one file per building.** Located in `src/Aspire.Hosting.Minecraft.Worker/Services/FamousBuildingModels/`. Implements `IFamousBuildingModel` interface with `Width`, `Depth`, `Height`, and `BuildAsync()`. Shared geometry helpers in `BuildingHelpers.cs`.
+- **FamousBuilding enum has 15 members** spanning 6 continents. All constrained to 15×15 footprint, 200 RCON command cap. Requires `WithGrandVillage()` — falls back to auto-detection on 7×7 grid.
+- **Two-sprint phasing:** Sprint A = API + infrastructure + 3 starter models (Pyramid, Castle, Lighthouse). Sprint B = remaining 12 models. Depends on Sprint 5 Grand Village layout landing first.
+- **Design document:** `docs/designs/famous-buildings-design.md`. Decision log: `.ai-team/decisions/inbox/rhodey-famous-buildings-design.md`.
+- **Key files:** `FamousBuilding.cs` (enum), `FamousBuildingAnnotation.cs` (annotation), `FamousBuildingExtensions.cs` (extension method) — all in `src/Aspire.Hosting.Minecraft/`.
+
+### 2026-02-12: MonitorAllResources Convenience API — Architecture Design
+
+- **Eager discovery over deferred eventing.** `MonitorAllResources()` iterates `builder.ApplicationBuilder.Resources` at call time (Option A) rather than subscribing to `BeforeStartEvent` (Option B). Rationale: consistency with existing `WithMonitoredResource` (which is eager), predictability for debugging, and avoidance of builder-state risks during Aspire's `BeforeStartEvent`. The constraint that resources must exist before the call is naturally satisfied by AppHost coding patterns.
+- **Structural exclusion, not name-based.** Minecraft infrastructure (server, worker, children) is excluded via object identity (`ReferenceEquals`) and `IResourceWithParent` graph traversal. This automatically covers BlueMap sidecars and any future infrastructure without maintaining name allowlists.
+- **ExcludeFromMonitoring ships alongside.** Annotation-based opt-out via `ExcludeFromMonitoringAnnotation` — trivial to implement (1 annotation class + 1 extension method + 1 line in exclusion check) and completes the user story.
+- **Naming: `MonitorAllResources()` not `WithAllMonitoredResources()`.** Breaks the `With*` convention intentionally — it's a convenience aggregate, not a feature toggle. The verb phrase reads naturally and distinguishes it from the per-resource method.
+- **Duplicate prevention is bidirectional.** `MonitoredResourceNames.Contains()` check prevents duplicates when manual calls precede `MonitorAllResources()`. Calls after are additive and safe (env vars are idempotent).
+- **Design document:** `docs/designs/monitor-all-resources-design.md`. Decision: `.ai-team/decisions/inbox/rhodey-monitor-all-resources.md`.
