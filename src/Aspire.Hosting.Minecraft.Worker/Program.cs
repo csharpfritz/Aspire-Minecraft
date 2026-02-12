@@ -53,6 +53,13 @@ if (builder.Configuration["ASPIRE_FEATURE_GRAND_VILLAGE"] == "true")
     VillageLayout.ConfigureGrandLayout();
 }
 
+// Minecart rail network — register service when enabled
+if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
+{
+    // MinecartRailService will be implemented in a future milestone;
+    // the env var flag is wired up and ready for service registration.
+}
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
@@ -171,8 +178,10 @@ file sealed class MinecraftWorldWorker(
         logger.LogInformation("Connected to Minecraft server via RCON");
 
         // Force-load the village chunks so block commands work before any player joins.
-        // Covers a generous area around the village grid (BaseX=10, BaseZ=0) plus margins.
-        await rcon.SendCommandAsync("forceload add -20 -20 120 120", stoppingToken);
+        // Dynamically calculated from fence perimeter with extra margin.
+        var (flMinX, flMinZ, flMaxX, flMaxZ) = VillageLayout.GetFencePerimeter(10);
+        await rcon.SendCommandAsync(
+            $"forceload add {flMinX - 10} {flMinZ - 10} {flMaxX + 10} {flMaxZ + 10}", stoppingToken);
         logger.LogInformation("Village chunks force-loaded");
 
         // Detect terrain surface height before building anything

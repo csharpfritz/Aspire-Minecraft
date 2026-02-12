@@ -2,6 +2,12 @@ using Aspire.Hosting.Minecraft;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// ──────────────────────────────────────────────────────────
+// Toggle: set to true for the Grand Village (Milestone 5),
+//         set to false for the classic compact village.
+// ──────────────────────────────────────────────────────────
+var useGrandVillage = true;
+
 // Add supporting services (these will be visualized in the Minecraft world)
 var redis = builder.AddRedis("cache");
 
@@ -33,21 +39,21 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
 
-    // Sprint 1 — Core feedback
+    // Core feedback
     .WithTitleAlerts()
     .WithWeatherEffects()
     .WithBossBar("Minecraft Demo")
     .WithSoundEffects()
     .WithParticleEffects()
 
-    // Sprint 2 — Atmosphere & delight
+    // Atmosphere & delight
     .WithActionBarTicker()
     .WithBeaconTowers()
     .WithFireworks()
     .WithGuardianMobs()
     .WithDeploymentFanfare()
 
-    // Sprint 3 — Showstopper
+    // Showstopper
     .WithWorldBorderPulse()
     .WithHeartbeat()
     .WithAchievements()
@@ -55,7 +61,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithServiceSwitches()
     .WithPeacefulMode()
 
-    // Sprint 4 — Visual Identity & Dashboard
+    // Visual Identity & Dashboard
     .WithRedstoneDashboard()
 
     // Monitored resources — each gets in-world representation
@@ -63,5 +69,13 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithMonitoredResource(web)
     .WithMonitoredResource(redis)
     .WithMonitoredResource(pg);
+
+// Grand Village: enlarged 15×15 buildings, minecart rail network
+if (useGrandVillage)
+{
+    minecraft
+        .WithGrandVillage()
+        .WithMinecartRails();
+}
 
 builder.Build().Run();

@@ -71,7 +71,7 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("SPAWN_ANIMALS", "FALSE")
             .WithEnvironment("SPAWN_MONSTERS", "FALSE")
             .WithEnvironment("SPAWN_NPCS", "FALSE")
-            .WithEnvironment("MAX_WORLD_SIZE", "256")
+            .WithEnvironment("MAX_WORLD_SIZE", "512")
             .WithEnvironment(context =>
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
@@ -733,6 +733,46 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables the Grand Village layout with enlarged, walkable buildings.
+    /// Replaces the standard 7×7 village layout with 15×15 structures
+    /// that have furnished interiors, proper lighting, and multiple floors.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithGrandVillage(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithGrandVillage() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_GRAND_VILLAGE", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables the minecart rail network connecting dependent resources.
+    /// Powered rails with automated chest minecarts run between buildings
+    /// that have dependency relationships. Complementary to redstone wiring.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithMinecartRails(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithMinecartRails() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_MINECART_RAILS", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
@@ -740,7 +780,8 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithBeaconTowers"/>, <see cref="WithFireworks"/>, <see cref="WithGuardianMobs"/>,
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
     /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
-    /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, and <see cref="WithRconDebugLogging"/>.
+    /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
+    /// <see cref="WithGrandVillage"/>, and <see cref="WithMinecartRails"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -771,7 +812,9 @@ public static class MinecraftServerBuilderExtensions
             .WithServiceSwitches()
             .WithPeacefulMode()
             .WithRedstoneDashboard()
-            .WithRconDebugLogging();
+            .WithRconDebugLogging()
+            .WithGrandVillage()
+            .WithMinecartRails();
     }
 
     /// <summary>
