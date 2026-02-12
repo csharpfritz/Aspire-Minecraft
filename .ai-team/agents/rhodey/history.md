@@ -110,3 +110,21 @@
 - **Key design principle:** Azure detection is a visual signal (banner), not an architectural integration. String matching on resource types keeps the main package free of Azure SDK dependencies, consistent with the separate-package decision from Sprint 2.
 - **Cylinder RCON cost is ~88 commands** (4× a watchtower) due to circular geometry. Acceptable as one-time build; databases are typically <30% of resources.
 - **Decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint4-design.md` (7 decisions).
+
+### 2026-02-12: BlueMap Integration Testing Strategy Design
+
+- **BlueMap has no block-level REST API.** Its web server serves pre-rendered tile files (geometry JSON and PNGs). There is no endpoint to query "what block is at X,Y,Z?" — only a Java API for server-side plugins. This rules out BlueMap REST as a primary test verification method.
+- **RCON `execute if block` is the right primary approach.** The command checks if a specific block type exists at exact coordinates and returns empty string on match. It's immediate (no render delay), deterministic, and uses our existing `RconClient` library. Combined with `VillageLayout` constants, we can assert exact block placement.
+- **Playwright/BlueMap screenshots are secondary, not primary.** 3D rendering is non-deterministic (lighting, camera angle, anti-aliasing). BlueMap needs 30–60s to render after blocks are placed. Screenshot comparison requires reference images and tolerance tuning. Good for visual regression but not for correctness assertions.
+- **Shared fixture is mandatory for test performance.** Minecraft server takes 45–60s to start. A single `MinecraftAppFixture` using `DistributedApplicationTestingBuilder` starts the AppHost once per test run. Tests share the fixture via xUnit `[CollectionFixture]`.
+- **Poll-based readiness beats fixed delays.** The fixture polls `execute if block` on a known coordinate (first structure corner) every 5s until the village is confirmed built. This adapts to variable server startup times instead of hoping a `Task.Delay(90000)` is enough.
+- **Integration tests belong in a separate project with Linux-only CI.** They're slow (2–3 min), require Docker, and should not block PR CI. Run as a gated job after unit tests pass, on `main` and release branches only.
+- **Design document written** at `docs/designs/bluemap-integration-tests.md` with architecture, sample code, first 5 tests, CI considerations, and risk analysis.
+
+📌 Team update (2026-02-12): BlueMap integration testing strategy designed — hybrid RCON verification + BlueMap smoke tests, shared Aspire test fixture, Linux-only CI job — decided by Rhodey
+
+### Upcoming Sprint 5 Planning
+
+- **Three pillars requested by Jeff:** (1) Larger walkable buildings — scale up to 20+ blocks, navigable interiors. (2) Ornate project towers — themed materials by technology stack. (3) Minecart rail network — connects dependent resources, visual build order representation.
+- **Technical feasibility assessed:** Language color coding logic is foundation for ornate towers. Pathfinding via `execute` commands feasible. No hard blockers identified.
+- **Out of scope for Sprint 4:** All three pillars are multi-sprint features for v0.4/Sprint 5+.

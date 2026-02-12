@@ -194,3 +194,27 @@ Increased `VillageLayout.Spacing` from 10 to 12 to give a comfortable 5-block wa
 Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo` and use `GetLanguageColor` for wool trim and banner blocks. Cylinder and AzureThemed buildings keep their own identity materials (smooth_stone/polished_deepslate and light_blue_concrete/blue_concrete respectively). Workshop and Warehouse don't have wool trim, so no color changes needed.
 
 **Key learning:** Minecraft `wall_banner` blocks require a solid block behind them (in the `facing` direction). Oak fence counts as support. Standing banners (`banner[rotation=N]`) need a solid block beneath them. For flagpole-mounted banners, wall banners facing away from the pole are the correct approach.
+
+### Dashboard Redstone Elimination Fix (2026-02-12)
+
+**Bug:** Dashboard lamps lit briefly then went dark. Root cause: `redstone_block` power propagation via RCON `/setblock` and `/clone` is unreliable on Paper servers — block updates don't propagate consistently, especially during scroll cycles.
+
+**Fix:** Eliminated the entire redstone power layer (`x-1`). Replaced indirect lighting (redstone_block → redstone_lamp) with direct self-luminous blocks at the lamp layer (`x`):
+- **Healthy** → `minecraft:glowstone` (warm glow, always lit)
+- **Unhealthy** → `minecraft:redstone_lamp` (unlit by default when unpowered — dark = unhealthy)
+- **Unknown** → `minecraft:sea_lantern` (blue-green glow, distinct from healthy)
+
+**Changes to `RedstoneDashboardService.cs`:**
+1. `BuildLampGridAsync` — removed power layer initialization (`fill x-1 ... air` lines).
+2. `ScrollDisplayAsync` — `/clone` now operates on `x` (lamp layer) instead of `x-1` (power layer). Removed `powerX` variable.
+3. `WriteNewestColumnAsync` — replaced per-status switch with switch expression placing the appropriate self-luminous block directly at `(x, lampY, newestZ)`. Reduced from 2 RCON commands per resource per status to 1. Removed `powerX` variable.
+4. `BuildFrameAsync` — back wall at `x-1` kept as visual backing; updated comment only.
+
+**Impact:** Halved RCON commands per update cycle (no power layer operations). Dashboard now uses 100% reliable self-luminous blocks that never depend on redstone signal propagation. All 382 tests pass.
+
+**Key learning:** On Paper servers, RCON-issued `setblock redstone_block` does not reliably trigger block updates for adjacent `redstone_lamp`. Always prefer self-luminous blocks (glowstone, sea_lantern) over redstone-powered lighting for RCON-driven displays.
+
+### Team Updates
+
+📌 Team update (2026-02-12): Dashboard lamps use self-luminous blocks instead of redstone power (glowstone=healthy, redstone_lamp unlit=unhealthy, sea_lantern=unknown). All 382 tests pass. — decided by Rocket
+📌 Team update (2026-02-12): Village buildings use language-based color coding (Project=purple, Node=yellow, Python=blue, Go=cyan, Java=orange, Rust=brown, Unknown=white) for wool trim and banners instead of uniform colors. All 382 tests pass. — decided by Rocket

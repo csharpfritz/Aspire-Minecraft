@@ -1,15 +1,6 @@
 ### 2026-02-10: NuGet hardening completed — floating deps pinned, SourceLink and deterministic builds added
 
 
-### 2026-02-10: NuGet hardening completed — floating deps pinned, SourceLink and deterministic builds added
-
-**By:** Shuri
-**What:** Audited all three packages and found blockers (floating `Version="*"` deps, no SourceLink, no package validation, no CI/CD, 41 MB hosting package). Resolved in Sprint 1: pinned 6 deps to exact versions, added `GenerateDocumentationFile`, `EnablePackageValidation`, `Deterministic`, `ContinuousIntegrationBuild`, `EmbedUntrackedSources`, and `Microsoft.SourceLink.GitHub` to `Directory.Build.props`. Created per-package README.md files. Kept the 23 MB OpenTelemetry Java agent embedded — runtime download deferred to Sprint 2 due to container networking complexity.
-**Why:** NuGet.org rejects floating versions. Pinned versions ensure reproducible builds. SourceLink enables debugger source mapping. Per-package READMEs improve nuget.org presentation. OTel jar stays embedded to avoid offline/restricted environment issues in v0.1.0.
-**Status:** ✅ Resolved. Remaining: `PackageIcon` not yet added. OTel jar extraction is Sprint 2.
-
-
-
 
 ### 2026-02-10: Proposed feature ideas for Aspire-Minecraft
 
@@ -26,6 +17,7 @@
 **Stretch Goals (Size M–L, Sprint 3):** Resource Village with Themed Architecture, Redstone Heartbeat Circuit, Nether Portal Frames, Live Log Wall, Player /trigger Commands, Advancement Achievements, Resource Dependency Rail Network.
 
 **Backlog (not in 3-sprint arc):** Nether Portal Frames, Live Log Wall, /trigger Commands.
+
 
 
 
@@ -65,6 +57,7 @@
 
 
 
+
 ### 2026-02-10: CI/CD pipeline — build.yml + release.yml created
 
 **By:** Wong
@@ -74,11 +67,13 @@
 
 
 
+
 ### 2026-02-10: Test project structure and InternalsVisibleTo pattern established
 
 **By:** Nebula
 **What:** Created tests/Aspire.Hosting.Minecraft.Rcon.Tests and tests/Aspire.Hosting.Minecraft.Tests with xUnit and Microsoft.NET.Test.Sdk. Added InternalsVisibleTo to both source projects. Changed MinecraftHealthCheck.ParseConnectionString from private to internal for testability. 62 tests (45 RCON + 17 hosting), 0 failures.
 **Why:** CI/CD pipeline requires test projects to exist and pass. The InternalsVisibleTo pattern enables testing of internal types (RconPacket, endpoint constants, ParseConnectionString) without exposing them publicly.
+
 
 
 
@@ -93,11 +88,13 @@
 
 
 
+
 ### 2026-02-10: Track all work as GitHub issues with team member labels
 
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** All sprint plan items opened as GitHub issues. Labels created for each team member (rhodey, shuri, rocket, nebula, wong, mantis) and sprint (sprint-1, sprint-2, sprint-3). 34 issues created across 3 sprints. Labels should have distinct, visually meaningful colors for easy identification.
 **Why:** User directive — ensures visibility and accountability for all planned work.
+
 
 
 
@@ -109,6 +106,7 @@
 **Why:** Simplifies the consumer experience — one package to install. The Rcon library is a pure implementation detail. The Worker is referenced via the `WithAspireWorldDisplay<TWorkerProject>()` generic type parameter, not as a library dependency.
 **Verified:** `dotnet restore` ✅, `dotnet build -c Release` ✅, `dotnet pack -c Release -o nupkgs` ✅ (single package: 39.6 MB), `dotnet test` ✅ (62 tests pass).
 **Status:** ✅ Resolved.
+
 
 
 
@@ -136,6 +134,7 @@
 
 
 
+
 ### 2026-02-10: NuGet PackageId renamed to Fritz.Aspire.Hosting.Minecraft
 
 **By:** Shuri (requested by Jeffrey T. Fritz)
@@ -147,12 +146,14 @@
 
 
 
+
 ### 2026-02-10: Blog outline structure and media plan for v0.1.0
 
 **By:** Mantis
 **What:** Created three deliverables in `docs/blog/`: `v0.1.0-release-outline.md` (full blog post outline with 7 sections, placeholder code snippets, social media copy), `v0.1.0-media-plan.md` (18 visual assets with capture instructions), and `v0.1.0-demo-script.md` (10-minute 4-act demo script).
 **Why:** First public release — the blog post is the primary announcement channel. .NET devs using Aspire are the audience. Demo climax is the "break" moment (stopping a service and watching 6 feedback channels react). 18 media assets cover blog, social media, and conference slides. Media captures require Sprint 1 features from Rocket.
 **Dependencies:** Rocket's Sprint 1 features (boss bar, weather, title alerts, sounds, particles) must be complete before media capture. Blog references actual sample `Program.cs`.
+
 
 
 
@@ -169,6 +170,7 @@
 
 
 
+
 ### 2026-02-10: Sprint 1 feature decisions — opt-in architecture, state tracking, health thresholds
 
 **By:** Rocket
@@ -181,6 +183,7 @@
 
 
 
+
 ### 2026-02-10: Public API surface contract established
 
 **By:** Shuri
@@ -188,6 +191,7 @@
 **What:** Audited all public types and established intentional API surface. Made `MinecraftHealthCheck` internal (hosting). Made all Worker types internal (15 classes). Kept public: `MinecraftServerBuilderExtensions` (consumer entry point with 11 methods), `MinecraftServerResource`, and 5 RCON types (`RconClient`, `RconConnection`, `RconResponseParser`, `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult`).
 **Why:** Worker is a standalone service (`IsPackable=false`) — all its types are implementation details. RCON types kept public for consumers who want custom RCON commands. `EnablePackageValidation` catches accidental API surface changes.
 **Status:** ✅ Resolved.
+
 
 
 
@@ -217,6 +221,7 @@
 
 
 
+
 ### 2026-02-10: Beacon tower glass colors match Aspire dashboard resource type palette
 
 **By:** Rocket (requested by Jeffrey T. Fritz)
@@ -227,12 +232,14 @@
 
 
 
+
 ### 2026-02-10: Hologram line-add commands must use unique text to avoid RCON throttle
 
 **By:** Rocket
 **What:** Fixed `HologramManager` using identical placeholder text (`&7...`) for all `dh line add` commands. The `RconService` 250ms throttle silently dropped duplicate commands in rapid succession, causing fewer hologram lines than expected. Changed to `&7line{n}` for unique commands.
 **Why:** The RCON throttle is intentional for preventing server flood. The fix works with the throttle rather than disabling it. Any future service issuing identical RCON commands in a tight loop must use unique command strings.
 **Status:** ✅ Resolved. Build passes, 248 tests pass.
+
 
 
 
@@ -255,12 +262,14 @@
 
 
 
+
 ### 2026-02-10: NuGet package version defaults to `0.1.0-dev`, overridden by CI
 
 **By:** Shuri
 **What:** Changed `<Version>` in csproj from `0.1.0` to `0.1.0-dev`. Local builds produce pre-release packages. The release workflow passes `-p:Version=X.Y.Z` (from git tag) which overrides the csproj default.
 **Why:** Previously every NuGet publish produced version `0.1.0` regardless of the git tag. The `-dev` suffix distinguishes local from release builds. MSBuild CLI properties always win over csproj values.
 **Status:** ✅ Resolved. Wong's release workflow update is the companion change.
+
 
 
 
@@ -280,6 +289,7 @@
 
 
 
+
 ### 2026-02-10: Sprint 2 — XML documentation, RCON throttle, config builder pattern review
 
 **By:** Shuri
@@ -294,6 +304,7 @@
 
 
 
+
 ### 2026-02-10: Release workflow now extracts version from git tag
 
 **By:** Wong
@@ -304,10 +315,12 @@
 
 
 
+
 ### 2026-02-10: User directive — sprint branches with PRs
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Each sprint's work should be done in a dedicated branch named after that sprint, then pushed and merged via PR to main on GitHub.
 **Why:** User request — captured for team memory
+
 
 
 
@@ -331,6 +344,7 @@
 
 
 
+
 ### 2026-02-10: API Surface Freeze for v0.2.0
 
 **By:** Rhodey
@@ -345,6 +359,7 @@
 - `WithWorldBorderPulse` was incorrectly grouped under Sprint 2 in the demo — moved to Sprint 3.
 
 **Status:** ✅ Resolved. Any API additions beyond this point require explicit review before release.
+
 
 
 
@@ -377,6 +392,7 @@
 
 
 
+
 ### 2026-02-10: Advancement Achievements use RCON titles instead of datapacks
 
 **By:** Rocket
@@ -384,6 +400,7 @@
 **What:** `AdvancementService` grants four infrastructure achievements using RCON `title @a title/subtitle` with JSON text components and `playsound`. No Minecraft datapack advancements are used.
 **Why:** Mounting custom advancement JSON datapacks into the Minecraft container is complex and fragile. Title + subtitle + sound gives equivalent player feedback without container filesystem changes. Achievements tracked per-session via `HashSet<string>`.
 **Status:** ✅ Implemented. Follows opt-in pattern (`ASPIRE_FEATURE_ACHIEVEMENTS`, `WithAchievements()`).
+
 
 
 
@@ -408,6 +425,7 @@
 
 
 
+
 ### 2026-02-10: Heartbeat service timing
 
 **By:** Rocket
@@ -422,12 +440,14 @@
 
 
 
+
 ### 2026-02-10: Resource Village Layout & Themed Structures
 
 **By:** Rocket
 **Issue:** #25
 
 **What:** Themed mini-buildings per Aspire resource type in a 2×N grid with 10-block spacing. Project=Watchtower, Container=Warehouse, Executable=Workshop, Unknown=Cottage. `VillageLayout` static class centralizes position calculations. Health indicator via redstone lamp in front wall.
+
 
 
 
@@ -445,11 +465,13 @@
 
 
 
+
 ### 2026-02-10: Village fence perimeter and pathway coordinate conventions
 
 **By:** Rocket
 **What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence at ground level (`BaseY`), 4-block gap from buildings. Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
 **Status:** ✅ Implemented (updated: fence moved to ground level, gap increased to 4 blocks).
+
 
 
 
@@ -469,12 +491,14 @@
 
 
 
+
 ### 2026-02-10: Ephemeral Minecraft world by default, WithPersistentWorld() opt-in
 
 **By:** Shuri (requested by Jeffrey T. Fritz)
 **What:** Removed the default named Docker volume from `AddMinecraftServer()`. World data is now ephemeral. Added `WithPersistentWorld()` for opt-in persistence.
 **Why:** Persistent worlds cause confusion during development — old structures remain from previous sessions.
 **Status:** ✅ Resolved.
+
 
 
 
@@ -486,6 +510,7 @@
 **What:** `WorldBorderService` and `WithWorldBorderPulse()`. World border shrinks from 200→100 blocks over 10s when >50% of resources are unhealthy, restores to 200 over 5s on recovery. Red warning tint at 5 blocks from border edge.
 **Why:** Dramatic visual/physical feedback for critical failures. Follows opt-in pattern (`ASPIRE_FEATURE_WORLDBORDER`).
 **Status:** ✅ Implemented.
+
 
 
 
@@ -504,6 +529,7 @@
 
 
 
+
 ### Sprint 3 service lifecycle: no independent BackgroundServices for RCON-dependent features
 
 **By:** Rocket
@@ -511,6 +537,7 @@
 **Why:** Independent BackgroundServices start before RCON is connected and before resources are discovered, causing all Sprint 3 features to silently fail. The established pattern (used by WorldBorderService, AdvancementService, BeaconTowerService, etc.) is singleton + nullable constructor injection + calls from the main worker loop. Beacon positions used a hardcoded BaseZ=14 that overlapped with row-1 structures (z=10–16), blocking beacon sky access for 2 of 4 resources.
 **Rule:** Any feature service that uses RCON or depends on discovered resources MUST be registered as `AddSingleton<>()` and called from MinecraftWorldWorker — never as an independent `AddHostedService<>()`.
 **Status:** ✅ Resolved. All 303 tests pass. Build clean (0 errors, 0 warnings).
+
 
 
 
@@ -541,6 +568,7 @@ These rules were established after fixing Sprint 3 bugs where fences floated and
 
 
 
+
 ### 2026-02-11: Use GitHub issues and milestones for planning
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Going forward, record all plans as issues and milestones in GitHub. Each sprint is a milestone.
@@ -549,10 +577,12 @@ These rules were established after fixing Sprint 3 bugs where fences floated and
 
 
 
+
 ### 2026-02-11: Sprint completion definition includes documentation
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Going forward, all sprints must include updates to README and user documentation to be considered complete.
 **Why:** User directive — documentation is a first-class deliverable, not an afterthought. Ensures features are always properly documented when shipped.
+
 
 
 
@@ -597,6 +627,7 @@ The boss bar previously displayed "Aspire Fleet Health: 100 percent" which looke
 - Breaking change: `ASPIRE_APP_NAME` no longer affects boss bar (only title parameter does)
 - API surface updated to show optional title parameter
 - No change required for users who don't pass a title (default behavior preserved)
+
 
 
 
@@ -658,6 +689,7 @@ Implemented `WithPeacefulMode()` extension method using `/difficulty peaceful` M
 - Opt-in feature, no effect on existing deployments
 - All existing tests pass
 - Consistent with team's feature opt-in architecture
+
 
 
 
@@ -744,6 +776,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### 2026-02-10: Structure Build Validation with Graceful Degradation
 
 **By:** Shuri  
@@ -755,6 +788,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 - Each structure type has a corresponding `Validate*Async()` method called after building
 - Validates door air blocks and window blocks (glass_pane, stained_glass variants) at expected coordinates
 - Returns false on any exception to handle RCON failures gracefully
+
 
 
 
@@ -784,6 +818,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### 2026-02-10: Documentation path filters added to GitHub Actions workflows
 
 **By:** Wong
@@ -797,6 +832,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### 2026-02-11: Dynamic terrain detection replaces hardcoded superflat Y=-60
 
 **By:** Rocket
@@ -806,10 +842,12 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### 2026-02-12: User directive
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** SourceLink is not needed for this project. Remove it from Directory.Build.props.
 **Why:** User request  captured for team memory
+
 
 
 
@@ -830,6 +868,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### Decision: Redstone Dashboard Wall placement west of village at X=-5
 
 **What:** The Redstone Dashboard Wall is placed at `DashboardX = -5`, facing east toward the village. This is 11 blocks west of the fence perimeter — visible from the village gate but not overshadowing any buildings.
@@ -839,6 +878,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Trade-offs:** Could have placed it north (behind village) but that competes with village growth direction. Could have placed it further away but then it's outside view distance for players at the village.
 
 ---
+
 
 
 
@@ -854,6 +894,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### Decision: Database resources get cylindrical buildings using circular geometry in 7×7 grid
 
 **What:** Resources detected as databases via `IsDatabaseResource()` are built as cylindrical structures using polished deepslate, fitting within the existing 7×7 structure footprint. The circular footprint uses a 3-block radius approximation.
@@ -863,6 +904,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Trade-off:** Cylinder construction requires ~88 RCON commands vs ~15 for a watchtower. Acceptable because it's a one-time build, and database resources are typically <30% of total resources.
 
 ---
+
 
 
 
@@ -878,6 +920,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 
 
+
 ### Decision: Azure banner on ALL Azure resources regardless of structure type
 
 **What:** The light_blue_banner is placed on the rooftop of any structure when `IsAzureResource()` returns true. This applies even to database cylinders (Azure SQL gets a cylinder + azure banner). The banner is additive — it doesn't change the building shape, just adds the flag.
@@ -885,6 +928,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Why:** Jeff asked for "Azure-related resources should have a bright azure blue flag/banner on top." Making it additive means a resource's building shape communicates its function (database, project, container) while the banner communicates its origin (Azure). Players can spot Azure resources at a glance across the village.
 
 ---
+
 
 
 
@@ -897,6 +941,7 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Cut line:** If sprint runs long, drop welcome teleport first (M, nice-to-have), then Dragon Egg (L, can slip to Sprint 5 without blocking anything).
 
 ---
+
 
 
 
@@ -1178,6 +1223,7 @@ A **Dragon Egg** sits atop a custom obsidian pedestal at the village center — 
 
 
 
+
 ### Critical Architectural Decision Needed
 
 All ideas numbered 1-4, 6-7, and 9 require **consuming OTLP data** (traces, metrics, logs) in the worker service. Today the worker only polls health endpoints. Adding OTLP ingestion is a **cross-cutting architectural change** that should be designed once and implemented as shared infrastructure before any individual feature. This is likely a Sprint 5 epic in itself.
@@ -1202,6 +1248,7 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 
 
+
 ### 1. Database Cylinder Building
 - Radius-3 circle (7-block diameter) fits perfectly in the existing 7×7 grid cell
 - Smooth stone walls + polished deepslate cap = "data center" aesthetic
@@ -1214,6 +1261,7 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 
 
+
 ### 2. Azure Flag/Banner
 - `light_blue_banner` base with white stripe (`str`) and base (`bs`) patterns
 - NBT: `{Patterns:[{Color:0,Pattern:"str"},{Color:0,Pattern:"bs"}]}`
@@ -1223,11 +1271,13 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 
 
+
 ### 3. Enhanced Building Palettes
 - **Watchtower:** Chiseled stone floor, deepslate pillars, polished andesite band, battlements, bookshelves + lantern interior
 - **Warehouse:** Orange concrete accent stripe (shipping container look), gray glass, iron trapdoor corrugated roof, chains + soul lanterns
 - **Workshop:** Spruce timber frame, dark oak peaked roof, blast furnace + smithing table, redstone torches
 - **Cottage:** Mossy cobblestone accents, stripped oak timber frame band, peaked oak stair roof, flower pots + awning
+
 
 
 
@@ -1254,6 +1304,7 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 
 
 
+
 ### Cylinder & Azure resource detection precedence
 
 **By:** Rocket
@@ -1268,12 +1319,14 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 
 
 
+
 ### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment
 
 **By:** Rocket
 **What:** Fixed two visual bugs: (1) structures placed 1 block below ground — `GetStructureOrigin()` now returns `SurfaceY + 1`; (2) Warehouse health lamp overlapping cargo door — lamp moved to `y+4` for structures with 3-tall doors.
 **Why:** SurfaceY is the topmost solid block. Placing floors there replaces the grass and buries walls. Health lamps at `y+3` overlap 3-tall doors (y+1 to y+3). Both fixes are surgical (VillageLayout.cs, StructureBuilder.cs) with updated tests.
 **Status:** ✅ Resolved
+
 
 
 
@@ -1285,6 +1338,7 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 **Why:** Prevents accidental feature activation from empty strings, whitespace, or junk values in environment variables. Only an explicit `"true"` value activates a feature now.
 **Impact:** Any code that sets `ASPIRE_FEATURE_*` env vars must use the exact string `"true"` (lowercase). Other truthy values like `"1"`, `"yes"`, or `"True"` will NOT activate features.
 **Status:** ✅ Implemented on sprint-4 branch.
+
 
 
 
@@ -1330,5 +1384,62 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 - `MinecraftServerBuilderExtensions.cs`: 1 line added to builder chain.
 - No breaking changes. No new dependencies.
+
+
+
+
+
+### 2026-02-12: Dashboard lamps use self-luminous blocks instead of redstone power
+
+**By:** Rocket
+**What:** Replaced the redstone power layer (`redstone_block` at `x-1` behind `redstone_lamp` at `x`) with direct self-luminous block placement. Healthy = `glowstone`, Unhealthy = `redstone_lamp` (unlit), Unknown = `sea_lantern`. The `/clone` scroll now operates on the lamp layer directly.
+**Why:** RCON-issued `setblock redstone_block` does not reliably trigger block updates on Paper servers, causing lamps to light briefly then go dark. Self-luminous blocks require no power propagation — their lit/unlit state is intrinsic to the block type, making the display 100% reliable regardless of server tick timing.
+**Status:** ✅ Resolved. Build passes, all 382 tests pass. RCON command count per update cycle halved.
+
+
+
+### Language-Based Color Coding for Village Buildings
+
+**By:** Rocket
+**Date:** 2026-02-12
+**Requested by:** Jeffrey T. Fritz
+
+**What:** Village buildings now use language/technology-specific colors for wool trim and banners instead of a uniform blue. Color mapping: .NET Project → purple, JavaScript/Node → yellow, Python → blue, Go → cyan, Java → orange, Rust → brown, Unknown → white.
+
+**Why:** With multiple projects in a village, all-blue buildings made it impossible to distinguish technology types at a glance. Color coding gives immediate visual feedback about what language/framework each resource uses. Purple for .NET aligns with the .NET brand color. The mapping is based on `resourceType` (all Aspire-hosted projects are .NET → "Project" type → purple) and falls back to name/type substring matching for containers running Node, Python, Go, Java, or Rust workloads.
+
+**Scope:**
+- Watchtower (Project): wool trim at y+8 + wall banner on flagpole — both use language color
+- Cottage (default/unknown): wool trim at y+4 — uses language color
+- Warehouse, Workshop: no wool trim, unchanged
+- Cylinder, AzureThemed: own identity materials, unchanged
+
+**Implementation:** `GetLanguageColor(string resourceType, string resourceName)` returns `(wool, banner, wallBanner)` block ID tuple. `BuildWatchtowerAsync` and `BuildCottageAsync` now accept `ResourceInfo` to pass type/name. The method is `internal static` for testability.
+
+**Also fixed:** Watchtower and Azure banner placement — banners were floating standing banners disconnected from the flagpole. Now uses `wall_banner[facing=south]` attached to an extended flagpole.
+
+**Status:** ✅ Implemented. All 382 tests pass.
+
+
+
+### 2026-02-12: Integration testing strategy — Hybrid RCON + BlueMap approach
+
+**By:** Rhodey
+**What:** Designed integration testing strategy for verifying Minecraft village construction. Evaluated 4 approaches: BlueMap REST API (not viable — no block-level endpoints), Playwright screenshots (good for visual regression, poor for correctness), RCON block verification (reliable and deterministic), and Hybrid RCON + BlueMap (recommended).
+
+**Why:** We need confidence that the worker builds structures correctly at the right coordinates. RCON `execute if block X Y Z <block>` gives exact, immediate, deterministic block-level assertions using our existing `RconClient`. BlueMap's web API only serves pre-rendered tile files — no block query endpoint exists. Playwright screenshot comparison is fragile (non-deterministic 3D rendering, BlueMap version sensitivity, render timing) and should be secondary.
+
+**Key decisions:**
+1. **Primary verification via RCON** — `execute if block` for exact coordinate assertions. Zero rendering delay, uses existing infrastructure.
+2. **Secondary verification via BlueMap HTTP** — smoke test that BlueMap loads and has map data. Full Playwright screenshots deferred until RCON tests are stable.
+3. **Shared test fixture** — Single `MinecraftAppFixture` using `DistributedApplicationTestingBuilder` starts the full AppHost once per test run. Server startup is 45–60s; cannot afford per-test startup.
+4. **Separate test project** — `Aspire.Hosting.Minecraft.IntegrationTests` in `tests/`. These are slow tests (2–3 min) that require Docker.
+5. **CI runs on Linux only** — Minecraft container is Linux-based. Integration tests run as a separate job in `build.yml`, gated behind unit tests passing. PR CI skips integration tests to avoid 3-minute penalty.
+6. **Poll-based readiness** — Fixture polls `execute if block` on a known coordinate every 5s until village is built (max 3 min timeout). More reliable than fixed delays.
+7. **First 5 tests** — Fence perimeter, cobblestone paths, watchtower structure, health indicator, BlueMap web UI loads.
+
+**Full design:** `docs/designs/bluemap-integration-tests.md`
+
+**Status:** ✅ Design complete. Ready for implementation.
 
 
