@@ -112,6 +112,22 @@
 - 11 new tests added (329 total Worker tests pass). Tests cover both standard and grand layout configurations.
 - Key file paths: `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs`, `tests/.../Services/VillageLayoutTests.cs`.
 
+### Milestone 5: Grand Warehouse (#81)
+
+- Redesigned `BuildWarehouseAsync()` to branch on `VillageLayout.StructureSize >= 15` — grand mode dispatches to `BuildGrandWarehouseAsync()`, standard mode preserves existing 7×7 behavior unchanged.
+- Grand warehouse: 15×15 footprint, 8 blocks tall (y+1 to y+7 walls, y+8 roof). Iron block corner pillars + floor/roof frame with deepslate brick infill panels.
+- 5-wide × 4-tall cargo bay entrance on front face (z-min), centered at x+5 to x+9.
+- Purple stained glass clerestory windows at y+7 on all four walls (front wall skips cargo bay area).
+- Stone brick loading dock extends 2 blocks south (z-1, z-2) from entrance, with oak fence railings on sides.
+- Interior: 4 iron block columns at quarter-points (4,4 / 10,4 / 4,10 / 10,10), floor to y+6.
+- Interior: 4×2 barrel grid (8 barrels) at z+11/z+12, 2 chest rows (8 chests) at z+11/z+12.
+- Interior: 5 hanging lanterns at ceiling (y+7), resource name wall sign on back wall.
+- Updated `PlaceHealthIndicatorAsync`: grand warehouse lamp at y+5 (above 4-tall cargo door).
+- Updated `PlaceAzureBannerAsync`: grand warehouse roofY = y+9.
+- Signature changed: `BuildWarehouseAsync` now accepts `ResourceInfo` for interior sign text.
+- RCON command count: 43 commands (within ~45-55 budget).
+- Build: 0 errors, 329 Worker tests pass.
+
 ### Milestone 5: Grand Silo — Two-Floor Database Cylinder (#83)
 
 - **BuildGrandCylinderAsync** added to `StructureBuilder.cs`: 15×15 footprint (radius 7), 12 blocks tall, dispatched when `VillageLayout.StructureSize >= 15`.
