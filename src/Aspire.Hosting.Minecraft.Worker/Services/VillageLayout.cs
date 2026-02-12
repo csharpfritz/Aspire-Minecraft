@@ -65,6 +65,17 @@ internal static class VillageLayout
     /// </summary>
     public static int FenceClearance { get; private set; } = 10;
 
+    /// <summary>
+    /// Width of the fence gate opening in blocks.
+    /// Default 3 (standard), 5 (grand — wider for larger village entrance).
+    /// </summary>
+    public static int GateWidth { get; private set; } = 3;
+
+    /// <summary>
+    /// Whether the Grand Village layout is active.
+    /// </summary>
+    public static bool IsGrandLayout { get; private set; }
+
     /// <summary>Dashboard wall X position (west of village).</summary>
     public const int DashboardX = BaseX - 15;
 
@@ -80,6 +91,8 @@ internal static class VillageLayout
     {
         StructureSize = 15;
         FenceClearance = 6;
+        GateWidth = 5;
+        IsGrandLayout = true;
     }
 
     /// <summary>
@@ -91,6 +104,8 @@ internal static class VillageLayout
         Spacing = 24;
         StructureSize = 7;
         FenceClearance = 10;
+        GateWidth = 3;
+        IsGrandLayout = false;
     }
 
     /// <summary>

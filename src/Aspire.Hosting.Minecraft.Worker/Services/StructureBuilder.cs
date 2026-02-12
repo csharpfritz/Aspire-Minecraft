@@ -266,7 +266,7 @@ internal sealed class StructureBuilder(
                     await BuildWatchtowerAsync(x, y, z, info, ct);
                     break;
                 case "Warehouse":
-                    await BuildWarehouseAsync(x, y, z, ct);
+                    await BuildWarehouseAsync(x, y, z, info, ct);
                     break;
                 case "Workshop":
                     await BuildWorkshopAsync(x, y, z, ct);
@@ -361,10 +361,18 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Warehouse — wide, flat, cargo bay feel. Container (Docker) resources.
-    /// Iron block frame, purple stained glass windows, ~7×7 footprint, 5 blocks tall.
+    /// Standard: Iron block frame, purple stained glass windows, 7×7 footprint, 5 blocks tall.
+    /// Grand: Iron block frame with deepslate brick infill, 15×15 footprint, 8 blocks tall,
+    /// 5-wide cargo bay entrance, loading dock, furnished interior.
     /// </summary>
-    private async Task BuildWarehouseAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        if (VillageLayout.StructureSize >= 15)
+        {
+            await BuildGrandWarehouseAsync(x, y, z, info, ct);
+            return;
+        }
+
         // Foundation: 7×7 iron block floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:iron_block", ct);
@@ -403,11 +411,147 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
-    /// Workshop — small building with chimney and workbench vibe. Executable resources.
-    /// Oak planks walls, cyan stained glass accents, ~7×7 footprint, 6 blocks tall.
+    /// Grand Warehouse — enlarged 15×15 container building with loading dock and furnished interior.
+    /// Iron block frame with deepslate brick infill panels, 5-wide cargo bay entrance,
+    /// purple stained glass clerestory windows, stone brick loading dock with fence railings,
+    /// 8 barrels, 2 chest rows, iron block columns, hanging lanterns, resource name sign.
+    /// </summary>
+    private async Task BuildGrandWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    {
+        var s = VillageLayout.StructureSize - 1; // 14
+
+        // === FOUNDATION: 15×15 iron block floor ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:iron_block", ct);
+
+        // === WALLS: deepslate brick infill, 7 blocks tall (y+1 to y+7) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + s} {y + 7} {z + s} minecraft:deepslate_bricks hollow", ct);
+
+        // === IRON BLOCK FRAME: corner pillars (full height) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x} {y + 7} {z} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z} {x + s} {y + 7} {z} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + s} {x} {y + 7} {z + s} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z + s} {x + s} {y + 7} {z + s} minecraft:iron_block", ct);
+
+        // === FLAT ROOF: iron block ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z} {x + s} {y + 8} {z + s} minecraft:iron_block", ct);
+
+        // === CARGO BAY ENTRANCE: 5-wide × 4-tall on front face (z-min) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 1} {z} {x + 9} {y + 4} {z} minecraft:air", ct);
+
+        // === CLERESTORY WINDOWS: purple stained glass strip near roofline (y+7) ===
+        // Front wall (skip cargo bay area)
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 7} {z} {x + 4} {y + 7} {z} minecraft:purple_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 7} {z} {x + 13} {y + 7} {z} minecraft:purple_stained_glass", ct);
+        // Back wall
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 7} {z + s} {x + 13} {y + 7} {z + s} minecraft:purple_stained_glass", ct);
+        // Side walls
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + 1} {x} {y + 7} {z + 13} minecraft:purple_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 7} {z + 1} {x + s} {y + 7} {z + 13} minecraft:purple_stained_glass", ct);
+
+        // === LOADING DOCK: stone brick platform extending 2 blocks from entrance ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y} {z - 1} {x + 10} {y} {z - 2} minecraft:stone_bricks", ct);
+        // Fence railings on dock sides
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y + 1} {z - 1} {x + 4} {y + 1} {z - 2} minecraft:oak_fence", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 1} {z - 1} {x + 10} {y + 1} {z - 2} minecraft:oak_fence", ct);
+
+        // === INTERIOR: iron block columns at quarter-points ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y + 1} {z + 4} {x + 4} {y + 6} {z + 4} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 1} {z + 4} {x + 10} {y + 6} {z + 4} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y + 1} {z + 10} {x + 4} {y + 6} {z + 10} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 1} {z + 10} {x + 10} {y + 6} {z + 10} minecraft:iron_block", ct);
+
+        // === INTERIOR: 8 barrels (4×2 grid) ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+
+        // === INTERIOR: 2 chest rows ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 9} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 11} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 12} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 9} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 11} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 12} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+
+        // === INTERIOR: hanging lanterns from ceiling ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 7} {z + 7} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 7} {z + 7} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 7} {z + 7} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 7} {z + 3} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 7} {z + 11} minecraft:lantern[hanging=true]", ct);
+
+        // === INTERIOR: resource name sign on back wall ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 3} {z + s} minecraft:oak_wall_sign[facing=north]", ct);
+        var signCmd = "data merge block " + $"{x + 7} {y + 3} {z + s}" +
+            " {front_text:{messages:[\"\"," +
+            "\"" + info.Name + "\"," +
+            "\"(Container)\"," +
+            "\"\"]}}";
+        await rcon.SendCommandAsync(signCmd, ct);
+    }
+
+    /// <summary>
+    /// Workshop — building with chimney and workbench vibe. Executable resources.
+    /// Standard (7×7): Oak planks walls, cyan stained glass accents, 6 blocks tall.
+    /// Grand (15×15): Spruce log frame, A-frame peaked roof, loft, full tool stations, 10 blocks tall.
     /// </summary>
     private async Task BuildWorkshopAsync(int x, int y, int z, CancellationToken ct)
     {
+        if (VillageLayout.StructureSize >= 15)
+        {
+            await BuildGrandWorkshopAsync(x, y, z, ct);
+            return;
+        }
+
         // Foundation: 7×7 oak planks floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:oak_planks", ct);
@@ -451,6 +595,153 @@ internal sealed class StructureBuilder(
             $"setblock {x + 2} {y + 1} {z + 5} minecraft:crafting_table", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 4} {y + 1} {z + 5} minecraft:anvil", ct);
+    }
+
+    /// <summary>
+    /// Grand Workshop — enlarged 15×15 executable building with loft and tool stations.
+    /// Oak plank walls with spruce log frame (corner posts + horizontal beams at y+5).
+    /// A-frame peaked roof with spruce stair shingles. 2×2 cobblestone chimney with campfire.
+    /// Cyan stained glass windows with flower boxes under front windows.
+    /// Interior: crafting table, smithing table, stonecutter, anvil, grindstone, furnace, brewing stand.
+    /// Loft at y+6: half-floor accessible by ladder, storage barrels, bookshelf.
+    /// ~60 RCON commands.
+    /// </summary>
+    private async Task BuildGrandWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    {
+        var s = VillageLayout.StructureSize - 1; // 14
+
+        // === FOUNDATION: 15×15 oak planks floor ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:oak_planks", ct);
+
+        // === WALLS: hollow box, 5 blocks tall (y+1 to y+5) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + s} {y + 5} {z + s} minecraft:oak_planks hollow", ct);
+
+        // === SPRUCE LOG FRAME: corner posts (y+1 to y+5) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x} {y + 5} {z} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z} {x + s} {y + 5} {z} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + s} {x} {y + 5} {z + s} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z + s} {x + s} {y + 5} {z + s} minecraft:spruce_log", ct);
+
+        // === SPRUCE LOG FRAME: horizontal beams at y+5 (top of walls) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + s} {y + 5} {z} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + s} {x + s} {y + 5} {z + s} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z + 1} {x} {y + 5} {z + s - 1} minecraft:spruce_log", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 5} {z + 1} {x + s} {y + 5} {z + s - 1} minecraft:spruce_log", ct);
+
+        // === A-FRAME PEAKED ROOF: spruce stair shingles (along Z axis) ===
+        // Layer 1 (y+6): outer eaves
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 6} {z} {x + s} {y + 6} {z + 3} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 6} {z + s - 3} {x + s} {y + 6} {z + s} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 6} {z + 4} {x + s} {y + 6} {z + s - 4} minecraft:oak_planks", ct);
+        // Layer 2 (y+7): mid roof
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + 2} {x + s} {y + 7} {z + 5} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + s - 5} {x + s} {y + 7} {z + s - 2} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + 6} {x + s} {y + 7} {z + s - 6} minecraft:oak_planks", ct);
+        // Layer 3 (y+8): upper roof
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z + 5} {x + s} {y + 8} {z + 6} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z + s - 6} {x + s} {y + 8} {z + s - 5} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+        // Layer 4 (y+9): ridge cap
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 9} {z + 7} {x + s} {y + 9} {z + 7} minecraft:spruce_slab", ct);
+
+        // === CHIMNEY: 2×2 cobblestone at back-right corner ===
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 1} {y + 6} {z + s - 1} {x + s} {y + 10} {z + s} minecraft:cobblestone", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 1} {y + 10} {z + s - 1} {x + s} {y + 10} {z + s} minecraft:campfire", ct);
+
+        // === CYAN STAINED GLASS WINDOWS ===
+        // Front wall (z): 2 windows flanking the door
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 3} {z} {x + 4} {y + 4} {z} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 4} {y + 3} {z} {x + s - 3} {y + 4} {z} minecraft:cyan_stained_glass", ct);
+        // Side walls
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 5} {x} {y + 4} {z + 6} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 3} {z + 5} {x + s} {y + 4} {z + 6} minecraft:cyan_stained_glass", ct);
+        // Back wall
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 3} {z + s} {x + 6} {y + 4} {z + s} minecraft:cyan_stained_glass", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 6} {y + 3} {z + s} {x + s - 5} {y + 4} {z + s} minecraft:cyan_stained_glass", ct);
+
+        // === FLOWER BOXES under front windows ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 2} {z} minecraft:flower_pot", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 3} {y + 2} {z} minecraft:flower_pot", ct);
+
+        // === DOOR: 3 blocks wide, 3 tall, centered on front wall ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y + 1} {z} {x + 8} {y + 3} {z} minecraft:air", ct);
+
+        // === INTERIOR: tool stations along back wall ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + s - 1} minecraft:crafting_table", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 1} {z + s - 1} minecraft:smithing_table", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 1} {z + s - 1} minecraft:stonecutter", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 8} {y + 1} {z + s - 1} minecraft:anvil", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 1} {z + s - 1} minecraft:grindstone", ct);
+        // Furnace against back wall
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 1} {z + s - 1} minecraft:furnace[facing=south]", ct);
+        // Brewing stand in opposite back corner
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 1} {z + s - 1} minecraft:brewing_stand", ct);
+
+        // === LOFT at y+6: half-floor (back half) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 6} {z + 7} {x + s - 1} {y + 6} {z + s - 1} minecraft:oak_planks", ct);
+
+        // Loft railing (fence along the loft edge)
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 7} {z + 7} {x + s - 1} {y + 7} {z + 7} minecraft:oak_fence", ct);
+
+        // Ladder access to loft (inside, against side wall)
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 1} {z + 7} {x + 1} {y + 6} {z + 7} minecraft:ladder[facing=east]", ct);
+
+        // Loft furnishing: storage barrels and bookshelf
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 2} {y + 7} {z + s - 1} minecraft:bookshelf", ct);
+
+        // === INTERIOR LIGHTING: lanterns ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 5} {z + s - 4} minecraft:lantern[hanging=true]", ct);
     }
 
     /// <summary>
@@ -743,6 +1034,198 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
+    /// Grand Silo — enlarged database cylinder with two interior floors and central data pillar.
+    /// 15×15 footprint (radius 7), 12 blocks tall. Polished deepslate + smooth stone walls,
+    /// copper accent bands at mid-height and top, domed deepslate slab roof.
+    /// Lower floor: iron block server rack ring, copper center island, 4 redstone lamps.
+    /// Upper floor: bookshelf ring, enchanting table, ladder access.
+    /// Central copper pillar from floor to ceiling.
+    /// ~120-140 RCON commands — uses pre-calculated circle coordinates and /fill per row.
+    /// </summary>
+    private async Task BuildGrandCylinderAsync(int x, int y, int z, CancellationToken ct)
+    {
+        // Pre-calculated radius-7 circle row spans: (dz, xMin, xMax) relative to origin
+        // Symmetric circle inscribed in the 15×15 footprint (indices 0–14)
+        (int dz, int x1, int x2)[] circleRows =
+        [
+            (0,  4, 10),
+            (1,  3, 11),
+            (2,  2, 12),
+            (3,  1, 13),
+            (4,  1, 13),
+            (5,  0, 14),
+            (6,  0, 14),
+            (7,  0, 14),
+            (8,  0, 14),
+            (9,  0, 14),
+            (10, 1, 13),
+            (11, 1, 13),
+            (12, 2, 12),
+            (13, 3, 11),
+            (14, 4, 10),
+        ];
+
+        // === FLOOR (y+0): polished deepslate disc ===
+        foreach (var (dz, x1, x2) in circleRows)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + x1} {y} {z + dz} {x + x2} {y} {z + dz} minecraft:polished_deepslate", ct);
+        }
+
+        // === WALLS (y+1 to y+10): perimeter shell ===
+        // Smooth stone (y+1 to y+4), copper accent band (y+5 to y+6),
+        // polished deepslate (y+7 to y+9), copper accent band (y+10)
+        for (int layer = 1; layer <= 10; layer++)
+        {
+            string wallBlock = layer is 5 or 6 or 10
+                ? "minecraft:cut_copper"
+                : (layer <= 4 ? "minecraft:smooth_stone" : "minecraft:polished_deepslate");
+
+            foreach (var (dz, x1, x2) in circleRows)
+            {
+                await rcon.SendCommandAsync(
+                    $"fill {x + x1} {y + layer} {z + dz} {x + x2} {y + layer} {z + dz} {wallBlock}", ct);
+            }
+        }
+
+        // Interior circle rows (hollowed out inside the walls)
+        (int dz, int x1, int x2)[] interiorRows =
+        [
+            (2,  4, 10),
+            (3,  3, 11),
+            (4,  2, 12),
+            (5,  2, 12),
+            (6,  1, 13),
+            (7,  1, 13),
+            (8,  1, 13),
+            (9,  2, 12),
+            (10, 2, 12),
+            (11, 3, 11),
+            (12, 4, 10),
+        ];
+
+        // === INTERIOR AIR (y+1 to y+10): hollow the cylinder ===
+        for (int layer = 1; layer <= 10; layer++)
+        {
+            foreach (var (dz, x1, x2) in interiorRows)
+            {
+                await rcon.SendCommandAsync(
+                    $"fill {x + x1} {y + layer} {z + dz} {x + x2} {y + layer} {z + dz} minecraft:air", ct);
+            }
+        }
+
+        // === UPPER FLOOR (y+6): polished deepslate disc at mid-height ===
+        foreach (var (dz, x1, x2) in interiorRows)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + x1} {y + 6} {z + dz} {x + x2} {y + 6} {z + dz} minecraft:polished_deepslate", ct);
+        }
+
+        // === UPPER FLOOR AIR (y+7 to y+10): re-clear above the floor ===
+        for (int layer = 7; layer <= 10; layer++)
+        {
+            foreach (var (dz, x1, x2) in interiorRows)
+            {
+                await rcon.SendCommandAsync(
+                    $"fill {x + x1} {y + layer} {z + dz} {x + x2} {y + layer} {z + dz} minecraft:air", ct);
+            }
+        }
+
+        // === DOME ROOF (y+11): deepslate tile slab outer ring ===
+        foreach (var (dz, x1, x2) in circleRows)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + x1} {y + 11} {z + dz} {x + x2} {y + 11} {z + dz} minecraft:deepslate_tile_slab", ct);
+        }
+
+        // === DOME CAP (y+12): smaller polished deepslate slab cap ===
+        (int dz, int x1, int x2)[] domeCapRows =
+        [
+            (3,  4, 10),
+            (4,  3, 11),
+            (5,  3, 11),
+            (6,  2, 12),
+            (7,  2, 12),
+            (8,  2, 12),
+            (9,  3, 11),
+            (10, 3, 11),
+            (11, 4, 10),
+        ];
+
+        foreach (var (dz, x1, x2) in domeCapRows)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + x1} {y + 12} {z + dz} {x + x2} {y + 12} {z + dz} minecraft:polished_deepslate_slab", ct);
+        }
+
+        // === DOME PEAK (y+13): small deepslate cap ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 13} {z + 5} {x + 9} {y + 13} {z + 9} minecraft:polished_deepslate_slab", ct);
+
+        // === CENTRAL COPPER PILLAR: floor to ceiling at center (x+7, z+7) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 7} {y} {z + 7} {x + 7} {y + 12} {z + 7} minecraft:copper_block", ct);
+
+        // === IRON DOOR ENTRANCE: centered at x+7 on the front circular wall ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 1} {z + 4} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 2} {z + 4} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 7} {y + 3} {z + 4} minecraft:air", ct);
+
+        // === LOWER FLOOR (y+1 to y+5): Server rack ring + copper center island ===
+        // Iron block server rack ring along interior perimeter (y+1)
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y + 1} {z + 3} {x + 4} {y + 1} {z + 11} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 1} {z + 3} {x + 10} {y + 1} {z + 11} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 1} {z + 2} {x + 9} {y + 1} {z + 2} minecraft:iron_block", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 1} {z + 12} {x + 9} {y + 1} {z + 12} minecraft:iron_block", ct);
+
+        // Copper block center island (3×3 around central pillar)
+        await rcon.SendCommandAsync(
+            $"fill {x + 6} {y} {z + 6} {x + 8} {y} {z + 8} minecraft:copper_block", ct);
+
+        // 4 Redstone lamps at cardinal positions inside the lower floor
+        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 4} minecraft:redstone_lamp[lit=true]", ct);
+        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 10} minecraft:redstone_lamp[lit=true]", ct);
+        await rcon.SendCommandAsync($"setblock {x + 3} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
+        await rcon.SendCommandAsync($"setblock {x + 11} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
+
+        // === LADDER ACCESS to upper floor: along the central pillar ===
+        for (int ly = 1; ly <= 6; ly++)
+        {
+            await rcon.SendCommandAsync(
+                $"setblock {x + 8} {y + ly} {z + 7} minecraft:ladder[facing=west]", ct);
+        }
+
+        // === UPPER FLOOR (y+7 to y+10): Bookshelf ring + enchanting table ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 4} {y + 7} {z + 3} {x + 4} {y + 7} {z + 11} minecraft:bookshelf", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 7} {z + 3} {x + 10} {y + 7} {z + 11} minecraft:bookshelf", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 7} {z + 2} {x + 9} {y + 7} {z + 2} minecraft:bookshelf", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 7} {z + 12} {x + 9} {y + 7} {z + 12} minecraft:bookshelf", ct);
+
+        // Enchanting table near center
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 7} {z + 7} minecraft:enchanting_table", ct);
+
+        // Signs with connection info placeholders on upper floor walls
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 8} {z + 3} minecraft:oak_wall_sign[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 9} {y + 8} {z + 3} minecraft:oak_wall_sign[facing=south]", ct);
+
+        logger.LogInformation("Grand Silo (database cylinder) built at ({X},{Y},{Z})", x, y, z);
+    }
+
+    /// <summary>
     /// AzureThemed — modified Cottage with Azure color palette. Non-database Azure resources.
     /// Standard (7×7): Light blue concrete walls, blue concrete trim, stained glass roof.
     /// Grand (15×15): 8 blocks tall, pilaster strips, 3×3 skylight, banners on all 4 roof corners,
@@ -930,10 +1413,11 @@ internal sealed class StructureBuilder(
         int roofY = structureType switch
         {
             "Watchtower" => y + 9,
+            "Warehouse" when isGrand => y + 9,
             "Warehouse" => y + 6,
             "Workshop" when isGrand => y + 10,
             "Workshop" => y + 7,
-            "Cylinder" => y + 7,
+            "Cylinder" => isGrand ? y + 13 : y + 7,
             "Cottage" => isGrand ? y + 9 : y + 6,
             _ => isGrand ? y + 9 : y + 6,
         };
@@ -963,15 +1447,25 @@ internal sealed class StructureBuilder(
         var isGrand = VillageLayout.StructureSize >= 15;
 
         // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
-        var lampZ = structureType == "Watchtower" ? z + 1 : z;
+        // Grand cylinder has front wall at z+4 (circular geometry, door in circle perimeter)
+        var lampZ = structureType switch
+        {
+            "Watchtower" => z + 1,
+            "Cylinder" when isGrand => z + 4,
+            _ => z
+        };
         
         // Grand Workshop has 3-tall door (y+1 to y+3), so lamp at y+4.
         // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
+        // Grand Warehouse has 4-tall cargo door (y+1 to y+4), so lamp goes at y+5.
+        // Grand Cylinder has iron door (y+1 to y+2) + air at y+3, so lamp at y+4.
         // Workshop, Cottage, Cylinder, and AzureThemed have 2-tall doors (y+1 to y+2), so y+3 is fine.
         var lampY = structureType switch
         {
+            "Warehouse" when isGrand => y + 5,
             "Watchtower" or "Warehouse" => y + 4,
             "Workshop" when isGrand => y + 4,
+            "Cylinder" when isGrand => y + 4,
             "Cylinder" or "AzureThemed" or "Workshop" or "Cottage" or _ => y + 3
         };
 
@@ -990,10 +1484,14 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task PlaceSignAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var isGrand = VillageLayout.StructureSize >= 15;
         var half = VillageLayout.StructureSize / 2;
-        var signX = x + half - 1;
+        var structureType = GetStructureType(info.Type);
+
+        // Grand cylinder: sign in front of the circular entrance (door at z+4)
+        var signX = structureType == "Cylinder" && isGrand ? x + half - 1 : x + half - 1;
         var signY = y + 1;
-        var signZ = z - 1;
+        var signZ = structureType == "Cylinder" && isGrand ? z + 3 : z - 1;
 
         await rcon.SendCommandAsync(
             $"setblock {signX} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);

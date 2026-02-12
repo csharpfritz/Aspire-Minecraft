@@ -112,6 +112,22 @@
 - 11 new tests added (329 total Worker tests pass). Tests cover both standard and grand layout configurations.
 - Key file paths: `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs`, `tests/.../Services/VillageLayoutTests.cs`.
 
+### Milestone 5: Grand Silo — Two-Floor Database Cylinder (#83)
+
+- **BuildGrandCylinderAsync** added to `StructureBuilder.cs`: 15×15 footprint (radius 7), 12 blocks tall, dispatched when `VillageLayout.StructureSize >= 15`.
+- Pre-calculated circle coordinates in `(dz, x1, x2)[]` tuples — one `/fill` per row per layer. Avoids individual `/setblock` for circular geometry.
+- **Wall materials:** Smooth stone (y+1 to y+4), cut copper accent band (y+5 to y+6), polished deepslate (y+7 to y+9), cut copper top band (y+10).
+- **Dome roof:** 3-layer dome — deepslate tile slab (y+11, full circle), polished deepslate slab (y+12, smaller cap), polished deepslate slab (y+13, peak).
+- **Central copper pillar:** Single `/fill` from y+0 to y+12 at (x+7, z+7) — the "data spindle" aesthetic.
+- **Lower floor (y+1 to y+5):** Iron block server rack ring via 4 `/fill` segments, 3×3 copper center island, 4 redstone lamps at cardinal positions.
+- **Upper floor (y+6 to y+10):** Polished deepslate disc at y+6, bookshelf ring via 4 `/fill` segments, enchanting table, 2 oak wall signs.
+- **Ladder access:** 6 ladder blocks (y+1 to y+6) on the east face of the central pillar.
+- **Iron door entrance:** At (x+7, z+4) with air clearance at y+3.
+- Interior circle uses a separate `interiorRows` tuple array (11 rows) with smaller radii for the hollowed interior.
+- **Helper method updates:** `PlaceAzureBannerAsync` roof height for grand cylinder = y+13. `PlaceHealthIndicatorAsync` lamp at (x+7, y+4, z+4) for grand cylinder (front circular wall). `PlaceSignAsync` places sign at z+3 for grand cylinder (in front of circular entrance).
+- **Backward compatible:** Standard 7×7 cylinder is untouched when `StructureSize < 15`.
+- Build: 0 errors. 329 tests pass (0 failed).
+
 ### Milestone 5: WithGrandVillage and WithMinecartRails Extensions (#79)
 
 - Added `WithGrandVillage()` extension method: guard clause pattern (checks WorkerBuilder not null), sets `ASPIRE_FEATURE_GRAND_VILLAGE=true` on worker, fluent return. XML docs reference `WithAspireWorldDisplay`.
