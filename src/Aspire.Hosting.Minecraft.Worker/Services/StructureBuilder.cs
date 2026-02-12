@@ -300,7 +300,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        var (wool, _, wallBanner) = GetLanguageColor(info.Type, info.Name);
+        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
 
         // Foundation: 7×7 stone brick floor
         await rcon.SendCommandAsync(
@@ -338,11 +338,11 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 2} {y + 9} {z + 2} {x + 4} {y + 9} {z + 4} minecraft:stone_brick_slab", ct);
 
-        // Flag pole (extends to y+11) + wall banner hanging from flagpole
+        // Flag pole + standing banner on top
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 11} {z + 3} minecraft:oak_fence", ct);
+            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 10} {z + 3} minecraft:oak_fence", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 10} {z + 2} {wallBanner}[facing=south]", ct);
+            $"setblock {x + 3} {y + 11} {z + 3} {banner}[rotation=0]", ct);
 
         // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall
         // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
@@ -670,13 +670,13 @@ internal sealed class StructureBuilder(
             _ => y + 6,
         };
 
-        // Flagpole (extends 3 blocks for wall banner support)
+        // Flagpole
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 2} {z + 3} minecraft:oak_fence", ct);
+            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 1} {z + 3} minecraft:oak_fence", ct);
 
-        // Azure wall banner hanging from flagpole, facing south
+        // Azure standing banner on top of flagpole
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {roofY + 1} {z + 2} minecraft:light_blue_wall_banner[facing=south]", ct);
+            $"setblock {x + 3} {roofY + 2} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
     }
 
     /// <summary>

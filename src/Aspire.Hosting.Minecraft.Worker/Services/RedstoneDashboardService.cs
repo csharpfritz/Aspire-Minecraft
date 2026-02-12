@@ -240,13 +240,13 @@ internal sealed class RedstoneDashboardService(
             switch (info.Status)
             {
                 case ResourceStatus.Healthy:
-                    // Place redstone_block behind lamp to light it
-                    await rcon.SendCommandAsync(
-                        $"setblock {powerX} {lampY} {newestZ} minecraft:redstone_block",
-                        CommandPriority.Normal, ct);
                     // Ensure it's a lamp (not sea_lantern from previous unknown state)
                     await rcon.SendCommandAsync(
                         $"setblock {x} {lampY} {newestZ} minecraft:redstone_lamp",
+                        CommandPriority.Normal, ct);
+                    // Place redstone_block behind lamp AFTER the lamp to trigger block update
+                    await rcon.SendCommandAsync(
+                        $"setblock {powerX} {lampY} {newestZ} minecraft:redstone_block",
                         CommandPriority.Normal, ct);
                     break;
 
