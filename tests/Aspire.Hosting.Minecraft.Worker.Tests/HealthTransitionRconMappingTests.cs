@@ -177,17 +177,17 @@ public class HealthTransitionRconMappingTests
 
     [Theory]
     [InlineData(0, 10, 0)]   // Resource 0: col=0, row=0 → x=10, z=0
-    [InlineData(1, 20, 0)]   // Resource 1: col=1, row=0 → x=20, z=0
-    [InlineData(2, 10, 10)]  // Resource 2: col=0, row=1 → x=10, z=10
-    [InlineData(3, 20, 10)]  // Resource 3: col=1, row=1 → x=20, z=10
-    [InlineData(4, 10, 20)]  // Resource 4: col=0, row=2 → x=10, z=20
+    [InlineData(1, 22, 0)]   // Resource 1: col=1, row=0 → x=22, z=0
+    [InlineData(2, 10, 12)]  // Resource 2: col=0, row=1 → x=10, z=12
+    [InlineData(3, 22, 12)]  // Resource 3: col=1, row=1 → x=22, z=12
+    [InlineData(4, 10, 24)]  // Resource 4: col=0, row=2 → x=10, z=24
     public void StructureCoordinates_MatchResourceIndex(int index, int expectedX, int expectedZ)
     {
-        // VillageLayout: BaseX=10, BaseZ=0, Spacing=10, Columns=2
+        // VillageLayout: BaseX=10, BaseZ=0, Spacing=12, Columns=2
         int col = index % 2;
         int row = index / 2;
-        int actualX = 10 + (col * 10);
-        int actualZ = 0 + (row * 10);
+        int actualX = 10 + (col * 12);
+        int actualZ = 0 + (row * 12);
 
         Assert.Equal(expectedX, actualX);
         Assert.Equal(expectedZ, actualZ);

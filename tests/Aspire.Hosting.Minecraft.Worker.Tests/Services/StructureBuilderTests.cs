@@ -69,7 +69,7 @@ public class StructureBuilderTests : IAsyncLifetime
         var commands = _server.GetCommands();
 
         // === 1. FENCE PERIMETER ===
-        // VillageLayout.GetFencePerimeter(4) returns (6, -4, 30, 13) based on 2x2 grid
+        // VillageLayout.GetFencePerimeter(4) returns (6, -4, 32, 22) based on 2x2 grid
         // Expected: 4 fence sides + 1 gate section = 5 fence commands
         var fenceCommands = commands.Where(c => c.Contains("oak_fence")).ToList();
         Assert.True(fenceCommands.Count >= 4, 
@@ -153,19 +153,19 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.Contains(signDataCommands, c => c.Contains("legacy-app"));
 
         // === 7. COORDINATE VALIDATION ===
-        // VillageLayout: BaseX=10, SurfaceY=-60, BaseZ=0, Spacing=10
+        // VillageLayout: BaseX=10, SurfaceY=-60, BaseZ=0, Spacing=12
         // GetStructureOrigin returns SurfaceY+1 = -59 for Y
         // Index 0 (api-service): (10, -59, 0)
-        // Index 1 (redis-cache): (20, -59, 0)
-        // Index 2 (worker-exe): (10, -59, 10)
-        // Index 3 (legacy-app): (20, -59, 10)
+        // Index 1 (redis-cache): (22, -59, 0)
+        // Index 2 (worker-exe): (10, -59, 12)
+        // Index 3 (legacy-app): (22, -59, 12)
         
         // Verify at least one command uses the first structure origin (10, -59, 0)
         var structure0Commands = commands.Where(c => c.Contains(" 10 -59 0")).ToList();
         Assert.NotEmpty(structure0Commands);
         
-        // Verify at least one command uses the second structure origin (20, -59, 0)
-        var structure1Commands = commands.Where(c => c.Contains(" 20 -59 0")).ToList();
+        // Verify at least one command uses the second structure origin (22, -59, 0)
+        var structure1Commands = commands.Where(c => c.Contains(" 22 -59 0")).ToList();
         Assert.NotEmpty(structure1Commands);
 
         // === 8. OVERALL COMMAND COUNT ===

@@ -88,3 +88,11 @@
 - **Issue #62 — WithAllFeatures() convenience method:** Added `WithAllFeatures()` extension method to `MinecraftServerBuilderExtensions.cs` that calls all 17 feature methods: WithParticleEffects, WithTitleAlerts, WithWeatherEffects, WithBossBar, WithSoundEffects, WithActionBarTicker, WithBeaconTowers, WithFireworks, WithGuardianMobs, WithDeploymentFanfare, WithWorldBorderPulse, WithAchievements, WithHeartbeat, WithRedstoneDependencyGraph, WithServiceSwitches, WithPeacefulMode, and WithRconDebugLogging. Uses the same guard clause pattern (checks `WorkerBuilder` is not null) and includes XML doc comments listing all enabled features.
 - **Key decision:** WithAllFeatures() includes WithPeacefulMode() and WithRconDebugLogging() since they are opt-in features gated behind the same guard pattern. Placed the method logically between WithPeacefulMode() and WithServerProperty() methods.
 - **Build:** 0 errors, 1 pre-existing warning (CS8604 nullable in MinecraftServerResource). All 62 tests pass (Worker.Tests host crash is pre-existing, unrelated).
+
+### Fresh Server Lifecycle (2026-02-11)
+
+- Added `.WithLifetime(ContainerLifetime.Session)` to `AddMinecraftServer()` builder chain in `MinecraftServerBuilderExtensions.cs`.
+- `ContainerLifetime.Session` is actually the Aspire default for containers, but making it explicit documents the intent that the Minecraft server should be destroyed and recreated each Aspire session — no Docker volume or container state carries over.
+- The `ContainerLifetime` enum lives in `Aspire.Hosting.ApplicationModel` (already imported). Available since Aspire.Hosting 9.x, confirmed in our 13.1.1 dependency.
+- Without `WithPersistentWorld()`, world data lives in the container's writable layer at `/data`. Session lifetime ensures Docker Desktop doesn't cache the container between runs.
+- Build: 0 errors, 2 pre-existing warnings (CS8604 nullable, xUnit1026 unused param).

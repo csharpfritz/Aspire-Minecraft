@@ -173,3 +173,7 @@ Created `docs/designs/minecraft-building-reference.md` — the implementation bi
 - Health indicator: Cylinder and AzureThemed both use front wall at z (same as Workshop/Cottage) with 2-tall doors, so lamp at y+3. No changes needed to `PlaceHealthIndicatorAsync` — existing logic already handles them correctly via the `is "Watchtower" or "Warehouse"` check.
 
 **Key decision:** `cosmos` appears in both detection methods (IsAzureResource and IsDatabaseResource). Since `IsDatabaseResource` is checked first in `GetStructureType()`, a "cosmosdb" resource gets Cylinder shape + azure banner. This is intentional — the database shape takes priority with the azure banner as an additive overlay.
+
+### Village Spacing Increase (Spacing 10 → 12)
+
+Increased `VillageLayout.Spacing` from 10 to 12 to give a comfortable 5-block walking gap between 7×7 structures (was 3 blocks). Updated XML doc comments in VillageLayout.cs. Updated hardcoded position expectations in 5 test files: VillageLayoutTests, ParticleEffectsCommandTests, ParticleEffectServiceIntegrationTests, HealthTransitionRconMappingTests, StructureBuilderTests. DashboardX (`BaseX - 15 = -5`) remains fine — no overlap with the village at BaseX=10. Fence perimeter's 4-block clearance via `GetFencePerimeter` is unaffected since it derives from `GetVillageBounds` dynamically. All 382 tests pass.

@@ -16,9 +16,9 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
 /// <item>2 columns (Columns=2), infinite rows</item>
-/// <item>Spacing=10 blocks center-to-center between structures</item>
+/// <item>Spacing=12 blocks center-to-center between structures</item>
 /// <item>Each structure footprint: 7×7 blocks (StructureSize=7)</item>
-/// <item>Index 0 → (10, -60, 0), Index 1 → (20, -60, 0), Index 2 → (10, -60, 10), etc.</item>
+/// <item>Index 0 → (10, -60, 0), Index 1 → (22, -60, 0), Index 2 → (10, -60, 12), etc.</item>
 /// </list>
 /// 
 /// <para><b>Z-Coordinate Conventions:</b></para>
@@ -51,7 +51,7 @@ internal static class VillageLayout
     public const int BaseZ = 0;
 
     /// <summary>Spacing between structure origins (center-to-center) in blocks.</summary>
-    public const int Spacing = 10;
+    public const int Spacing = 12;
 
     /// <summary>Number of columns in the village grid.</summary>
     public const int Columns = 2;
@@ -70,8 +70,8 @@ internal static class VillageLayout
     /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, index 2 → col 0 row 1, etc.
     /// 
     /// <para>Calculation: col = index % 2, row = index / 2</para>
-    /// <para>X = BaseX + (col × Spacing) → 10, 20, 10, 20, ...</para>
-    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 10, 10, 20, 20, ...</para>
+    /// <para>X = BaseX + (col × Spacing) → 10, 22, 10, 22, ...</para>
+    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 12, 12, 24, 24, ...</para>
     /// <para>Y is always SurfaceY + 1 (one block above detected terrain height)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)

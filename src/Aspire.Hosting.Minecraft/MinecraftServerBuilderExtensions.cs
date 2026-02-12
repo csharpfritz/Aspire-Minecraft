@@ -76,7 +76,8 @@ public static class MinecraftServerBuilderExtensions
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
             })
-            .WithHealthCheck(healthCheckKey);
+            .WithHealthCheck(healthCheckKey)
+            .WithLifetime(ContainerLifetime.Session);
     }
 
     /// <summary>
@@ -262,13 +263,10 @@ public static class MinecraftServerBuilderExtensions
         var name = resource.Resource.Name;
         builder.Resource.MonitoredResourceNames.Add(name);
 
-        // Determine resource type from the concrete type
-        var resourceType = resource.Resource switch
-        {
-            ProjectResource => "Project",
-            ContainerResource => "Container",
-            _ => resource.Resource.GetType().Name.Replace("Resource", "")
-        };
+        // Determine resource type from the concrete type.
+        // Use GetType().Name so subclasses (RedisResource, PostgresServerResource, etc.)
+        // get their specific type name instead of the base "Container" or "Project".
+        var resourceType = resource.Resource.GetType().Name.Replace("Resource", "");
 
         workerBuilder.WithEnvironment($"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_TYPE", resourceType);
 
