@@ -112,4 +112,13 @@
 - 11 new tests added (329 total Worker tests pass). Tests cover both standard and grand layout configurations.
 - Key file paths: `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs`, `tests/.../Services/VillageLayoutTests.cs`.
 
+### Milestone 5: WithGrandVillage and WithMinecartRails Extensions (#79)
+
+- Added `WithGrandVillage()` extension method: guard clause pattern (checks WorkerBuilder not null), sets `ASPIRE_FEATURE_GRAND_VILLAGE=true` on worker, fluent return. XML docs reference `WithAspireWorldDisplay`.
+- Added `WithMinecartRails()` extension method: same guard clause pattern, sets `ASPIRE_FEATURE_MINECART_RAILS=true` on worker. MinecartRailService registration in Program.cs is stubbed (service doesn't exist yet).
+- Updated `WithAllFeatures()` to chain both new methods at the end of the feature list. Updated XML doc `<see cref>` list and test assertion (17→19 feature env vars).
+- Added `ASPIRE_FEATURE_MINECART_RAILS` check in Worker `Program.cs` (after the existing `ASPIRE_FEATURE_GRAND_VILLAGE` check, before service registrations).
+- Updated demo AppHost `Program.cs` to chain `.WithGrandVillage().WithMinecartRails()` under a "Milestone 5" comment section.
+- Updated `WithAllFeatures_SetsAllFeatureEnvVars` test: added both new env vars to expected list, count from 17 to 19. All 19 hosting tests pass, all 329 worker tests pass.
+
 📌 Team update (2026-02-12): VillageLayout constants converted to configurable properties (#77) with defaults matching existing behavior, ConfigureGrandLayout() for Milestone 5 Grand Village, ResetLayout() for test isolation — decided by Shuri
