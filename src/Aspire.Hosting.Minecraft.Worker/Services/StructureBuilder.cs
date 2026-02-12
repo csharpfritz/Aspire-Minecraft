@@ -1114,6 +1114,13 @@ internal sealed class StructureBuilder(
             }
         }
 
+        // === FRONT DOORWAY: clear a 3-wide × 3-tall passage through the wall (dz=0..1) ===
+        for (int dz = 0; dz <= 1; dz++)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x + 6} {y + 1} {z + dz} {x + 8} {y + 3} {z + dz} minecraft:air", ct);
+        }
+
         // === UPPER FLOOR (y+6): polished deepslate disc at mid-height ===
         foreach (var (dz, x1, x2) in interiorRows)
         {
@@ -1166,13 +1173,11 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 7} {y} {z + 7} {x + 7} {y + 12} {z + 7} minecraft:copper_block", ct);
 
-        // === IRON DOOR ENTRANCE: centered at x+7 on the front circular wall ===
+        // === IRON DOOR ENTRANCE: centered at x+7 on the outer face of the front wall ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 1} {z + 4} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
+            $"setblock {x + 7} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 2} {z + 4} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 3} {z + 4} minecraft:air", ct);
+            $"setblock {x + 7} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
 
         // === LOWER FLOOR (y+1 to y+5): Server rack ring + copper center island ===
         // Iron block server rack ring along interior perimeter (y+1)
@@ -1190,7 +1195,7 @@ internal sealed class StructureBuilder(
             $"fill {x + 6} {y} {z + 6} {x + 8} {y} {z + 8} minecraft:copper_block", ct);
 
         // 4 Redstone lamps at cardinal positions inside the lower floor
-        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 4} minecraft:redstone_lamp[lit=true]", ct);
+        await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 3} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 10} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 3} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 11} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
