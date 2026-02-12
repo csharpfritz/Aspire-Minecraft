@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Aspire.Hosting.Minecraft.Tests" />
+    <InternalsVisibleTo Include="Aspire.Hosting.Minecraft.Integration.Tests" />
   </ItemGroup>
 
   <ItemGroup>
