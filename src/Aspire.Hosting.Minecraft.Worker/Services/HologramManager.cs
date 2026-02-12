@@ -12,11 +12,13 @@ internal sealed class HologramManager(
     ILogger<HologramManager> logger)
 {
     private const string DashboardHologramId = "aspire_dashboard";
-    private const int SpawnX = 0;
-    private const int SpawnZ = 5;
+
+    /// <summary>Spawn hologram just southwest of the village fence, at eye level.</summary>
+    private static int SpawnX => VillageLayout.BaseX - 5;
+    private static int SpawnZ => VillageLayout.BaseZ - 5;
     private bool _created;
 
-    private int SpawnY => VillageLayout.SurfaceY + 5;
+    private static int SpawnY => VillageLayout.SurfaceY + 5;
 
     /// <summary>
     /// Creates or updates the Aspire dashboard hologram near spawn.

@@ -87,21 +87,22 @@ internal sealed class RedstoneDependencyService(
     {
         var (px, py, pz) = VillageLayout.GetStructureOrigin(parentIndex);
         var (cx, cy, cz) = VillageLayout.GetStructureOrigin(childIndex);
+        var half = VillageLayout.StructureSize / 2;
 
         // Wire runs at ground level (SurfaceY) offset by -1 in Z (in front of structures)
         var wireY = VillageLayout.SurfaceY;
 
         // Start point: in front of parent structure entrance (center X, Z-1)
-        var startX = px + 3;
+        var startX = px + half;
         var startZ = pz - 1;
 
         // End point: in front of child structure entrance
-        var endX = cx + 3;
+        var endX = cx + half;
         var endZ = cz - 1;
 
         // Lamp positions: at structure entrance wall, eye level
-        var parentLamp = (px + 3, wireY + 2, pz - 1);
-        var childLamp = (cx + 3, wireY + 2, cz - 1);
+        var parentLamp = (px + half, wireY + 2, pz - 1);
+        var childLamp = (cx + half, wireY + 2, cz - 1);
 
         // L-shaped path: go along X first, then Z
         var wirePositions = new List<(int x, int y, int z)>();

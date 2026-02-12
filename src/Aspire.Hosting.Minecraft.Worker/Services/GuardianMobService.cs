@@ -12,12 +12,6 @@ internal sealed class GuardianMobService(
     AspireResourceMonitor monitor,
     ILogger<GuardianMobService> logger)
 {
-    private const int BaseX = 10;
-    private const int BaseZ = -4; // Offset to avoid overlap with structures
-    private const int Spacing = 10;
-
-    private int BaseY => VillageLayout.SurfaceY + 2;
-
     private readonly Dictionary<string, ResourceStatus> _lastKnownStatus = new();
 
     /// <summary>
@@ -40,11 +34,11 @@ internal sealed class GuardianMobService(
 
     private async Task SpawnGuardianAsync(string resourceName, ResourceStatus status, int index, CancellationToken ct)
     {
-        var col = index % VillageLayout.Columns;
-        var row = index / VillageLayout.Columns;
-        var x = BaseX + 3 + (col * Spacing);
-        var y = BaseY;
-        var z = BaseZ + (row * Spacing);
+        // Position guardian in front of the structure entrance, offset by -3 in Z
+        var (ox, _, oz) = VillageLayout.GetStructureOrigin(index);
+        var x = ox + (VillageLayout.StructureSize / 2);
+        var y = VillageLayout.SurfaceY + 2;
+        var z = oz - 3;
 
         var mobTag = $"guardian_{resourceName}";
 

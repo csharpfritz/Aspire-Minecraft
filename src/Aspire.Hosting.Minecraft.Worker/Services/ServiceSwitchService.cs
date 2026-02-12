@@ -51,10 +51,10 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever to the right of entrance (door is x+2 to x+4, so lever at x+5)
-            // Lever at ground level (y+1) on front wall (z).
+            // Place lever to the right of entrance door, at ground level on front wall.
             // No separate lamp — StructureBuilder's health indicator already shows status.
-            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            var leverX = x + (VillageLayout.StructureSize / 2) + 2;
+            await PlaceLeverAsync(leverX, y + 1, z, powered, ct);
 
             _lastKnownStatus[name] = info.Status;
 
@@ -77,9 +77,9 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Always place switches (self-healing if destroyed)
-            // Position: to the right of entrance at x+5, y+1 (lever)
-            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            // Place lever to the right of entrance door, at ground level on front wall.
+            var leverX = x + (VillageLayout.StructureSize / 2) + 2;
+            await PlaceLeverAsync(leverX, y + 1, z, powered, ct);
 
             _lastKnownStatus.TryGetValue(name, out var lastStatus);
             if (info.Status != lastStatus)

@@ -56,8 +56,7 @@ if (builder.Configuration["ASPIRE_FEATURE_GRAND_VILLAGE"] == "true")
 // Minecart rail network — register service when enabled
 if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
 {
-    // MinecartRailService will be implemented in a future milestone;
-    // the env var flag is wired up and ready for service registration.
+    builder.Services.AddSingleton<MinecartRailService>();
 }
 
 // Services
@@ -161,7 +160,8 @@ file sealed class MinecraftWorldWorker(
     HeartbeatService? heartbeat = null,
     RedstoneDependencyService? redstoneGraph = null,
     ServiceSwitchService? serviceSwitches = null,
-    RedstoneDashboardService? redstoneDashboard = null) : BackgroundService
+    RedstoneDashboardService? redstoneDashboard = null,
+    MinecartRailService? minecartRails = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -197,6 +197,8 @@ file sealed class MinecraftWorldWorker(
             await redstoneGraph.InitializeAsync(stoppingToken);
         if (redstoneDashboard is not null)
             await redstoneDashboard.InitializeAsync(stoppingToken);
+        if (minecartRails is not null)
+            await minecartRails.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
@@ -237,6 +239,8 @@ file sealed class MinecraftWorldWorker(
                         await achievements.CheckAchievementsAsync(changes, stoppingToken);
                     if (redstoneGraph is not null)
                         await redstoneGraph.UpdateAsync(stoppingToken);
+                    if (minecartRails is not null)
+                        await minecartRails.UpdateAsync(stoppingToken);
                 }
 
                 // Achievement checks that run every cycle (e.g., Night Shift needs time query)
