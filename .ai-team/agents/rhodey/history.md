@@ -81,3 +81,32 @@
  Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
 � Team update (2026-02-11): CI pipelines now skip docs-only changes (docs/**, user-docs/**, *.md, .ai-team/**)  decided by Wong
  Team update (2026-02-11): 14 user-facing docs now live in user-docs/ with consistent structure (What  How  What You'll See  Use Cases  Code Example)  decided by Vision
+
+### 2026-02-11: Sprint 4 Planning Analysis
+
+- **Project maturity assessment:** v0.3.1 released. 31 extension methods, 361 tests, 24 worker services, 14 user-docs, full CI/CD (build + release + CodeQL). API surface frozen since v0.2.0. README is comprehensive. The project is past "proof of concept" and entering "polish for adoption" territory.
+- **Tech debt identified:** (1) `WithAllFeatures()` convenience method still missing (recommended since Sprint 2 API review). (2) Feature env var checks use `!string.IsNullOrEmpty` instead of `== "true"` (Sprint 2 recommendation #4). (3) No `IRconCommandSender` interface for testability (Sprint 2 recommendation #3). (4) User-docs missing coverage for 5 features: Weather Effects, Particle Effects, Sound Effects, Fireworks, Deployment Fanfare. (5) SourceLink floating version `8.*` in Directory.Build.props not pinned.
+- **Azure epic status:** Architecture fully designed, SDK research done, visual design complete. Ready for Phase 1 implementation. Separate NuGet package (`Fritz.Aspire.Hosting.Minecraft.Azure`) is the agreed approach. NOT ready for Sprint 4 — it's a multi-sprint epic marked for v1.0/Sprint 5+.
+- **Feature gaps for new users:** No `WithAllFeatures()` convenience (13 `With*()` calls is intimidating). No interactive "getting started" experience. No NuGet package icon. No GitHub Pages documentation site.
+- **Only 1 open GitHub issue:** #48 (Pre-baked Docker image — v1.0/Sprint 5+).
+- **Key observation:** The project has shipped 3 sprints of features. Sprint 4 should focus on DX polish, missing docs, convenience APIs, and making the NuGet package irresistible to first-time users — not new Minecraft features.
+
+### 2026-02-12: Sprint 4 Brainstorming — Aspire Observability Visualization Ideas
+
+- **Jeff's request:** "What would be fun to browse and wander around in Minecraft? Some way to visualize traces?" — Jeff is looking to go beyond resource health into OpenTelemetry observability data (traces, metrics, logs).
+- **10 ideas brainstormed**, ranging from Easy to Hard feasibility. Full write-up in `.ai-team/decisions/inbox/rhodey-sprint4-visualization-ideas.md`.
+- **Top 3 for Sprint 4 (no new data source needed):** Dragon Health Egg (SLO visualization with Ender Dragon theming), Redstone Clock Dashboard (time-series health display), Sculk Error Network (cascading failure visualization using Deep Dark blocks).
+- **Jeff's trace interest → Trace River is the headline feature for Sprint 5.** Water channels between buildings with boats representing requests, lava for errors. Requires OTLP trace ingestion — a new architectural capability the worker doesn't have today.
+- **Critical architectural decision identified:** All OTLP-dependent features (7 of 10 ideas) require the worker to consume trace/metric/log data. Today it only polls health endpoints. Must design the OTLP ingestion architecture before committing to any individual feature. Three options documented: secondary OTLP receiver, Aspire dashboard API polling, or shared collector.
+- **RCON budget is the hidden constraint** for continuous visualization features. Metrics Tower and Minecart Rails have high RCON costs. Dragon Egg and Sculk Network are RCON-efficient. This should influence prioritization.
+
+### 2026-02-12: Sprint 4 Technical Design Decisions
+
+- **Full technical design created** at `docs/designs/sprint-4-design.md` covering Redstone Dashboard Wall, Enhanced Building Architecture, and Sprint 4 scope with 14 issues.
+- **Redstone Dashboard Wall** placed at X=-5, west of village, facing east. Uses `/clone` shift-register technique for RCON-efficient scrolling (N+1 commands per cycle instead of N×columns). Health history stored in a `HealthHistoryTracker` ring buffer. Concrete bar charts below show uptime percentages.
+- **Jeff's enhanced building vision implemented:** Database resources (postgres, redis, sqlserver, etc.) get cylindrical buildings using 3-block radius in the 7×7 grid with polished deepslate. Azure resources get light_blue_banner flags on rooftops. Azure detection via resource type string matching (no SDK dependency). New `AzureThemed` structure type is a Cottage variant with light_blue_concrete walls.
+- **Building type mapping expanded:** Project→Watchtower, Container→Warehouse, Executable→Workshop, Database→Cylinder, Azure→AzureThemed, Unknown→Cottage. Azure banner is additive — a database cylinder from Azure gets both the cylinder shape AND the azure banner.
+- **Sprint 4 scoped to 14 issues:** 4 dashboard, 3 enhanced buildings, 1 Dragon Egg, 3 DX polish (WithAllFeatures, env var tightening, welcome teleport), 3 documentation (README, user-docs, tests). Cut line: welcome teleport drops first, then Dragon Egg.
+- **Key design principle:** Azure detection is a visual signal (banner), not an architectural integration. String matching on resource types keeps the main package free of Azure SDK dependencies, consistent with the separate-package decision from Sprint 2.
+- **Cylinder RCON cost is ~88 commands** (4× a watchtower) due to circular geometry. Acceptable as one-time build; databases are typically <30% of resources.
+- **Decisions logged** in `.ai-team/decisions/inbox/rhodey-sprint4-design.md` (7 decisions).

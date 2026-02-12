@@ -111,3 +111,31 @@
 - The scheduled CodeQL run (Monday 06:25 UTC) is unaffected by path filters — it always runs on schedule regardless of recent commits.
  Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
  Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
+
+### Sprint 4 — Milestone & Issue Tracking Created (2026-02-11)
+
+**Milestone created:**
+- "Sprint 4 — Visual Identity & Dashboard" (milestone #1) — Enhanced building styles (cylinder databases, Azure flags), Redstone Dashboard wall, Dragon Health Egg, and DX polish.
+
+**Label created:**
+- `sprint-4` — applied to all 14 issues.
+
+**Issues created (14 total):**
+- #49: Unit tests for Sprint 4 features [enhancement, sprint-4]
+- #62: WithAllFeatures() convenience method [enhancement, sprint-4]
+- #63: Tighten feature env var checks to == "true" [enhancement, sprint-4]
+- #64: Welcome teleport on player join [enhancement, sprint-4]
+- #65: Dragon Health Egg monument [enhancement, sprint-4]
+- #66: Cylinder buildings for database resources [enhancement, sprint-4]
+- #67: Azure-themed buildings with blue banner [enhancement, sprint-4]
+- #68: Update health indicator for new structure types [enhancement, sprint-4]
+- #69: Redstone Dashboard Wall construction [enhancement, sprint-4]
+- #70: Health history ring buffer [enhancement, sprint-4]
+- #71: Dashboard scroll and bar chart updates [enhancement, sprint-4]
+- #72: WithRedstoneDashboard() extension method [enhancement, sprint-4]
+- #73: README update for Sprint 4 features [documentation, sprint-4]
+- #74: User docs for Sprint 4 features [documentation, sprint-4]
+
+**Notes:**
+- `enhancement` and `documentation` labels already existed; `sprint-4` was created new (color: #5319e7).
+- Issue #49 and #62 were created via MCP tool; #63–#74 via REST API due to rate limiting on parallel MCP calls.

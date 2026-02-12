@@ -9,7 +9,7 @@
 
 - Single packable NuGet package: Fritz.Aspire.Hosting.Minecraft (Rcon embedded via PrivateAssets, Worker is IsPackable=false)
 - Version defaults to `0.1.0-dev`, CI overrides via `-p:Version` from git tag
-- SourceLink, deterministic builds, EnablePackageValidation enabled in Directory.Build.props
+- Deterministic builds, EnablePackageValidation enabled in Directory.Build.props (SourceLink removed per Jeff's request)
 - All deps pinned to exact versions (no floating Version="*")
 - Content files: bluemap/core.conf and otel/opentelemetry-javaagent.jar bundled with hosting package
 

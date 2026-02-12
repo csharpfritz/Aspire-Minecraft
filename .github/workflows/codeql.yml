@@ -3,18 +3,22 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'user-docs/**'
-      - '*.md'
-      - '.ai-team/**'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Build.props'
+      - '*.slnx'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'user-docs/**'
-      - '*.md'
-      - '.ai-team/**'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Build.props'
+      - '*.slnx'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '25 6 * * 1'
 

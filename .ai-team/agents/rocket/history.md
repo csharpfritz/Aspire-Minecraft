@@ -128,3 +128,29 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 **Bug 2 — Warehouse health lamp misaligned:** The health indicator glowstone was placed at `y+3`, which overlapped with the 3-tall cargo door (y+1 to y+3). Fixed `PlaceHealthIndicatorAsync` to use `y+4` for Watchtower and Warehouse (3-tall doors), keeping `y+3` for Workshop and Cottage (2-tall doors).
 
 **Key learning:** When `SurfaceY` represents the topmost solid block, structure floors must be placed at `SurfaceY + 1` (above the surface), not at `SurfaceY` (replacing the surface). Health indicators must be placed above door openings, not overlapping them.
+
+### Sprint 4 Building Design Reference (2026-02-11)
+
+Created `docs/designs/minecraft-building-reference.md` — the implementation bible for Sprint 4 building enhancements.
+
+**Cylinder building geometry:**
+- Radius-3 circle = 7-block diameter = perfect fit for existing 7×7 grid cell.
+- Perimeter is 16 blocks per Y layer; interior is 21 blocks per layer.
+- Cannot use `fill ... hollow` for circles — must place perimeter blocks row-by-row per Y level.
+- Each row at a given Z has a different X span (the circle equation): z+0/z+6 → x+2..x+4 (3 wide), z+1/z+5 → x+1..x+5 (5 wide), z+2..z+4 → x..x+6 (7 wide, full row).
+- ~60 RCON commands per cylinder vs ~20 for rectangular buildings. Use `CommandPriority.Low`.
+- Dome roof: 2-layer approach — full-radius slab ring at y+5, smaller (radius-2) slab ring at y+6.
+- Door placement on round buildings: carve at the flattest face (south/z+0), 3-wide × 2-tall.
+
+**Banner/flag RCON commands:**
+- Azure banner: `minecraft:light_blue_banner[rotation=8]{Patterns:[{Color:0,Pattern:"str"},{Color:0,Pattern:"bs"}]}` — rotation=8 faces south.
+- Wall-mounted variant: `minecraft:light_blue_wall_banner[facing=south]` + same Patterns NBT.
+- Banner `Color:0` = white in Minecraft's banner color index; base color comes from the block ID (light_blue_banner).
+- Flagpole pattern (oak_fence + banner) already established on Watchtower; reuse for all structure types.
+
+**Dashboard wall placement and /clone technique:**
+- Position: (X=10, Y=SurfaceY+2, Z=-12) — behind village, facing south toward structures.
+- Frame: polished blackstone. Back panel: black concrete. Screen: 18×8 usable grid.
+- Block-swap for lamp state (glowstone=lit, redstone_lamp=unlit, gray_concrete=unknown) — avoids all redstone wiring complexity.
+- `/clone` for scrolling: `clone 12 {SY+2} -12 28 {SY+9} -12 11 {SY+2} -12` shifts all columns left by 1, then write new data at rightmost column (X=28).
+- `/clone` is 1 RCON command regardless of grid size — extremely efficient for scrolling animation.
