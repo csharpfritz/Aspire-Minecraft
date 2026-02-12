@@ -59,6 +59,12 @@ internal static class VillageLayout
     /// <summary>Structure footprint width/depth (7×7).</summary>
     public const int StructureSize = 7;
 
+    /// <summary>Dashboard wall X position (west of village).</summary>
+    public const int DashboardX = BaseX - 15;
+
+    /// <summary>Number of time columns on the dashboard.</summary>
+    public const int DashboardColumns = 10;
+
     /// <summary>
     /// Gets the origin (southwest corner) position for a structure at the given resource index.
     /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, index 2 → col 0 row 1, etc.

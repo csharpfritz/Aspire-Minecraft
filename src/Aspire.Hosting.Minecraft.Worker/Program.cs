@@ -55,6 +55,9 @@ builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
 
+// HealthHistoryTracker is always registered (cheap ring buffer used by dashboard if enabled)
+builder.Services.AddSingleton<HealthHistoryTracker>();
+
 // Opt-in features (enabled via env vars set by builder extension methods)
 if (builder.Configuration["ASPIRE_FEATURE_PARTICLES"] == "true")
     builder.Services.AddSingleton<ParticleEffectService>();
@@ -88,7 +91,7 @@ if (builder.Configuration["ASPIRE_FEATURE_SWITCHES"] == "true")
     builder.Services.AddSingleton<ServiceSwitchService>();
 if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_DASHBOARD"] == "true")
 {
-    // Will be wired up when RedstoneDashboardService is implemented
+    builder.Services.AddSingleton<RedstoneDashboardService>();
 }
 
 // Background worker
@@ -142,7 +145,8 @@ file sealed class MinecraftWorldWorker(
     AdvancementService? achievements = null,
     HeartbeatService? heartbeat = null,
     RedstoneDependencyService? redstoneGraph = null,
-    ServiceSwitchService? serviceSwitches = null) : BackgroundService
+    ServiceSwitchService? serviceSwitches = null,
+    RedstoneDashboardService? redstoneDashboard = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -174,6 +178,8 @@ file sealed class MinecraftWorldWorker(
             await worldBorder.InitializeAsync(stoppingToken);
         if (redstoneGraph is not null)
             await redstoneGraph.InitializeAsync(stoppingToken);
+        if (redstoneDashboard is not null)
+            await redstoneDashboard.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
@@ -242,6 +248,8 @@ file sealed class MinecraftWorldWorker(
                     await heartbeat.PulseAsync(stoppingToken);
                 if (serviceSwitches is not null)
                     await serviceSwitches.UpdateAsync(stoppingToken);
+                if (redstoneDashboard is not null)
+                    await redstoneDashboard.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)
