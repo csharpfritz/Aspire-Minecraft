@@ -268,6 +268,61 @@ Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `ID
 
 **Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
 
+### Grand Workshop (Milestone 5, Issue #82)
+
+Redesigned `BuildWorkshopAsync()` with Grand mode (15×15) branching. When `VillageLayout.StructureSize >= 15`, delegates to `BuildGrandWorkshopAsync()`. Standard 7×7 version preserved unchanged.
+
+**Grand Workshop exterior (15×15, 10 blocks tall):**
+- Oak plank walls with spruce log corner posts (y+1 to y+5) and horizontal beam frame at y+5.
+- A-frame peaked roof: 4 layers of spruce stair shingles (y+6 eaves → y+9 ridge cap with spruce_slab).
+- 2×2 cobblestone chimney at back-right corner (y+6 to y+10) topped with campfire.
+- Cyan stained glass windows (2×2) flanking door on front wall, plus side and back walls.
+- Flower pots under front windows at y+2.
+- 3-wide × 3-tall door centered at x+6..x+8 on front wall (z).
+
+**Grand Workshop interior:**
+- Tool stations along back wall: crafting_table, smithing_table, stonecutter, anvil, grindstone (spaced evenly).
+- Furnace at left back corner, brewing_stand at right back corner.
+- Loft at y+6: half-floor (back half, z+7 to z+13) with oak fence railing, ladder access against side wall (x+1, y+1..y+6).
+- Loft furnishing: 3 barrels + bookshelf against back wall.
+- 3 hanging lanterns at ceiling (y+5).
+
+**Support method updates:**
+- `PlaceAzureBannerAsync`: Grand Workshop roofY = y+10, flagpole centered at x+half/z+half.
+- `PlaceHealthIndicatorAsync`: Grand Workshop lampY = y+4 (above 3-tall door), lampX = x+7 (centered).
+
+**RCON budget:** 47 commands in `BuildGrandWorkshopAsync` + 3-5 external (health lamp, sign, optional azure banner) = ~50-52 total. Within the ~55-65 budget.
+
+**Key learning:** A-frame roof on a 15-block-wide building needs 4 layers to reach the ridge. Each layer uses matching spruce stair `facing` directions (south for front slope, north for back slope) with oak plank fill in the gable center. The ridge cap uses `spruce_slab` for a clean peak line.
+
+### Grand Azure Pavilion & Grand Cottage (Milestone 5, Issue #80)
+
+Added grand variants for the two remaining building types: Azure Pavilion and Cottage. Both branch on `VillageLayout.StructureSize == 15` — if grand, delegate to `BuildGrandAzurePavilionAsync` / `BuildGrandCottageAsync`; otherwise keep the standard 7×7 build.
+
+**Grand Azure Pavilion (BuildGrandAzurePavilionAsync):**
+- 15×15 footprint, 8 blocks tall. Light blue concrete walls with blue concrete pilaster strips at all 4 corners and 4 wall midpoints.
+- Blue concrete trim band at wall top (y+7). Flat light blue concrete roof (y+8) with 3×3 light blue stained glass skylight in center.
+- Azure banners on all 4 roof corners (y+9). Blue stained glass pane windows on all 4 walls.
+- Interior: light blue carpet floor, brewing stand + cauldron (cloud services aesthetic), 4 hanging lanterns.
+- ~50 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Grand Cottage (BuildGrandCottageAsync):**
+- 15×15 footprint, 8 blocks tall. Cobblestone lower walls (y+1 to y+4), oak plank upper walls (y+5 to y+7).
+- Language-colored wool trim band at y+7. Cobblestone slab pitched roof (y+8).
+- Flower pots on front face below windows. Glass pane windows on front and sides.
+- Interior: red bed, crafting table, bookshelf, furnace, 2 chests, potted poppy + dandelion, 4 wall torches.
+- ~45 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Supporting changes:**
+- `PlaceHealthIndicatorAsync` — lampX now uses `x + half` for all grand variants (was only handling Watchtower/Warehouse/Cylinder).
+- `PlaceAzureBannerAsync` — roofY for grand Cottage updated to `y + 9` (was `y + 6` for standard).
+- `PlaceSignAsync` — signX now uses `x + half - 1` derived from `VillageLayout.StructureSize / 2`, keeping backward compat (7/2 = 3, so x+2).
+- `BuildFencePerimeterAsync` — gate width now uses `VillageLayout.GateWidth` (3 standard, 5 grand).
+- `BuildPathsAsync` — grand layout gets a central stone brick boulevard between the two columns.
+- `BuildCylinderAsync` — added size check to branch to `BuildGrandCylinderAsync` when grand.
+
+**Key learning:** When modifying shared placement methods (health lamp, sign, banner) for new grand variants, use `VillageLayout.StructureSize / 2` instead of hardcoding `3` vs `7`. This makes the code adaptive to any structure size without needing per-type grand checks.
+
 ### Grand Watchtower (Milestone 5, Issue #78)
 
 **Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize == 15` (Grand mode); standard 7×7 watchtower remains the fallback.
