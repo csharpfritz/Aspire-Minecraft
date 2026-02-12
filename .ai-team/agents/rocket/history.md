@@ -154,3 +154,22 @@ Created `docs/designs/minecraft-building-reference.md` — the implementation bi
 - Block-swap for lamp state (glowstone=lit, redstone_lamp=unlit, gray_concrete=unknown) — avoids all redstone wiring complexity.
 - `/clone` for scrolling: `clone 12 {SY+2} -12 28 {SY+9} -12 11 {SY+2} -12` shifts all columns left by 1, then write new data at rightmost column (X=28).
 - `/clone` is 1 RCON command regardless of grid size — extremely efficient for scrolling animation.
+
+### Sprint 4 Issue #66 & #67: Cylinder & Azure-Themed Buildings (2026-02-12)
+
+**Cylinder building (Issue #66):**
+- Implemented `IsDatabaseResource()` with case-insensitive `.Contains()` matching for: postgres, redis, sqlserver, sql-server, mongodb, mysql, mariadb, cosmosdb, oracle, sqlite, rabbitmq.
+- `BuildCylinderAsync()` uses the radius-3 circular geometry from the building reference doc. Floor is polished_deepslate disc, walls are smooth_stone (layers 1-3) with polished_deepslate top band (layer 4), dome is smooth_stone_slab at y+5, polished_deepslate_slab cap at y+6.
+- Door is 1-wide centered at (x+3, z+0) — 2-tall opening. Narrow door is architecturally appropriate for round buildings per the design doc.
+- Interior clearing runs per-layer to match the circular shape (can't use `fill ... hollow` for circles).
+- Interior accents: copper_block center cross on floor, iron_block door frame accents.
+- ~60 RCON commands per cylinder. Acceptable for one-time build with idempotent tracking.
+
+**Azure-themed building (Issue #67):**
+- Implemented `IsAzureResource()` with case-insensitive `.Contains()` matching for: azure, cosmos, servicebus, eventhub, keyvault, appconfiguration, signalr, storage.
+- `GetStructureType()` now checks `IsDatabaseResource()` first (returns "Cylinder"), then `IsAzureResource()` (returns "AzureThemed"), then falls through to existing switch. This ensures database+azure resources get Cylinder shape with azure banner overlay.
+- `BuildAzureThemedAsync()` is a Cottage variant with light_blue_concrete walls, blue_concrete trim, light_blue_stained_glass roof, blue_stained_glass_pane windows. Azure banner always placed on roof at (x+3, y+6, z+3).
+- `PlaceAzureBannerAsync()` places a flagpole + light_blue_banner on any structure type when `IsAzureResource()` returns true. Roof Y varies by structure type per the banner placement table. AzureThemed is skipped because it already places its own banner.
+- Health indicator: Cylinder and AzureThemed both use front wall at z (same as Workshop/Cottage) with 2-tall doors, so lamp at y+3. No changes needed to `PlaceHealthIndicatorAsync` — existing logic already handles them correctly via the `is "Watchtower" or "Warehouse"` check.
+
+**Key decision:** `cosmos` appears in both detection methods (IsAzureResource and IsDatabaseResource). Since `IsDatabaseResource` is checked first in `GetStructureType()`, a "cosmosdb" resource gets Cylinder shape + azure banner. This is intentional — the database shape takes priority with the azure banner as an additive overlay.

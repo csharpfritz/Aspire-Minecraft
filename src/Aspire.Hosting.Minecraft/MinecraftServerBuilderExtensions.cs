@@ -717,6 +717,47 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables all opt-in Minecraft world display features at once.
+    /// This is a convenience method equivalent to calling:
+    /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
+    /// <see cref="WithBossBar"/>, <see cref="WithSoundEffects"/>, <see cref="WithActionBarTicker"/>,
+    /// <see cref="WithBeaconTowers"/>, <see cref="WithFireworks"/>, <see cref="WithGuardianMobs"/>,
+    /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
+    /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
+    /// <see cref="WithPeacefulMode"/>, and <see cref="WithRconDebugLogging"/>.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithAllFeatures(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        _ = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithAllFeatures() requires WithAspireWorldDisplay() to be called first.");
+
+        return builder
+            .WithParticleEffects()
+            .WithTitleAlerts()
+            .WithWeatherEffects()
+            .WithBossBar()
+            .WithSoundEffects()
+            .WithActionBarTicker()
+            .WithBeaconTowers()
+            .WithFireworks()
+            .WithGuardianMobs()
+            .WithDeploymentFanfare()
+            .WithWorldBorderPulse()
+            .WithAchievements()
+            .WithHeartbeat()
+            .WithRedstoneDependencyGraph()
+            .WithServiceSwitches()
+            .WithPeacefulMode()
+            .WithRconDebugLogging();
+    }
+
+    /// <summary>
     /// Sets an arbitrary Minecraft <c>server.properties</c> value via the itzg/minecraft-server
     /// environment variable convention. The property name is converted to UPPER_SNAKE_CASE
     /// (e.g., <c>max-players</c> becomes <c>MAX_PLAYERS</c>).

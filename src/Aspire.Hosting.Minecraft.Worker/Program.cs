@@ -56,35 +56,35 @@ builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
 
 // Opt-in features (enabled via env vars set by builder extension methods)
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_PARTICLES"]))
+if (builder.Configuration["ASPIRE_FEATURE_PARTICLES"] == "true")
     builder.Services.AddSingleton<ParticleEffectService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_TITLE_ALERTS"]))
+if (builder.Configuration["ASPIRE_FEATURE_TITLE_ALERTS"] == "true")
     builder.Services.AddSingleton<TitleAlertService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WEATHER"]))
+if (builder.Configuration["ASPIRE_FEATURE_WEATHER"] == "true")
     builder.Services.AddSingleton<WeatherService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BOSSBAR"]))
+if (builder.Configuration["ASPIRE_FEATURE_BOSSBAR"] == "true")
     builder.Services.AddSingleton<BossBarService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SOUNDS"]))
+if (builder.Configuration["ASPIRE_FEATURE_SOUNDS"] == "true")
     builder.Services.AddSingleton<SoundEffectService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"]))
+if (builder.Configuration["ASPIRE_FEATURE_ACTIONBAR"] == "true")
     builder.Services.AddSingleton<ActionBarTickerService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_BEACONS"]))
+if (builder.Configuration["ASPIRE_FEATURE_BEACONS"] == "true")
     builder.Services.AddSingleton<BeaconTowerService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FIREWORKS"]))
+if (builder.Configuration["ASPIRE_FEATURE_FIREWORKS"] == "true")
     builder.Services.AddSingleton<FireworksService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_GUARDIANS"]))
+if (builder.Configuration["ASPIRE_FEATURE_GUARDIANS"] == "true")
     builder.Services.AddSingleton<GuardianMobService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_FANFARE"]))
+if (builder.Configuration["ASPIRE_FEATURE_FANFARE"] == "true")
     builder.Services.AddSingleton<DeploymentFanfareService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"]))
+if (builder.Configuration["ASPIRE_FEATURE_WORLDBORDER"] == "true")
     builder.Services.AddSingleton<WorldBorderService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"]))
+if (builder.Configuration["ASPIRE_FEATURE_HEARTBEAT"] == "true")
     builder.Services.AddSingleton<HeartbeatService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"]))
+if (builder.Configuration["ASPIRE_FEATURE_ACHIEVEMENTS"] == "true")
     builder.Services.AddSingleton<AdvancementService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"]))
+if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_GRAPH"] == "true")
     builder.Services.AddSingleton<RedstoneDependencyService>();
-if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_SWITCHES"]))
+if (builder.Configuration["ASPIRE_FEATURE_SWITCHES"] == "true")
     builder.Services.AddSingleton<ServiceSwitchService>();
 
 // Background worker
@@ -172,7 +172,7 @@ file sealed class MinecraftWorldWorker(
             await redstoneGraph.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL")))
+        if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
         {
             await rcon.SendCommandAsync("difficulty peaceful", stoppingToken);
             logger.LogInformation("Peaceful mode enabled — hostile mobs disabled");
