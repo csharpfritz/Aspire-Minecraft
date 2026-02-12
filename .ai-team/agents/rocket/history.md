@@ -267,3 +267,5 @@ Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `ID
 - `_burstModeSemaphore` disposed in `DisposeAsync`.
 
 **Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
+
+📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket

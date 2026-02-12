@@ -98,3 +98,18 @@
 - Build: 0 errors, 2 pre-existing warnings (CS8604 nullable, xUnit1026 unused param).
  Team update (2026-02-12): SourceLink removed from Directory.Build.props per user directive (v0.4.0 release)  decided by Jeffrey T. Fritz
  Team update (2026-02-12): Sprint 4 and Sprint 5 feature sets finalized; Sprint 4 scope confirmed: Redstone Dashboard, Enhanced Buildings, Dragon Egg monument, DX polish, documentation  decided by Rhodey
+
+### Milestone 5: VillageLayout Configurable Properties (#77)
+
+- Converted `Spacing`, `StructureSize` from `const int` to `static int { get; private set; }` with defaults matching Sprint 4 values (Spacing=24, StructureSize=7).
+- Added `FenceClearance` property (default=10, matching existing hardcoded 10-block fence gap).
+- `ConfigureGrandLayout()` sets StructureSize=15 and FenceClearance=6. Spacing stays 24 (already correct from Sprint 4).
+- `ResetLayout()` (internal) restores defaults — needed for test isolation since properties have `private set`.
+- `GetStructureCenter()` now uses `StructureSize / 2` instead of hardcoded 3. For StructureSize=7, 7/2=3 (integer division) — backward compatible.
+- Added `GetRailEntrance(index)`: returns position centered on structure front face, one block south (Z-1) at SurfaceY+1.
+- `GetFencePerimeter()` now uses `FenceClearance` property instead of hardcoded 10.
+- `Program.cs` calls `ConfigureGrandLayout()` when `ASPIRE_FEATURE_GRAND_VILLAGE == "true"`, placed before service registrations.
+- 11 new tests added (329 total Worker tests pass). Tests cover both standard and grand layout configurations.
+- Key file paths: `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs`, `tests/.../Services/VillageLayoutTests.cs`.
+
+📌 Team update (2026-02-12): VillageLayout constants converted to configurable properties (#77) with defaults matching existing behavior, ConfigureGrandLayout() for Milestone 5 Grand Village, ResetLayout() for test isolation — decided by Shuri

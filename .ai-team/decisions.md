@@ -1755,3 +1755,57 @@ The original 12-block spacing with 7×7 structures left only a 5-block gap — c
 All layout-dependent services automatically inherit the new positions via `VillageLayout.GetStructureOrigin()`. Test expectations updated in 4 test files. All 382 tests pass.
 
 
+
+
+### 2026-02-12: VillageLayout constants converted to configurable properties
+
+**By:** Shuri
+**What:** `Spacing`, `StructureSize`, and `FenceClearance` are now `static int { get; private set; }` instead of `const`. `ConfigureGrandLayout()` sets Grand Village values. `ResetLayout()` (internal) restores defaults for test isolation.
+**Why:** Foundation for Milestone 5 Grand Village. Every other issue depends on these being configurable. Default values match Sprint 4 exactly so there's zero regression without the feature flag. `FenceClearance` was introduced to replace the hardcoded 10-block fence gap.
+
+
+# Decision: RCON Burst Mode API
+
+**Author:** Rocket
+**Date:** 2026-02-12
+**Issue:** #85
+
+## Context
+
+Milestone 5 Grand Village buildings generate 50–140 RCON commands each. At the steady-state 10 cmd/sec rate, a 6-resource village takes ~60 seconds to build. Burst mode temporarily raises throughput during initial construction.
+
+## Decision
+
+`RconService.EnterBurstMode(int commandsPerSecond = 40)` returns `IDisposable`. Usage:
+
+```csharp
+using (rcon.EnterBurstMode())
+{
+    await BuildAllStructuresAsync(ct);
+}
+// Rate limit automatically restored to 10 cmd/sec
+```
+
+- Thread-safe: only one burst session at a time (SemaphoreSlim).
+- Throws `InvalidOperationException` if burst mode is already active.
+- Logged at INFO on enter/exit.
+
+## Who Needs to Know
+
+- **Shuri** — no hosting API changes needed; burst mode is internal to the worker.
+- **Rhodey** — aligns with Sprint 5 design doc §6 "RCON Burst Mode Design."
+- **Nebula** — unit tests for burst mode should cover: enter/exit logging, double-enter rejection, dispose restoration, thread safety.
+
+
+### 2026-02-12: Integration test infrastructure uses xUnit Collection + Aspire Testing Builder
+
+**By:** Nebula
+**What:** Created `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with `MinecraftAppFixture` using `DistributedApplicationTestingBuilder` and xUnit `[Collection("Minecraft")]` pattern. All integration tests share a single Minecraft server instance per test run.
+**Why:** Minecraft server startup takes 30–60s — per-test startup is not feasible. The collection fixture pattern ensures one server per run. The `app.GetEndpoint("minecraft", "rcon")` API returns a `Uri` for RCON connectivity. Poll-based readiness (`execute if block` every 5s) is more reliable than fixed delays.
+**Affects:** Any future integration tests must use `[Collection("Minecraft")]` and inject `MinecraftAppFixture`. The fixture handles RCON connection and village build readiness.
+
+
+### 2026-02-12: Use "milestones" not "sprints"
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Refer to work phases as "milestones" instead of "sprints" going forward.
+**Why:** User request — captured for team memory
