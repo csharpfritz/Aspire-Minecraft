@@ -266,7 +266,7 @@ internal sealed class StructureBuilder(
                     await BuildCylinderAsync(x, y, z, ct);
                     break;
                 case "AzureThemed":
-                    await BuildAzureThemedAsync(x, y, z, ct);
+                    await BuildAzureThemedAsync(x, y, z, info, ct);
                     break;
                 default:
                     await BuildCottageAsync(x, y, z, info, ct);
@@ -446,10 +446,19 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Cottage — humble default dwelling. Unknown/Other resource types.
-    /// Cobblestone walls, language-colored wool trim, ~7×7 footprint, 5 blocks tall.
+    /// Standard (7×7): Cobblestone walls, language-colored wool trim, 5 blocks tall.
+    /// Grand (15×15): 8 blocks tall, cobblestone lower / oak plank upper walls,
+    /// language-colored wool trim at roof level, cobblestone slab pitched roof,
+    /// flower pots and window boxes on front face, furnished interior.
     /// </summary>
     private async Task BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        if (VillageLayout.StructureSize == 15)
+        {
+            await BuildGrandCottageAsync(x, y, z, info, ct);
+            return;
+        }
+
         var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
 
         // Foundation: 7×7 cobblestone floor
@@ -487,6 +496,122 @@ internal sealed class StructureBuilder(
             $"setblock {x} {y + 2} {z + 3} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 6} {y + 2} {z + 3} minecraft:glass_pane", ct);
+    }
+
+    /// <summary>
+    /// Grand Cottage — 15×15 footprint, 8 blocks tall.
+    /// Cobblestone lower walls (y+1 to y+4), oak plank upper walls (y+5 to y+7).
+    /// Language-colored wool trim band at roof level (y+7).
+    /// Cobblestone slab pitched roof. Flower pots and window boxes on front face.
+    /// Interior: bed, crafting table, bookshelf, furnace, 2 chests, potted flowers, 4 torches.
+    /// ~40-50 RCON commands.
+    /// </summary>
+    private async Task BuildGrandCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    {
+        var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
+        var s = VillageLayout.StructureSize - 1; // 14
+        var half = s / 2; // 7
+
+        // === FOUNDATION: 15×15 cobblestone floor ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:cobblestone", ct);
+
+        // === LOWER WALLS: cobblestone, y+1 to y+4 ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + s} {y + 4} {z + s} minecraft:cobblestone hollow", ct);
+
+        // === UPPER WALLS: oak planks, y+5 to y+7 ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + s} {y + 7} {z + s} minecraft:oak_planks hollow", ct);
+
+        // === LANGUAGE-COLORED WOOL TRIM at roof level (y+7) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z} {x + s} {y + 7} {z} {wool}", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + s} {x + s} {y + 7} {z + s} {wool}", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + 1} {x} {y + 7} {z + s - 1} {wool}", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 7} {z + 1} {x + s} {y + 7} {z + s - 1} {wool}", ct);
+
+        // === PITCHED ROOF: cobblestone slabs ===
+        // South slope
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z} {x + s} {y + 8} {z + 3} minecraft:cobblestone_slab", ct);
+        // North slope
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z + s - 3} {x + s} {y + 8} {z + s} minecraft:cobblestone_slab", ct);
+        // Ridge (center)
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z + 4} {x + s} {y + 8} {z + s - 4} minecraft:cobblestone_slab", ct);
+
+        // === DOOR: 2 blocks wide, 2 tall on front face (z-min) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + half - 1} {y + 1} {z} {x + half} {y + 2} {z} minecraft:air", ct);
+
+        // === FRONT FACE WINDOWS: glass panes flanking door ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 3} {z} {x + 4} {y + 4} {z} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 3} {z} {x + 12} {y + 4} {z} minecraft:glass_pane", ct);
+
+        // === SIDE WINDOWS ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 4} {x} {y + 4} {z + 6} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 3} {z + 4} {x + s} {y + 4} {z + 6} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 8} {x} {y + 4} {z + 10} minecraft:glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 3} {z + 8} {x + s} {y + 4} {z + 10} minecraft:glass_pane", ct);
+
+        // === FLOWER POTS on front face window ledges ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 2} {z - 1} minecraft:flower_pot", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 11} {y + 2} {z - 1} minecraft:flower_pot", ct);
+
+        // === INTERIOR: bed ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + s - 2} minecraft:red_bed[facing=south,part=head]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 2} {y + 1} {z + s - 1} minecraft:red_bed[facing=south,part=foot]", ct);
+
+        // === INTERIOR: crafting table ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 1} {z + s - 2} minecraft:crafting_table", ct);
+
+        // === INTERIOR: bookshelf ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 6} {y + 1} {z + s - 1} minecraft:bookshelf", ct);
+
+        // === INTERIOR: furnace ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 2} {y + 1} {z + s - 1} minecraft:furnace[facing=north]", ct);
+
+        // === INTERIOR: 2 chests ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 2} {y + 1} {z + 2} minecraft:chest[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 3} {y + 1} {z + 2} minecraft:chest[facing=south]", ct);
+
+        // === INTERIOR: potted flowers ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 1} {z + 1} minecraft:potted_poppy", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 1} {z + 1} minecraft:potted_dandelion", ct);
+
+        // === INTERIOR: 4 torches for lighting ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 3} {z + 1} minecraft:wall_torch[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 3} {z + 1} minecraft:wall_torch[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 3} {z + s - 1} minecraft:wall_torch[facing=north]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 3} {z + s - 1} minecraft:wall_torch[facing=north]", ct);
+
+        logger.LogInformation("Grand Cottage built at ({X},{Y},{Z})", x, y, z);
     }
 
     /// <summary>
@@ -604,11 +729,18 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// AzureThemed — modified Cottage with Azure color palette. Non-database Azure resources.
-    /// Light blue concrete walls, blue concrete trim, light blue stained glass roof, azure banner.
-    /// Same dimensions as Cottage.
+    /// Standard (7×7): Light blue concrete walls, blue concrete trim, stained glass roof.
+    /// Grand (15×15): 8 blocks tall, pilaster strips, 3×3 skylight, banners on all 4 roof corners,
+    /// light blue carpet floor, blue stained glass internal windows, brewing stand and cauldron.
     /// </summary>
-    private async Task BuildAzureThemedAsync(int x, int y, int z, CancellationToken ct)
+    private async Task BuildAzureThemedAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        if (VillageLayout.StructureSize == 15)
+        {
+            await BuildGrandAzurePavilionAsync(x, y, z, info, ct);
+            return;
+        }
+
         // Foundation: 7×7 light blue concrete floor
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:light_blue_concrete", ct);
@@ -651,6 +783,123 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
+    /// Grand Azure Pavilion — 15×15 footprint, 8 blocks tall.
+    /// Light blue concrete walls with blue concrete pilaster strips at corners and midpoints.
+    /// Flat roof with light blue stained glass skylight (3×3 center).
+    /// Azure banners on all four roof corners.
+    /// Interior: light blue carpet floor, blue stained glass internal windows,
+    /// brewing stand and cauldron (cloud services aesthetic).
+    /// ~50-60 RCON commands.
+    /// </summary>
+    private async Task BuildGrandAzurePavilionAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
+    {
+        var s = VillageLayout.StructureSize - 1; // 14
+        var half = s / 2; // 7
+
+        // === FOUNDATION: 15×15 light blue concrete floor ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:light_blue_concrete", ct);
+
+        // === WALLS: light blue concrete, 7 blocks tall (y+1 to y+7) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + s} {y + 7} {z + s} minecraft:light_blue_concrete hollow", ct);
+
+        // === BLUE CONCRETE PILASTER STRIPS at corners and midpoints (full height) ===
+        // Corners
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x} {y + 7} {z} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z} {x + s} {y + 7} {z} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + s} {x} {y + 7} {z + s} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z + s} {x + s} {y + 7} {z + s} minecraft:blue_concrete", ct);
+        // Midpoints (center of each wall)
+        await rcon.SendCommandAsync(
+            $"fill {x + half} {y + 1} {z} {x + half} {y + 7} {z} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + half} {y + 1} {z + s} {x + half} {y + 7} {z + s} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + half} {x} {y + 7} {z + half} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z + half} {x + s} {y + 7} {z + half} minecraft:blue_concrete", ct);
+
+        // === BLUE CONCRETE TRIM BAND at wall top (y+7) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z} {x + s} {y + 7} {z} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + s} {x + s} {y + 7} {z + s} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 7} {z + 1} {x} {y + 7} {z + s - 1} minecraft:blue_concrete", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 7} {z + 1} {x + s} {y + 7} {z + s - 1} minecraft:blue_concrete", ct);
+
+        // === FLAT ROOF: light blue concrete (y+8) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 8} {z} {x + s} {y + 8} {z + s} minecraft:light_blue_concrete", ct);
+
+        // === SKYLIGHT: 3×3 light blue stained glass in center of roof ===
+        await rcon.SendCommandAsync(
+            $"fill {x + half - 1} {y + 8} {z + half - 1} {x + half + 1} {y + 8} {z + half + 1} minecraft:light_blue_stained_glass", ct);
+
+        // === AZURE BANNERS on all four roof corners ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 9} {z + 1} minecraft:light_blue_banner[rotation=0]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 9} {z + 1} minecraft:light_blue_banner[rotation=0]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 9} {z + s - 1} minecraft:light_blue_banner[rotation=0]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 9} {z + s - 1} minecraft:light_blue_banner[rotation=0]", ct);
+
+        // === DOOR: 2 blocks wide, 2 tall on front face (z-min) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + half - 1} {y + 1} {z} {x + half} {y + 2} {z} minecraft:air", ct);
+
+        // === BLUE STAINED GLASS INTERNAL WINDOWS on side walls (y+3 to y+5) ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 3} {x} {y + 5} {z + 5} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 3} {z + 3} {x + s} {y + 5} {z + 5} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z + 9} {x} {y + 5} {z + 11} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 3} {z + 9} {x + s} {y + 5} {z + 11} minecraft:blue_stained_glass_pane", ct);
+        // Front windows (flanking door)
+        await rcon.SendCommandAsync(
+            $"fill {x + 2} {y + 3} {z} {x + 4} {y + 5} {z} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 10} {y + 3} {z} {x + 12} {y + 5} {z} minecraft:blue_stained_glass_pane", ct);
+        // Back windows
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 3} {z + s} {x + 5} {y + 5} {z + s} minecraft:blue_stained_glass_pane", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 9} {y + 3} {z + s} {x + 11} {y + 5} {z + s} minecraft:blue_stained_glass_pane", ct);
+
+        // === INTERIOR: light blue carpet floor ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 1} {y + 1} {z + 1} {x + s - 1} {y + 1} {z + s - 1} minecraft:light_blue_carpet", ct);
+
+        // === INTERIOR: brewing stand and cauldron (cloud services aesthetic) ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 1} {z + s - 2} minecraft:brewing_stand", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 5} {y + 1} {z + s - 2} minecraft:cauldron", ct);
+
+        // === INTERIOR: lanterns for lighting ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 4} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 10} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
+
+        logger.LogInformation("Grand Azure Pavilion built at ({X},{Y},{Z})", x, y, z);
+    }
+
+    /// <summary>
     /// Places an Azure light blue banner on the rooftop of any structure type.
     /// Uses a flagpole (oak fence) with the banner beside it.
     /// </summary>
@@ -660,23 +909,27 @@ internal sealed class StructureBuilder(
         if (structureType == "AzureThemed")
             return;
 
+        var isGrand = VillageLayout.StructureSize >= 15;
+        var half = VillageLayout.StructureSize / 2;
+
         int roofY = structureType switch
         {
             "Watchtower" => y + 9,
             "Warehouse" => y + 6,
+            "Workshop" when isGrand => y + 10,
             "Workshop" => y + 7,
             "Cylinder" => y + 7,
-            "Cottage" => y + 6,
-            _ => y + 6,
+            "Cottage" => isGrand ? y + 9 : y + 6,
+            _ => isGrand ? y + 9 : y + 6,
         };
 
         // Flagpole
         await rcon.SendCommandAsync(
-            $"fill {x + 3} {roofY} {z + 3} {x + 3} {roofY + 1} {z + 3} minecraft:oak_fence", ct);
+            $"fill {x + half} {roofY} {z + half} {x + half} {roofY + 1} {z + half} minecraft:oak_fence", ct);
 
         // Azure standing banner on top of flagpole
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {roofY + 2} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
+            $"setblock {x + half} {roofY + 2} {z + half} minecraft:light_blue_banner[rotation=0]", ct);
     }
 
     /// <summary>
@@ -692,20 +945,28 @@ internal sealed class StructureBuilder(
             _ => "minecraft:sea_lantern"
         };
 
+        var isGrand = VillageLayout.StructureSize >= 15;
+
         // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
         var lampZ = structureType == "Watchtower" ? z + 1 : z;
         
+        // Grand Workshop has 3-tall door (y+1 to y+3), so lamp at y+4.
         // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
         // Workshop, Cottage, Cylinder, and AzureThemed have 2-tall doors (y+1 to y+2), so y+3 is fine.
         var lampY = structureType switch
         {
             "Watchtower" or "Warehouse" => y + 4,
+            "Workshop" when isGrand => y + 4,
             "Cylinder" or "AzureThemed" or "Workshop" or "Cottage" or _ => y + 3
         };
+
+        // Center X adapts to structure size for grand variants
+        var half = VillageLayout.StructureSize / 2;
+        var lampX = isGrand ? x + half : x + 3;
         
         // Place in front wall centered above entrance
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {lampY} {lampZ} {lampBlock}", ct);
+            $"setblock {lampX} {lampY} {lampZ} {lampBlock}", ct);
     }
 
     /// <summary>
@@ -714,13 +975,15 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task PlaceSignAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
+        var half = VillageLayout.StructureSize / 2;
+        var signX = x + half - 1;
         var signY = y + 1;
         var signZ = z - 1;
 
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
+            $"setblock {signX} {signY} {signZ} minecraft:oak_sign[rotation=8]", ct);
 
-        var signCmd = "data merge block " + $"{x + 2} {signY} {signZ}" +
+        var signCmd = "data merge block " + $"{signX} {signY} {signZ}" +
             " {front_text:{messages:[\"\"," +
             "\"" + info.Name + "\"," +
             "\"(" + info.Status + ")\"," +
