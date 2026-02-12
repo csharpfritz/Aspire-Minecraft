@@ -62,3 +62,13 @@
 📌 Team update (2026-02-10): Azure RG epic designed — separate NuGet package Fritz.Aspire.Hosting.Minecraft.Azure, polling for v1, DefaultAzureCredential — decided by Rhodey, Shuri
 📌 Team update (2026-02-10): Nebula owns Phase 4 of Azure epic — mocked ARM client tests, options validation — decided by Rhodey
 📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz
+
+📌 Village build integration test suite (2026-02-10): Created `tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/StructureBuilderTests.cs` with 17 comprehensive tests covering complete village generation. Tests validate RCON command sequences for fence perimeter, cobblestone paths, all 4 structure types (Watchtower/Warehouse/Workshop/Cottage), door clearing (air blocks), health indicators (glowstone/redstone_lamp/sea_lantern), and signs. Includes regression tests for Sprint 3 coordinate bugs (Watchtower door at z+1 vs z). All tests use MockRconServer pattern and TestResourceMonitorFactory. Total test count: 320 (303 + 17).
+📌 StructureBuilder command counts: 4-resource village generates ~73 RCON commands, 10-resource village ~170 commands. Fence (~5) + Paths (2) + Structure builds (variable per type) + Health indicators (1 per resource) + Signs (2 per resource: placement + data).
+📌 VillageLayout coordinates validated: BaseX=10, BaseY=-60, BaseZ=0, Spacing=10, 2-column grid. Index 0 at (10,-60,0), index 1 at (20,-60,0), index 2 at (10,-60,10), etc. Watchtower front wall at z+1 (hollow structure), other types at z (solid edge).
+📌 Pre-existing broken code found and reverted: StructureBuilder.cs had validation methods (ValidateWatchtowerAsync, ValidateWarehouseAsync, ValidateWorkshopAsync) calling non-existent VerifyBlockAsync method. Reverted via `git checkout` to restore working state before testing.
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): Boss bar title now configurable via WithBossBar(title) parameter and ASPIRE_BOSSBAR_TITLE env var; ASPIRE_APP_NAME no longer affects boss bar  decided by Rocket
+ Team update (2026-02-11): Village structures now use idempotent build pattern (build once, then only update health indicators)  decided by Rocket
+� Team update (2026-02-11): CI pipelines now skip docs-only changes (docs/**, user-docs/**, *.md, .ai-team/**)  decided by Wong

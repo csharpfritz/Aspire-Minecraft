@@ -13,9 +13,10 @@ internal sealed class GuardianMobService(
     ILogger<GuardianMobService> logger)
 {
     private const int BaseX = 10;
-    private const int BaseY = -58;
     private const int BaseZ = -4; // Offset to avoid overlap with structures
     private const int Spacing = 10;
+
+    private int BaseY => VillageLayout.SurfaceY + 2;
 
     private readonly Dictionary<string, ResourceStatus> _lastKnownStatus = new();
 

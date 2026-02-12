@@ -78,34 +78,53 @@ Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource t
 
 **Key learning:** Any service that depends on RCON or discovered resources must NOT be an independent `BackgroundService`. It must be a singleton called from `MinecraftWorldWorker`'s main loop, which handles the RCON wait and resource discovery lifecycle.
 
-### Fence Perimeter Fix (2026-02-10)
+### Sprint 3.1 Village Placement & Bug Fixes (consolidated, 2026-02-10 to 2026-02-11)
 
-Fixed two fence bugs: (1) Fence was placed at `BaseY + 1` (y=-59), floating one block above the superflat surface. Changed to `BaseY` (y=-60) so fences sit on ground. (2) `GetFencePerimeter` offsets were only 1-2 blocks from building edges. Changed to 4-block gap on all sides (`minX-4, minZ-4, maxX+4, maxZ+4`) per user request. Entry path from gate to boulevard auto-extends because it reads `fMinZ` from `GetFencePerimeter`. Gate position is boulevard-relative (X=17), unaffected by fence offset. All 303 tests pass.
+Multiple iterative fixes to village rendering, consolidated here. Final state of all placements:
 
-### Peaceful Mode Feature (2026-02-10)
+- **Fences:** `BaseY` (y=-60), 4-block gap from buildings on all sides. Gate at boulevard X=17.
+- **Paths:** `BaseY - 1` (y=-61) with grass cleared first via `/fill ... minecraft:air replace grass_block`. Recessed flush with terrain.
+- **Service switches:** Front wall at `(x+2, y+2, z)` facing north, lamp at `(x+2, y+3, z)`. Self-healing (placed every cycle). Display-only — cannot control Aspire resources.
+- **Doors:** 2-blocks wide (x+2 to x+3). Door clearing runs LAST in structure build to avoid overwrites.
+- **Health lamps:** `(x+3, y+5, z+1)` — raised for visibility on taller structures, embedded in wall.
+- **Watchtower doors:** 2-wide × 3-tall opening, cleared at end of build sequence.
+- **Boss bar:** `WithBossBar(title?)` sets `ASPIRE_BOSSBAR_TITLE` env var. Default: "Aspire Fleet Health". Displays `"{title}: {pct}%"`. `ASPIRE_APP_NAME` no longer used.
+- **Idempotent building:** `HashSet<string> _builtStructures` tracks built resources. Structures build once, then only health indicators update.
+- **Peaceful mode:** `WithPeacefulMode()` → `/difficulty peaceful` once at startup. No service class needed.
 
-Added `WithPeacefulMode()` extension method to eliminate hostile mobs from Minecraft world. Implementation uses `/difficulty peaceful` RCON command — the idiomatic Minecraft way to remove hostiles while preserving passive mobs (cows, pigs, sheep). Command executes once at server startup in `MinecraftWorldWorker.ExecuteAsync()` after RCON connection and resource discovery, controlled by `ASPIRE_FEATURE_PEACEFUL` env var. Pattern follows opt-in feature architecture: extension sets env var, worker checks var and executes command. No service class needed — single RCON command is sufficient. All existing tests pass (62 tests).
+**Key learnings:**
+- Clear critical openings (doors, windows) LAST in multi-stage structure builds.
+- Path depth matters — flush paths replace surface layer, not sit on top.
+- Idempotent building prevents decorative element overwrites and visual glitching.
+- Always verify coordinates against in-game geometry when `hollow` fills create walls.
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
 
-### Visual Placement Refinements (2026-02-10)
+### Dynamic Terrain Detection (2026-02-11)
 
-Fixed three placement issues for better village layout: (1) **Levers on side walls** — moved service switch levers from front face (z-min, blocking entrance) to west wall (x-min) at position `(x, y+2, z+3)` with `facing=east` so they face outward, away from buildings. Lamp now above lever at `(x, y+3, z+3)`. (2) **Clear entryways** — fixed watchtower door to be on front face at `z` instead of `z+1` (was inside wall). Moved signs from `x+3` (centered on door) to `x+2` (offset beside entrance) to avoid blocking walkway. (3) **Path ground level verification** — paths already at correct `BaseY` (-60), but added grass foundation pass (`BaseY - 1`, using `replace air`) before placing cobblestone to ensure paths always have solid ground underneath even if extending beyond existing terrain. All 17 tests pass.
+**Architecture:** Added `TerrainProbeService` singleton that runs ONCE at startup (after RCON connect, before resource discovery). Uses binary search with `setblock X Y Z yellow_wool keep` to find the highest solid block at (BaseX, BaseZ). Search range: Y=100 to Y=-64, ~8 RCON commands max. Cleans up any probe blocks placed. On failure, gracefully falls back to `BaseY = -60`.
 
-### Screenshot-Based Visual Fixes (2026-02-11)
+**Key decisions:**
+- `VillageLayout.SurfaceY` is a static mutable property (not const) defaulting to `BaseY`. All services use `SurfaceY` instead of `BaseY` for Y positioning.
+- `VillageLayout.BaseY` kept as const fallback — backward compat preserved.
+- `HologramManager.SpawnY` → `VillageLayout.SurfaceY + 5` (was hardcoded `-55`).
+- `GuardianMobService.BaseY` → `VillageLayout.SurfaceY + 2` (was hardcoded `-58`).
+- `RedstoneDependencyService` wireY → `VillageLayout.SurfaceY` (was `VillageLayout.BaseY`).
+- `StructureBuilder.BuildPathsAsync` made terrain-agnostic: `fill ... air` replaces ALL surface blocks, not just `grass_block`.
+- `StructureBuilder.BuildFencePerimeterAsync` uses `SurfaceY` instead of `BaseY`.
+- `TerrainProbeService` called in `MinecraftWorldWorker.ExecuteAsync` BEFORE `DiscoverResources()` and all feature initialization.
 
-Fixed four critical placement issues identified from in-game screenshots: (1) **Paths floating above ground** — changed all path Y-coordinates from `BaseY` (-60) to `BaseY - 1` (-61). Screenshots showed cobblestone sitting ON TOP of grass blocks; the issue was paths were placed at the grass block level instead of replacing it. Now paths are flush with terrain. (2) **Levers inaccessible on wrong wall** — moved service switches from west wall `(x, y+2, z+3)` facing east to front wall `(x+2, y+2, z)` facing north (outward). Levers are now on the entrance side where players can reach them, not on the side wall. Lamps moved to `(x+2, y+3, z)` above levers. (3) **Building entrances not visible** — increased all door openings from 1-block to 2-blocks wide (x+2 to x+3) for watchtower, workshop, and cottage. Warehouse already had 3-wide opening. This makes entrances obvious and accessible. (4) **Health lamps unchanged** — kept at `(x+3, y+3, z)` as they're correctly embedded in front wall at z=0 (foundation edge where all structure types have walls). Key learning: always verify coordinates against actual in-game geometry when `hollow` fills create walls at different positions than foundation edges.
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/TerrainProbeService.cs` — binary search terrain detection via RCON setblock
+- `src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs` — `SurfaceY` property added
+- `tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/TerrainProbeServiceTests.cs` — probe fallback and integration tests
 
-### Boss Bar Formatting and Configuration (2026-02-11)
+**RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.
 
-Fixed boss bar percentage display and added configurable title support. (1) **Percentage formatting** — changed from "100 percent" to "100%" in `BossBarService.cs` line 53. Boss bar now displays as "Aspire Fleet Health: 100%" instead of "Aspire Fleet Health: 100 percent". (2) **Configurable title** — added optional `title` parameter to `WithBossBar()` extension method. If provided, sets `ASPIRE_BOSSBAR_TITLE` env var. `BossBarService` reads this env var at construction time with default "Aspire Fleet Health". This allows users to customize the boss bar title via Fluent API: `.WithBossBar("Fleet Monitor")`. Updated API surface documentation to reflect the new optional parameter. The old `ASPIRE_APP_NAME` env var is no longer used by boss bar (deprecated in favor of explicit title parameter).
+### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment (2026-02-11)
 
-### Village Rendering Bug Fixes (2026-02-11)
+**Bug 1 — Buildings 1 block below ground:** `TerrainProbeService` detects `SurfaceY` as the Y of the highest solid block (the grass block). Structures placed their floor AT `SurfaceY`, replacing the grass and burying the bottom wall row underground. Fix: `VillageLayout.GetStructureOrigin()` now returns `SurfaceY + 1`. Also adjusted `StructureBuilder.BuildFencePerimeterAsync` (`fenceY = SurfaceY + 1`) and `BuildPathsAsync` (air clearing at `SurfaceY + 1`, cobblestone at `SurfaceY`).
 
-Fixed critical village rendering regression causing multiple visual issues: (1) **Buildings glitching every 10 seconds** — root cause was `BuildResourceStructureAsync` being called every display update cycle (10s) without checking if structures already existed. Added `HashSet<string> _builtStructures` to track which resources have had their structures built. Now structures only build once on first appearance, then just update health indicators on subsequent cycles. This prevents the constant rebuilding that caused visible glitching. (2) **Paths invisible underground** — paths were placed at `BaseY - 1` (-61) which is inside the dirt layer in superflat worlds. Reverted all path Y-coordinates from `BaseY - 1` back to `BaseY` (-60) so cobblestone paths sit on the grass block surface where they're visible and walkable. The foundation layer at `BaseY - 1` remains for structural support. (3) **Doorways, switches, and fence already correct** — verified door openings are properly placed at z=0 (foundation edge) for all structure types. Service switches at `(x+2, y+2, z)` and fence at `BaseY` were already correct; they were only affected by the structure rebuild issue. All 303 tests pass after fixes.
+**Bug 2 — Warehouse health lamp misaligned:** The health indicator glowstone was placed at `y+3`, which overlapped with the 3-tall cargo door (y+1 to y+3). Fixed `PlaceHealthIndicatorAsync` to use `y+4` for Watchtower and Warehouse (3-tall doors), keeping `y+3` for Workshop and Cottage (2-tall doors).
 
-**Key learning:** Services that place visual elements (switches, indicators) must coordinate with structure building lifecycle. If structures rebuild every cycle, they overwrite decorative elements. The solution is idempotent building: track what's been built, only build once, then update state in place.
-
-### User Testing Refinements (2026-02-11)
-
-Four key improvements based on user feedback: (1) **Paths flush with ground** — changed all path coordinates to `BaseY - 1` (y=-61, dirt layer) with grass blocks at `BaseY` (y=-60) removed first using `/fill ... minecraft:air replace grass_block`. This creates paths that are recessed one block, sitting flush with the surrounding grass surface instead of raised above it. (2) **Self-healing service switches** — removed health-change check in `ServiceSwitchService.UpdateSwitchStatesAsync()`. Switches now always place every cycle (idempotent `setblock` commands), making them self-healing if accidentally destroyed by players. (3) **Service switches are display-only** — documented in `.ai-team/decisions/inbox/rocket-switches-display-only.md` that switches reflect Aspire resource state but do not control it. Manually flipping levers in Minecraft has no effect on Aspire resources. (4) **Watchtower door visibility** — moved door clearing to END of `BuildWatchtowerAsync()` and increased from 2-wide×2-tall to 2-wide×3-tall to prevent other fills (windows, pillars) from blocking the entrance. (5) **Health lamps higher** — moved health indicator lamps from `y+3` to `y+5` for better visibility on taller structures, and from `z` (foundation edge) to `z+1` (embedded in actual wall). All 5 tests pass.
-
-**Key learning:** For multi-stage structure building, clear critical openings (doors, windows) LAST to prevent subsequent fills from overwriting them. Path depth matters for Minecraft terrain — flush paths need to replace the surface layer, not sit on top of it.
+**Key learning:** When `SurfaceY` represents the topmost solid block, structure floors must be placed at `SurfaceY + 1` (above the surface), not at `SurfaceY` (replacing the surface). Health indicators must be placed above door openings, not overlapping them.

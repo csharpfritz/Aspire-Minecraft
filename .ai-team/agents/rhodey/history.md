@@ -29,21 +29,9 @@
 - **CI in Sprint 1, CD in Sprint 2:** Build workflow ships immediately; NuGet publish automation comes after tests are solid.
 - **Blog post gates on release tag:** Mantis doesn't publish until Rhodey cuts the release, avoiding announcing something that isn't live.
 
-📌 Team update (2026-02-10): NuGet packages blocked from publication — floating deps, no CI/CD, bloated jar must be fixed first — decided by Shuri
-📌 Team update (2026-02-10): 18 Minecraft interaction features proposed across 3 tiers (must-have/nice-to-have/stretch) — decided by Rocket
-📌 Team update (2026-02-10): 3-sprint roadmap adopted (Ship It → Polish & Atmosphere → Showstopper) with per-agent assignments — decided by Rhodey
+📌 Team updates (2026-02-10, consolidated): NuGet hardening completed (Shuri). 3-sprint roadmap adopted (Rhodey). CI/CD pipeline created (Wong). Test infrastructure with 62 tests (Nebula). FluentAssertions removed for licensing (Jeff/Nebula). Single NuGet package as Fritz.Aspire.Hosting.Minecraft (Jeff/Shuri). All work tracked as 34 GitHub issues (Jeff). Redstone Graph + Switches proposed for Sprint 3 (Jeff).
 
-📌 Team update (2026-02-10): Sprint 1 — Shuri completed NuGet hardening (6 deps pinned, SourceLink, deterministic builds, per-package READMEs, OTel jar kept with TODO) — decided by Shuri
-📌 Team update (2026-02-10): Sprint 1 — Wong completed CI/CD pipeline (build.yml + release.yml + PR template) — decided by Wong
-📌 Team update (2026-02-10): Sprint 1 — Nebula completed test infrastructure (62 tests, 0 failures, InternalsVisibleTo pattern) — decided by Nebula
-📌 Team update (2026-02-10): FluentAssertions v8 licensing concern flagged — needs resolution before v0.1.0 release — decided by Nebula
-📌 Team update (2026-02-10): All sprint work tracked as 34 GitHub issues with team member and sprint labels, 6 Sprint 1 issues closed — decided by Jeffrey T. Fritz
-
-📌 Team update (2026-02-10): FluentAssertions fully removed — replaced with xUnit Assert, zero licensing risk — decided by Jeffrey T. Fritz, Nebula
-📌 Team update (2026-02-10): Single NuGet package consolidation — only Aspire.Hosting.Minecraft is packable now — decided by Jeffrey T. Fritz, Shuri
-📌 Team update (2026-02-10): Redstone Dependency Graph + Service Switches proposed as Sprint 3 flagship feature — decided by Jeffrey T. Fritz
-
-📌 Team update (2026-02-10): NuGet PackageId renamed from Aspire.Hosting.Minecraft to Fritz.Aspire.Hosting.Minecraft (Aspire.Hosting prefix reserved by Microsoft) — decided by Jeffrey T. Fritz, Shuri
+📌 Team updates (2026-02-10, Sprint 2): NuGet version defaults to 0.1.0-dev (Shuri). Release workflow extracts version from git tag (Wong). Beacon colors match Aspire palette (Rocket). ServerProperty API added (Shuri). Hologram line-add bug fixed (Rocket). Azure RG epic designed (Rhodey). Azure SDK separate package recommended (Shuri). Sprint branches with PRs directive (Jeff). API surface frozen at 31 methods for v0.2.0 (Rhodey).
 
 ### 2026-02-10: Sprint 2 API Review & Release Prep
 
@@ -81,7 +69,15 @@
 - **README updated** with 3 missing Sprint 3 features (World Border Pulse, Heartbeat, Achievements) in both the feature list and the code sample.
 - **Build passes:** 0 errors, 1 pre-existing warning (CS8604 nullable in MinecraftServerResource).
 
-📌 Team update (2026-02-10): API surface frozen for v0.2.0 — 31 methods, 4 types, 6 RCON types documented in docs/api-surface.md, demo cleaned up, README updated — decided by Rhodey
+📌 Team update (2026-02-10, consolidated): API surface frozen for v0.2.0 (Rhodey). Azure SDK separate package recommended (Shuri). Sprint branches with PRs directive (Jeff).
 
-📌 Team update (2026-02-10): Azure SDK research completed — separate package recommended, polling for v1 — decided by Shuri
-📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz
+### 2026-02-10: Core Architecture Documentation
+
+- **docs/architecture-diagram.md created** — comprehensive visual documentation of the Minecraft coordinate system, village layout, and structure placement. Includes Y-level breakdown (Y=-64 to Y=-59), 2×N grid layout with exact coordinate calculations, structure footprint visualization, fence perimeter math, and 4-resource village example. Uses ASCII art for accessibility. This is the reference for contributors learning the coordinate math.
+- **docs/minecraft-constraints.md created** — authoritative source of truth for all Minecraft building rules. Documents Y-level conventions (BaseY=-60 as grass surface), structure size limits (7×7 footprint, heights: watchtower 10 blocks, warehouse/cottage 5 blocks, workshop 7 blocks), RCON rate limits (10 cmd/sec, 250ms throttle, high-priority bypass), Z-coordinate conventions (hollow vs solid structure front walls), path placement (BaseY-1 with grass cleared), fence placement (BaseY with 4-block clearance), and maximum resource limits (~45 resources before world border issues at 256 blocks).
+- **Key architectural insights captured**: RCON throughput is the hidden bottleneck for large deployments (50 resources = ~75 seconds initial build at 10 cmd/sec). World border at 256 blocks limits village to ~45 resources safely. Azure RG integration will need MaxResources cap and resource type filtering.
+- **Documentation placement rationale**: Both files in docs/ root for high visibility. architecture-diagram.md is educational (helps contributors understand), minecraft-constraints.md is prescriptive (enforces consistency). Together they form complete reference for world-building features.
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
+� Team update (2026-02-11): CI pipelines now skip docs-only changes (docs/**, user-docs/**, *.md, .ai-team/**)  decided by Wong
+ Team update (2026-02-11): 14 user-facing docs now live in user-docs/ with consistent structure (What  How  What You'll See  Use Cases  Code Example)  decided by Vision

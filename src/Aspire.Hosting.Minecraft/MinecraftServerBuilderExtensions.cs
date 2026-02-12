@@ -59,6 +59,7 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("ONLINE_MODE", "FALSE")
             .WithEnvironment("MODE", "creative")
             .WithEnvironment("LEVEL_TYPE", "flat")
+            .WithEnvironment("GENERATOR_SETTINGS", "")
             .WithEnvironment("SEED", "aspire2026")
             .WithEnvironment("ENABLE_RCON", "true")
             .WithEnvironment("RCON_PORT", "25575")
@@ -106,6 +107,7 @@ public static class MinecraftServerBuilderExtensions
 
         var result = builder
             .WithEndpoint(port: port, targetPort: 8100, name: MinecraftServerResource.BlueMapEndpointName, scheme: "http")
+            .WithUrlForEndpoint(MinecraftServerResource.BlueMapEndpointName, url => url.DisplayText = "World Map")
             .WithAnnotation(new ModrinthPluginAnnotation("bluemap"))
             .WithEnvironment(context =>
             {

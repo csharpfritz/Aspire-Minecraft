@@ -53,6 +53,7 @@ builder.Services.AddSingleton<PlayerMessageService>();
 builder.Services.AddSingleton<HologramManager>();
 builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<StructureBuilder>();
+builder.Services.AddSingleton<TerrainProbeService>();
 
 // Opt-in features (enabled via env vars set by builder extension methods)
 if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_FEATURE_PARTICLES"]))
@@ -121,6 +122,7 @@ file sealed class MinecraftWorldWorker(
     HologramManager holograms,
     ScoreboardManager scoreboard,
     StructureBuilder structures,
+    TerrainProbeService terrainProbe,
     ILogger<MinecraftWorldWorker> logger,
     ParticleEffectService? particles = null,
     TitleAlertService? titleAlerts = null,
@@ -151,6 +153,14 @@ file sealed class MinecraftWorldWorker(
         await WaitForServerAsync(stoppingToken);
 
         logger.LogInformation("Connected to Minecraft server via RCON");
+
+        // Force-load the village chunks so block commands work before any player joins.
+        // Covers a generous area around the village grid (BaseX=10, BaseZ=0) plus margins.
+        await rcon.SendCommandAsync("forceload add -10 -10 80 80", stoppingToken);
+        logger.LogInformation("Village chunks force-loaded");
+
+        // Detect terrain surface height before building anything
+        await terrainProbe.DetectSurfaceAsync(stoppingToken);
 
         // Discover Aspire resources
         resourceMonitor.DiscoverResources();

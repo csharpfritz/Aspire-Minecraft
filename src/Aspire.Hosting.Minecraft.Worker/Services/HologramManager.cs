@@ -13,9 +13,10 @@ internal sealed class HologramManager(
 {
     private const string DashboardHologramId = "aspire_dashboard";
     private const int SpawnX = 0;
-    private const int SpawnY = -55; // Above superflat surface (Y=-61), eye level
     private const int SpawnZ = 5;
     private bool _created;
+
+    private int SpawnY => VillageLayout.SurfaceY + 5;
 
     /// <summary>
     /// Creates or updates the Aspire dashboard hologram near spawn.

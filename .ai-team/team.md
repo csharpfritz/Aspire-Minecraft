@@ -18,6 +18,7 @@
 | Nebula | Tester | `.ai-team/agents/nebula/charter.md` | ✅ Active |
 | Mantis | Blogger | `.ai-team/agents/mantis/charter.md` | ✅ Active |
 | Wong | GitHub Ops | `.ai-team/agents/wong/charter.md` | ✅ Active |
+| Vision | Technical Writer | `.ai-team/agents/vision/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.ai-team/agents/scribe/charter.md` | 📋 Silent |
 
 ## Issue Source

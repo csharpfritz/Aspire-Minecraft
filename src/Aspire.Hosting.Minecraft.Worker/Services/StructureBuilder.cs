@@ -48,9 +48,16 @@ internal sealed class StructureBuilder(
                 else
                 {
                     // Only update health indicator, not rebuild entire structure
-                    var (x, y, z) = VillageLayout.GetStructureOrigin(index);
-                    var structureType = GetStructureType(info.Type);
-                    await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
+                    try
+                    {
+                        var (x, y, z) = VillageLayout.GetStructureOrigin(index);
+                        var structureType = GetStructureType(info.Type);
+                        await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to update health indicator for {ResourceName}", name);
+                    }
                 }
                 index++;
             }
@@ -80,79 +87,101 @@ internal sealed class StructureBuilder(
 
     private async Task BuildFencePerimeterAsync(int resourceCount, CancellationToken ct)
     {
-        var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
-        var fenceY = VillageLayout.BaseY;
+        try
+        {
+            var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
+            var fenceY = VillageLayout.SurfaceY + 1;
 
-        // South side (low Z) — two segments with a gate gap in the center
-        var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
-        await rcon.SendCommandAsync(
-            $"fill {fMinX} {fenceY} {fMinZ} {gateX - 1} {fenceY} {fMinZ} minecraft:oak_fence", ct);
-        await rcon.SendCommandAsync(
-            $"fill {gateX + 2} {fenceY} {fMinZ} {fMaxX} {fenceY} {fMinZ} minecraft:oak_fence", ct);
-        // Gate (3-wide to match the boulevard width)
-        await rcon.SendCommandAsync(
-            $"fill {gateX} {fenceY} {fMinZ} {gateX + 2} {fenceY} {fMinZ} minecraft:oak_fence_gate[facing=south]", ct);
+            // South side (low Z) — two segments with a gate gap in the center
+            var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
+            await rcon.SendCommandAsync(
+                $"fill {fMinX} {fenceY} {fMinZ} {gateX - 1} {fenceY} {fMinZ} minecraft:oak_fence", ct);
+            await rcon.SendCommandAsync(
+                $"fill {gateX + 2} {fenceY} {fMinZ} {fMaxX} {fenceY} {fMinZ} minecraft:oak_fence", ct);
+            // Gate (3-wide to match the boulevard width)
+            await rcon.SendCommandAsync(
+                $"fill {gateX} {fenceY} {fMinZ} {gateX + 2} {fenceY} {fMinZ} minecraft:oak_fence_gate[facing=south]", ct);
 
-        // North side (high Z)
-        await rcon.SendCommandAsync(
-            $"fill {fMinX} {fenceY} {fMaxZ} {fMaxX} {fenceY} {fMaxZ} minecraft:oak_fence", ct);
+            // North side (high Z)
+            await rcon.SendCommandAsync(
+                $"fill {fMinX} {fenceY} {fMaxZ} {fMaxX} {fenceY} {fMaxZ} minecraft:oak_fence", ct);
 
-        // West side (low X) — skip south and north corners (already placed)
-        await rcon.SendCommandAsync(
-            $"fill {fMinX} {fenceY} {fMinZ + 1} {fMinX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
+            // West side (low X) — skip south and north corners (already placed)
+            await rcon.SendCommandAsync(
+                $"fill {fMinX} {fenceY} {fMinZ + 1} {fMinX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
 
-        // East side (high X) — skip south and north corners
-        await rcon.SendCommandAsync(
-            $"fill {fMaxX} {fenceY} {fMinZ + 1} {fMaxX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
+            // East side (high X) — skip south and north corners
+            await rcon.SendCommandAsync(
+                $"fill {fMaxX} {fenceY} {fMinZ + 1} {fMaxX} {fenceY} {fMaxZ - 1} minecraft:oak_fence", ct);
+            
+            logger.LogInformation("Fence perimeter built successfully");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to build fence perimeter - continuing with remaining structures");
+        }
     }
 
     private async Task BuildPathsAsync(int resourceCount, CancellationToken ct)
     {
-        var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
-        var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
+        try
+        {
+            var rows = (resourceCount + VillageLayout.Columns - 1) / VillageLayout.Columns;
+            var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(resourceCount);
 
-        // Comprehensive cobblestone coverage: entire village area inside fence, flush with ground
-        // Step 1: Clear all grass blocks at BaseY (surface level)
-        await rcon.SendCommandAsync(
-            $"fill {fMinX + 1} {VillageLayout.BaseY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY} {fMaxZ - 1} minecraft:air replace grass_block", ct);
+            // Step 1: Clear blocks above the surface (where structure floors now sit)
+            await rcon.SendCommandAsync(
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY + 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY + 1} {fMaxZ - 1} minecraft:air", ct);
 
-        // Step 2: Place cobblestone at BaseY-1 (one level down, flush with remaining grass)
-        await rcon.SendCommandAsync(
-            $"fill {fMinX + 1} {VillageLayout.BaseY - 1} {fMinZ + 1} {fMaxX - 1} {VillageLayout.BaseY - 1} {fMaxZ - 1} minecraft:cobblestone", ct);
+            // Step 2: Place cobblestone at SurfaceY (the grass surface level, one below new floor level)
+            await rcon.SendCommandAsync(
+                $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:cobblestone", ct);
 
-        logger.LogInformation("Comprehensive village paths built covering fence interior");
+            logger.LogInformation("Comprehensive village paths built covering fence interior");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to build paths - continuing with remaining structures");
+        }
     }
 
     private async Task BuildResourceStructureAsync(ResourceInfo info, int index, CancellationToken ct)
     {
-        var (x, y, z) = VillageLayout.GetStructureOrigin(index);
-
-        var structureType = GetStructureType(info.Type);
-
-        switch (structureType)
+        try
         {
-            case "Watchtower":
-                await BuildWatchtowerAsync(x, y, z, ct);
-                break;
-            case "Warehouse":
-                await BuildWarehouseAsync(x, y, z, ct);
-                break;
-            case "Workshop":
-                await BuildWorkshopAsync(x, y, z, ct);
-                break;
-            default:
-                await BuildCottageAsync(x, y, z, ct);
-                break;
+            var (x, y, z) = VillageLayout.GetStructureOrigin(index);
+
+            var structureType = GetStructureType(info.Type);
+
+            switch (structureType)
+            {
+                case "Watchtower":
+                    await BuildWatchtowerAsync(x, y, z, ct);
+                    break;
+                case "Warehouse":
+                    await BuildWarehouseAsync(x, y, z, ct);
+                    break;
+                case "Workshop":
+                    await BuildWorkshopAsync(x, y, z, ct);
+                    break;
+                default:
+                    await BuildCottageAsync(x, y, z, ct);
+                    break;
+            }
+
+            // Health indicator: redstone lamp in wall, powered = healthy
+            await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
+
+            // Sign with resource name at the entrance
+            await PlaceSignAsync(x, y, z, info, ct);
+
+            logger.LogInformation("Village structure built: {ResourceName} ({StructureType}) at ({X},{Y},{Z})",
+                info.Name, structureType, x, y, z);
         }
-
-        // Health indicator: redstone lamp in wall, powered = healthy
-        await PlaceHealthIndicatorAsync(x, y, z, structureType, info.Status, ct);
-
-        // Sign with resource name at the entrance
-        await PlaceSignAsync(x, y, z, info, ct);
-
-        logger.LogInformation("Village structure built: {ResourceName} ({StructureType}) at ({X},{Y},{Z})",
-            info.Name, structureType, x, y, z);
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to build structure for {ResourceName} - continuing with next resource", info.Name);
+        }
     }
 
     /// <summary>
@@ -366,9 +395,13 @@ internal sealed class StructureBuilder(
         // Watchtower has front wall at z+1 (hollow 5x5 inside 7x7), others have front wall at z
         var lampZ = structureType == "Watchtower" ? z + 1 : z;
         
-        // Place in front wall at y+3 (window/door height), centered above entrance
+        // Watchtower and Warehouse have 3-tall doors (y+1 to y+3), so lamp goes at y+4 to avoid overlap.
+        // Workshop and Cottage have 2-tall doors (y+1 to y+2), so y+3 is fine.
+        var lampY = (structureType is "Watchtower" or "Warehouse") ? y + 4 : y + 3;
+        
+        // Place in front wall centered above entrance
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 3} {lampZ} {lampBlock}", ct);
+            $"setblock {x + 3} {lampY} {lampZ} {lampBlock}", ct);
     }
 
     /// <summary>

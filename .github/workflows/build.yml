@@ -3,8 +3,18 @@ name: Build & Pack
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'user-docs/**'
+      - '*.md'
+      - '.ai-team/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'user-docs/**'
+      - '*.md'
+      - '.ai-team/**'
 
 concurrency:
   group: build-${{ github.ref }}
@@ -35,16 +45,3 @@ jobs:
 
       - name: Test
         run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal
-
-      - name: Pack
-        run: dotnet pack Aspire-Minecraft.slnx -c Release --no-build -o nupkgs
-
-      - name: Upload NuGet packages
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v6
-        with:
-          name: nupkgs
-          path: |
-            nupkgs/*.nupkg
-            nupkgs/*.snupkg
-          if-no-files-found: error

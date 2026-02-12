@@ -96,3 +96,18 @@
 📌 Team update (2026-02-10): CI/CD needed for second NuGet package (Fritz.Aspire.Hosting.Minecraft.Azure) — decided by Rhodey
 📌 Team update (2026-02-10): API surface frozen for v0.2.0 — any additions require explicit review — decided by Rhodey
 📌 Team update (2026-02-10): User directive — each sprint in a dedicated branch, merged via PR to main — decided by Jeffrey T. Fritz
+
+### Documentation Path Filtering (2026-02-10)
+
+**Changes:**
+- Added `paths-ignore` filters to all three GitHub Actions workflows (build.yml, release.yml, codeql.yml) to skip builds/tests/analysis when only documentation changes.
+- Ignored paths: `docs/**`, `user-docs/**`, `*.md` (root-level markdown), `.ai-team/**` (squad state).
+- Applied to both `push` and `pull_request` triggers for build.yml and codeql.yml. Applied to `push.tags` in release.yml for completeness (unlikely scenario but prevents accidental doc-only tag releases).
+
+**Key decisions:**
+- Documentation updates (README, CONTRIBUTING, docs/, user-docs/) don't require CI build/test/pack cycles — they don't affect code correctness or package output.
+- The `.ai-team/**` folder contains squad-internal state and decisions, also irrelevant to builds.
+- Root-level `*.md` pattern catches README.md, CONTRIBUTING.md, etc. but not markdown files in subdirectories (those would be caught by `docs/**` or `user-docs/**` as appropriate).
+- The scheduled CodeQL run (Monday 06:25 UTC) is unaffected by path filters — it always runs on schedule regardless of recent commits.
+ Team update (2026-02-11): All sprints must include README and user documentation updates to be considered complete  decided by Jeffrey T. Fritz
+ Team update (2026-02-11): All plans must be tracked as GitHub issues and milestones; each sprint is a milestone  decided by Jeffrey T. Fritz
