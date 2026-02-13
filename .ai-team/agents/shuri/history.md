@@ -164,3 +164,10 @@
 - Updated `WithAllFeatures_SetsAllFeatureEnvVars` test: added both new env vars to expected list, count from 17 to 19. All 19 hosting tests pass, all 329 worker tests pass.
 
 📌 Team update (2026-02-12): VillageLayout constants converted to configurable properties (#77) with defaults matching existing behavior, ConfigureGrandLayout() for Milestone 5 Grand Village, ResetLayout() for test isolation — decided by Shuri
+
+### Milestone 5: RCON Burst Mode No-Op Fix (#85)
+
+- `EnterBurstMode()` changed from throwing `InvalidOperationException` when already active to returning a singleton `NoOpDisposable.Instance` — callers don't need try/catch and nested `using` blocks are safe.
+- Added `NoOpDisposable` private sealed class with static singleton pattern inside `RconService`.
+- Burst mode is still thread-safe: `_burstModeSemaphore.Wait(0)` guards against concurrent activation; only the first caller gets the real `BurstModeScope` that restores the rate limit on dispose.
+- Fence/Paths/Forceload (#84) were already correctly implemented in the prior sprint — verified no hardcoded values remain. Gate uses `BaseX + StructureSize`, fence uses `FenceClearance`, forceload uses `GetFencePerimeter(10)` dynamically, `MAX_WORLD_SIZE` is 512.
