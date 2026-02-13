@@ -258,6 +258,23 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 
 Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `IDisposable` — callers wrap construction in a `using` block and the rate limit auto-restores on dispose.
 
+### Ornate Grand Watchtower Exterior (Milestone 5, Issue #78)
+
+Redesigned `BuildGrandWatchtowerAsync` exterior from plain cube to ornate medieval tower. Same 15×15 footprint, 20 blocks tall, interior unchanged. Key exterior features:
+
+- **Tapered base:** mossy_stone_bricks foundation (y) + stone_brick_stairs sloped plinth (y+1) facing outward on all 4 sides — anchors the tower visually.
+- **Mixed wall materials:** stone_bricks hollow shell (y+2 to y+18), cracked_stone_bricks weathering on lower front/back walls (y+2 to y+4).
+- **Prominent 3×3 corner buttresses:** polished_andesite pillars extending full height at all 4 corners — much more imposing than the old 2×2.
+- **Wool bands preserved** at y+6 and y+12, skipping corner buttress areas (x+3 to x+s-3 / z+3 to z+s-3).
+- **Corbel string courses:** stone_brick_stairs (half=top) above wool bands at y+7 on front/back — adds horizontal depth lines.
+- **Wider window bays:** 2-wide glass_pane pairs on ground floor (y+3), full-width on second floor (y+9), panoramic observation on third floor (y+15) all 4 sides.
+- **Machicolations:** upside-down stone_brick_stairs at y+19 on all 4 sides, creating the characteristic medieval overhang below the parapet.
+- **Pronounced battlements:** stone_bricks hollow ring at y+20, 2-high merlons (y+20-21) at regular intervals on front/back.
+- **Corner turret caps:** stone_brick_stairs conical roofs over buttresses at y+19, stone_brick_wall pinnacles at y+20.
+- **Pointed gatehouse arch:** 5-wide stone_bricks frame, stone_brick_stairs converging on keystone (chiseled_stone_bricks), 3×4 air opening, flanking lanterns.
+- **4 banners** on turret pinnacles at (x+1,y+21,z+1), (x+s-1,y+21,z+1), (x+1,y+21,z+s-1), (x+s-1,y+21,z+s-1).
+- **RCON budget:** 84 commands in method, ~98 total with fence/paths/health/sign — under 100 limit.
+
 **Implementation details:**
 - `_maxCommandsPerSecond` changed from `readonly` to mutable. `_defaultCommandsPerSecond` stores the original value.
 - Thread safety via `_burstModeSemaphore` (SemaphoreSlim(1,1)): `Wait(0)` for non-blocking acquire; throws `InvalidOperationException` if already active.

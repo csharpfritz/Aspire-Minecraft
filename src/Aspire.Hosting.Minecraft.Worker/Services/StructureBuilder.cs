@@ -385,15 +385,13 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
-    /// Grand Watchtower — 15×15 footprint, 20 blocks tall, 3-floor interior.
-    /// Stone brick walls with polished andesite 2×2 corner buttresses, arrow slit windows,
-    /// crenellated battlements, language-colored wool bands at floor boundaries.
-    /// Ground floor: entrance hall with crafting table, sign, torches, spiral staircase start.
-    /// Second floor: enchanting table centered, bookshelves lining walls.
-    /// Third floor: observation deck with glass pane windows, lectern.
-    /// Oak stair spiral along inner walls, 4 standing banners on roof corners.
-    /// Iron door entrance (3 wide, 4 tall) with stone brick archway on z-min face.
-    /// ~85 RCON commands.
+    /// Grand Watchtower — ornate medieval 15×15 footprint, 20 blocks tall, 3-floor interior.
+    /// Tapered mossy stone base, mixed weathered walls, protruding window bays with stair sills,
+    /// prominent polished andesite corner buttresses with turret caps, machicolations under
+    /// pronounced 2-high battlements, decorative string courses above wool bands.
+    /// Pointed stone brick archway entrance with flanking lanterns.
+    /// Interior unchanged: spiral staircase, 3 oak_planks floors, furniture, sign, torches.
+    /// 4 standing banners on roof corners. Language-colored wool bands at y+6 and y+12.
     /// </summary>
     private async Task<DoorPosition> BuildGrandWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
@@ -401,112 +399,121 @@ internal sealed class StructureBuilder(
         var half = VillageLayout.StructureSize / 2; // 7
         var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
 
-        // === FOUNDATION: 15×15 stone brick floor ===
+        // === TAPERED BASE: mossy stone brick plinth + sloped stair skirt ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:stone_bricks", ct);
+            $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:mossy_stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z} {x + s} {y + 1} {z} minecraft:stone_brick_stairs[facing=south,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + s} {x + s} {y + 1} {z + s} minecraft:stone_brick_stairs[facing=north,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 1} {z + 1} {x} {y + 1} {z + s - 1} minecraft:stone_brick_stairs[facing=east,half=bottom]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 1} {z + 1} {x + s} {y + 1} {z + s - 1} minecraft:stone_brick_stairs[facing=west,half=bottom]", ct);
 
-        // === WALLS: stone brick hollow shell, 19 blocks tall (y+1 to y+19) ===
+        // === MAIN WALLS: stone brick shell (y+2 to y+18) with cracked weathering ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + s} {y + 19} {z + s} minecraft:stone_bricks hollow", ct);
+            $"fill {x} {y + 2} {z} {x + s} {y + 18} {z + s} minecraft:stone_bricks hollow", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 2} {z} {x + s} {y + 4} {z} minecraft:cracked_stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 2} {z + s} {x + s} {y + 4} {z + s} minecraft:cracked_stone_bricks", ct);
 
-        // === CORNER BUTTRESSES: 2×2 polished andesite pillars at all 4 corners (full height) ===
+        // === CORNER BUTTRESSES: 3×3 polished andesite pillars at all 4 corners ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 1} {y + 19} {z + 1} minecraft:polished_andesite", ct);
+            $"fill {x} {y + 2} {z} {x + 2} {y + 18} {z + 2} minecraft:polished_andesite", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s - 1} {y + 1} {z} {x + s} {y + 19} {z + 1} minecraft:polished_andesite", ct);
+            $"fill {x + s - 2} {y + 2} {z} {x + s} {y + 18} {z + 2} minecraft:polished_andesite", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z + s - 1} {x + 1} {y + 19} {z + s} minecraft:polished_andesite", ct);
+            $"fill {x} {y + 2} {z + s - 2} {x + 2} {y + 18} {z + s} minecraft:polished_andesite", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s - 1} {y + 1} {z + s - 1} {x + s} {y + 19} {z + s} minecraft:polished_andesite", ct);
+            $"fill {x + s - 2} {y + 2} {z + s - 2} {x + s} {y + 18} {z + s} minecraft:polished_andesite", ct);
 
-        // === LANGUAGE-COLORED WOOL BANDS at floor boundaries ===
-        // Band 1: y+6 (between ground and second floor)
+        // === LANGUAGE-COLORED WOOL BANDS at y+6 and y+12 ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z} {x + s} {y + 6} {z} {wool}", ct);
+            $"fill {x + 3} {y + 6} {z} {x + s - 3} {y + 6} {z} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + s} {x + s} {y + 6} {z + s} {wool}", ct);
+            $"fill {x + 3} {y + 6} {z + s} {x + s - 3} {y + 6} {z + s} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + 1} {x} {y + 6} {z + s - 1} {wool}", ct);
+            $"fill {x} {y + 6} {z + 3} {x} {y + 6} {z + s - 3} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 6} {z + 1} {x + s} {y + 6} {z + s - 1} {wool}", ct);
-        // Band 2: y+12 (between second and third floor)
+            $"fill {x + s} {y + 6} {z + 3} {x + s} {y + 6} {z + s - 3} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 12} {z} {x + s} {y + 12} {z} {wool}", ct);
+            $"fill {x + 3} {y + 12} {z} {x + s - 3} {y + 12} {z} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 12} {z + s} {x + s} {y + 12} {z + s} {wool}", ct);
+            $"fill {x + 3} {y + 12} {z + s} {x + s - 3} {y + 12} {z + s} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 12} {z + 1} {x} {y + 12} {z + s - 1} {wool}", ct);
+            $"fill {x} {y + 12} {z + 3} {x} {y + 12} {z + s - 3} {wool}", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 12} {z + 1} {x + s} {y + 12} {z + s - 1} {wool}", ct);
+            $"fill {x + s} {y + 12} {z + 3} {x + s} {y + 12} {z + s - 3} {wool}", ct);
 
-        // === ARROW SLIT WINDOWS: 1-wide glass panes at regular intervals per floor ===
-        // Ground floor windows (y+3)
+        // === STRING COURSES: corbel ledges above wool bands (front/back) ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 3} {z} minecraft:glass_pane", ct);
+            $"fill {x + 3} {y + 7} {z} {x + s - 3} {y + 7} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 3} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x} {y + 3} {z + half} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + s} {y + 3} {z + half} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + half} {y + 3} {z + s} minecraft:glass_pane", ct);
-        // Second floor windows (y+9)
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 9} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 9} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x} {y + 9} {z + half} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + s} {y + 9} {z + half} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + half} {y + 9} {z + s} minecraft:glass_pane", ct);
-        // Third floor windows (y+15) — glass panes on all sides for observation deck
-        await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 15} {z} {x + 5} {y + 15} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 9} {y + 15} {z} {x + 11} {y + 15} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 15} {z + 3} {x} {y + 15} {z + 5} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 15} {z + 9} {x} {y + 15} {z + 11} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 15} {z + 3} {x + s} {y + 15} {z + 5} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 15} {z + 9} {x + s} {y + 15} {z + 11} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 15} {z + s} {x + 11} {y + 15} {z + s} minecraft:glass_pane", ct);
+            $"fill {x + 3} {y + 7} {z + s} {x + s - 3} {y + 7} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
 
-        // === CRENELLATED BATTLEMENTS: alternating stone bricks + stone brick stairs on top row (y+20) ===
-        // Full parapet ring
+        // === WINDOW BAYS: wider glass at each floor ===
+        // Ground + second floor windows on front face
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 20} {z} {x + s} {y + 20} {z} minecraft:stone_bricks", ct);
+            $"fill {x + 4} {y + 3} {z} {x + 5} {y + 3} {z} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 20} {z + s} {x + s} {y + 20} {z + s} minecraft:stone_bricks", ct);
+            $"fill {x + 9} {y + 3} {z} {x + 10} {y + 3} {z} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 20} {z + 1} {x} {y + 20} {z + s - 1} minecraft:stone_bricks", ct);
+            $"fill {x + 4} {y + 9} {z} {x + 10} {y + 9} {z} minecraft:glass_pane", ct);
+        // Third floor observation windows on all sides
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 20} {z + 1} {x + s} {y + 20} {z + s - 1} minecraft:stone_bricks", ct);
-        // Merlons (stone brick stairs) at every other position on front/back
+            $"fill {x + 4} {y + 15} {z} {x + 10} {y + 15} {z} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 20} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
+            $"fill {x + 4} {y + 15} {z + s} {x + 10} {y + 15} {z + s} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 20} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
+            $"fill {x} {y + 15} {z + 4} {x} {y + 15} {z + 10} minecraft:glass_pane", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 20} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 12} {y + 20} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 20} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 20} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 20} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 12} {y + 20} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
+            $"fill {x + s} {y + 15} {z + 4} {x + s} {y + 15} {z + 10} minecraft:glass_pane", ct);
 
-        // === 4 STANDING BANNERS on roof corner posts ===
+        // === MACHICOLATIONS: upside-down stairs below parapet (y+19) ===
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 19} {z} {x + s - 3} {y + 19} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 3} {y + 19} {z + s} {x + s - 3} {y + 19} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 19} {z + 3} {x} {y + 19} {z + s - 3} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s} {y + 19} {z + 3} {x + s} {y + 19} {z + s - 3} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+
+        // === BATTLEMENTS: 2-high merlons at y+20-21 ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 20} {z} {x + s} {y + 20} {z + s} minecraft:stone_bricks hollow", ct);
+        // Front merlons
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 20} {z} {x + 5} {y + 21} {z} minecraft:stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 9} {y + 20} {z} {x + 9} {y + 21} {z} minecraft:stone_bricks", ct);
+        // Back merlons
+        await rcon.SendCommandAsync(
+            $"fill {x + 5} {y + 20} {z + s} {x + 5} {y + 21} {z + s} minecraft:stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + 9} {y + 20} {z + s} {x + 9} {y + 21} {z + s} minecraft:stone_bricks", ct);
+
+        // === CORNER TURRET CAPS + PINNACLES ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 19} {z} {x + 2} {y + 19} {z + 2} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 2} {y + 19} {z} {x + s} {y + 19} {z + 2} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 19} {z + s - 2} {x + 2} {y + 19} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x + s - 2} {y + 19} {z + s - 2} {x + s} {y + 19} {z + s} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 20} {z + 1} minecraft:stone_brick_wall", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 20} {z + 1} minecraft:stone_brick_wall", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 20} {z + s - 1} minecraft:stone_brick_wall", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 20} {z + s - 1} minecraft:stone_brick_wall", ct);
+
+        // === 4 STANDING BANNERS on turret pinnacles ===
         await rcon.SendCommandAsync(
             $"setblock {x + 1} {y + 21} {z + 1} {banner}[rotation=0]", ct);
         await rcon.SendCommandAsync(
@@ -516,17 +523,21 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 1} {y + 21} {z + s - 1} {banner}[rotation=8]", ct);
 
-        // === IRON DOOR ENTRANCE: 3 wide × 4 tall on front face (z-min) with stone brick archway ===
-        // Archway frame (stone bricks around the opening)
+        // === GATEHOUSE: pointed arch entrance with flanking lanterns ===
         await rcon.SendCommandAsync(
-            $"fill {x + half - 2} {y + 1} {z} {x + half - 2} {y + 5} {z} minecraft:stone_bricks", ct);
+            $"fill {x + half - 2} {y + 2} {z} {x + half + 2} {y + 5} {z} minecraft:stone_bricks", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + half + 2} {y + 1} {z} {x + half + 2} {y + 5} {z} minecraft:stone_bricks", ct);
+            $"setblock {x + half - 1} {y + 5} {z} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + half - 1} {y + 5} {z} {x + half + 1} {y + 5} {z} minecraft:stone_brick_stairs[facing=south,half=top]", ct);
-        // Door opening (3 wide × 4 tall)
+            $"setblock {x + half + 1} {y + 5} {z} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + half} {y + 5} {z} minecraft:chiseled_stone_bricks", ct);
         await rcon.SendCommandAsync(
             $"fill {x + half - 1} {y + 1} {z} {x + half + 1} {y + 4} {z} minecraft:air", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + half - 2} {y + 3} {z} minecraft:lantern[hanging=true]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + half + 2} {y + 3} {z} minecraft:lantern[hanging=true]", ct);
 
         // === INTERIOR: FLOOR PLATFORMS ===
         // Second floor platform at y+7 (oak planks)
