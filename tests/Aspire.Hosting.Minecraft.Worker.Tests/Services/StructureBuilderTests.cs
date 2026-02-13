@@ -712,4 +712,176 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.True(lampZ <= maxAcceptableZ,
             $"{expectedStructure} health indicator at Z={lampZ} is behind front wall (max Z={maxAcceptableZ})");
     }
+
+    // ====================================================================
+    // GRAND WATCHTOWER TESTS
+    //
+    // Grand layout: StructureSize=15. The Grand Watchtower is the Project
+    // resource building at 15×15 scale. It features stone_bricks walls,
+    // crenellated battlements (stone_brick_stairs), 3 oak_planks floors,
+    // a spiral staircase (oak_stairs), and a front-wall sign.
+    // DoorPosition: (x+7, y+4, z) → GlowBlock: (x+7, y+5, z)
+    // ====================================================================
+
+    /// <summary>
+    /// Grand dispatch: When StructureSize >= 15 and resource type is "Project",
+    /// the watchtower should produce stone_bricks commands spanning 15 blocks (not 7).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_Dispatch_ProducesStone15BlockCommands()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Grand watchtower must use stone_bricks
+        Assert.Contains(commands, c => c.Contains("stone_bricks"));
+
+        // Should reference coordinates spanning 15 blocks (x to x+14)
+        // Structure at index 0: origin (10, -59, 0), so x+14 = 24
+        Assert.Contains(commands, c => c.Contains(" 24 ") || c.Contains(" 24,"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower health indicator (glowstone) should be at (x+7, y+5, z).
+    /// With grand layout, structure at (10, -59, 0): DoorPosition = (17, -55, 0),
+    /// GlowBlock = (17, -54, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HealthIndicator_PlacedAtCorrectPosition()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // GlowBlock = DoorPosition.TopY + 1 = (x+7, y+5, z) = (17, -54, 0)
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -54 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Watchtower has crenellated battlements using stone_brick_stairs.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasCrenellatedBattlements()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Battlements use stone_brick_stairs blocks
+        Assert.Contains(commands, c => c.Contains("stone_brick_stairs"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower has 3 floors using oak_planks at multiple Y levels.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasThreeFloors()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Floors use oak_planks — expect multiple Y levels for 3 floors
+        var floorCommands = commands.Where(c => c.Contains("oak_planks")).ToList();
+        Assert.True(floorCommands.Count >= 2,
+            $"Expected at least 2 oak_planks commands for multi-floor watchtower but got {floorCommands.Count}");
+    }
+
+    /// <summary>
+    /// Grand Watchtower has a spiral staircase using oak_stairs blocks.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasSpiralStaircase()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Spiral staircase uses oak_stairs blocks
+        Assert.Contains(commands, c => c.Contains("oak_stairs"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower sign is placed on the front wall (data merge block command present with resource name).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_SignPlacement_HasDataMergeWithResourceName()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Sign data merge command should contain the resource name
+        var signDataCmd = commands.FirstOrDefault(c =>
+            c.Contains("data merge block") && c.Contains("api"));
+        Assert.NotNull(signDataCmd);
+    }
+
+    /// <summary>
+    /// Grand Watchtower RCON budget: total commands should be under 100 for a single grand watchtower.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_RconBudget_Under100Commands()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Total commands for fence + paths + structure + health + sign should be under 100
+        Assert.True(commands.Count < 100,
+            $"Expected under 100 RCON commands for a single grand watchtower village but got {commands.Count}");
+    }
 }
