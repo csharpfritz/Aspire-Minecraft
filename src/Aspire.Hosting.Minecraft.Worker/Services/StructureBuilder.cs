@@ -14,8 +14,8 @@ internal readonly record struct DoorPosition(int CenterX, int TopY, int FaceZ)
     /// <summary>The glow block goes directly above the door, centered, flush with the wall.</summary>
     public (int X, int Y, int Z) GlowBlock => (CenterX, TopY + 1, FaceZ);
 
-    /// <summary>The sign goes outside the door (one block in front), offset one block to the right.</summary>
-    public (int X, int Y, int Z) Sign => (CenterX - 1, TopY - 1, FaceZ - 1);
+    /// <summary>The sign goes on the front wall face, offset two blocks to the left of the door center.</summary>
+    public (int X, int Y, int Z) Sign => (CenterX - 2, TopY - 1, FaceZ);
 }
 
 /// <summary>
@@ -33,6 +33,13 @@ internal sealed class StructureBuilder(
     private bool _initialBuildComplete;
     private readonly HashSet<string> _builtStructures = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DoorPosition> _doorPositions = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the door position for a resource, if the structure has been built.
+    /// Used by other services (e.g., ServiceSwitchService) to place elements relative to the door.
+    /// </summary>
+    public bool TryGetDoorPosition(string resourceName, out DoorPosition door)
+        => _doorPositions.TryGetValue(resourceName, out door);
 
     /// <summary>
     /// Builds or updates structures for all monitored resources.

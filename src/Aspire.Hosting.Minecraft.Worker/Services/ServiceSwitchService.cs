@@ -12,6 +12,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 internal sealed class ServiceSwitchService(
     RconService rcon,
     AspireResourceMonitor monitor,
+    StructureBuilder structureBuilder,
     ILogger<ServiceSwitchService> logger)
 {
     private bool _switchesPlaced;
@@ -51,15 +52,14 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever to the right of entrance door, at ground level on front wall.
-            // No separate lamp — StructureBuilder's health indicator already shows status.
-            var leverX = x + (VillageLayout.StructureSize / 2) + 2;
-            await PlaceLeverAsync(leverX, y + 1, z, powered, ct);
+            // Place lever relative to the door position on the actual front wall.
+            var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);
+            await PlaceLeverAsync(leverX, leverY, leverZ, powered, ct);
 
             _lastKnownStatus[name] = info.Status;
 
             logger.LogInformation("Service switch placed for {ResourceName} at ({X},{Y},{Z}), powered={Powered}",
-                name, x + 5, y + 1, z, powered);
+                name, leverX, leverY, leverZ, powered);
         }
 
         logger.LogInformation("Service switches placed for {Count} resources", orderedNames.Count);
@@ -77,9 +77,8 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever to the right of entrance door, at ground level on front wall.
-            var leverX = x + (VillageLayout.StructureSize / 2) + 2;
-            await PlaceLeverAsync(leverX, y + 1, z, powered, ct);
+            var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);
+            await PlaceLeverAsync(leverX, leverY, leverZ, powered, ct);
 
             _lastKnownStatus.TryGetValue(name, out var lastStatus);
             if (info.Status != lastStatus)
@@ -89,6 +88,22 @@ internal sealed class ServiceSwitchService(
                     name, powered);
             }
         }
+    }
+
+    /// <summary>
+    /// Computes the lever position from the door position (2 blocks right of door center, at door base, on the front wall).
+    /// Falls back to a calculated position if the door position is not yet available.
+    /// </summary>
+    private (int X, int Y, int Z) GetLeverPosition(string resourceName, int originX, int originY, int originZ)
+    {
+        if (structureBuilder.TryGetDoorPosition(resourceName, out var door))
+        {
+            // 2 blocks to the right of door center, at door base height, on the front wall face
+            return (door.CenterX + 2, door.TopY - 1, door.FaceZ);
+        }
+
+        // Fallback: estimate from origin (center of front wall)
+        return (originX + (VillageLayout.StructureSize / 2) + 2, originY + 1, originZ);
     }
 
     private async Task PlaceLeverAsync(int x, int y, int z, bool powered, CancellationToken ct)
