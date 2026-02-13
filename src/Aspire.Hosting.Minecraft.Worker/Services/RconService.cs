@@ -18,10 +18,14 @@ internal sealed class RconService : IAsyncDisposable
     private readonly ConcurrentDictionary<string, DateTime> _lastCommandTimes = new();
 
     // Rate limiting: token bucket
-    private readonly int _maxCommandsPerSecond;
+    private int _maxCommandsPerSecond;
+    private readonly int _defaultCommandsPerSecond;
     private readonly SemaphoreSlim _rateLimitSemaphore = new(1, 1);
     private int _tokenCount;
     private DateTime _lastTokenRefill = DateTime.UtcNow;
+
+    // Burst mode: only one active burst at a time
+    private readonly SemaphoreSlim _burstModeSemaphore = new(1, 1);
 
     // Command queue for low-priority commands when rate-limited
     private readonly Channel<QueuedCommand> _commandQueue;
@@ -51,6 +55,7 @@ internal sealed class RconService : IAsyncDisposable
         _logger = logger;
         _minCommandInterval = minCommandInterval ?? TimeSpan.Zero;
         _maxCommandsPerSecond = maxCommandsPerSecond;
+        _defaultCommandsPerSecond = maxCommandsPerSecond;
         _tokenCount = maxCommandsPerSecond;
 
         _commandQueue = Channel.CreateBounded<QueuedCommand>(new BoundedChannelOptions(100)
@@ -62,6 +67,64 @@ internal sealed class RconService : IAsyncDisposable
     }
 
     public bool IsConnected => _connection.IsConnected;
+
+    /// <summary>
+    /// Temporarily increases the RCON command rate limit for high-throughput operations
+    /// such as initial village construction. Only one burst mode session can be active at a time.
+    /// The original rate limit is automatically restored when the returned <see cref="IDisposable"/> is disposed.
+    /// If burst mode is already active, returns a no-op disposable without changing the rate limit.
+    /// </summary>
+    /// <param name="commandsPerSecond">The burst rate limit. Defaults to 40 commands/sec.</param>
+    /// <returns>An <see cref="IDisposable"/> that restores the original rate limit on dispose, or a no-op if already in burst mode.</returns>
+    public IDisposable EnterBurstMode(int commandsPerSecond = 40)
+    {
+        if (!_burstModeSemaphore.Wait(0))
+        {
+            _logger.LogDebug("RCON burst mode already active — returning no-op disposable");
+            return NoOpDisposable.Instance;
+        }
+
+        var previousRate = _maxCommandsPerSecond;
+        _maxCommandsPerSecond = commandsPerSecond;
+        _logger.LogInformation("RCON burst mode entered: rate limit increased from {Previous} to {New} commands/sec",
+            previousRate, commandsPerSecond);
+
+        return new BurstModeScope(this, previousRate);
+    }
+
+    private void ExitBurstMode(int restoreRate)
+    {
+        _maxCommandsPerSecond = restoreRate;
+        _logger.LogInformation("RCON burst mode exited: rate limit restored to {Rate} commands/sec", restoreRate);
+        _burstModeSemaphore.Release();
+    }
+
+    private sealed class BurstModeScope : IDisposable
+    {
+        private readonly RconService _rconService;
+        private readonly int _restoreRate;
+        private int _disposed;
+
+        public BurstModeScope(RconService rconService, int restoreRate)
+        {
+            _rconService = rconService;
+            _restoreRate = restoreRate;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                _rconService.ExitBurstMode(_restoreRate);
+            }
+        }
+    }
+
+    private sealed class NoOpDisposable : IDisposable
+    {
+        public static readonly NoOpDisposable Instance = new();
+        public void Dispose() { }
+    }
 
     /// <summary>
     /// Sends a command to the Minecraft server, recording metrics and traces.
@@ -220,6 +283,7 @@ internal sealed class RconService : IAsyncDisposable
         try { await _queueProcessorTask; } catch (OperationCanceledException) { }
         _queueProcessorCts.Dispose();
         _rateLimitSemaphore.Dispose();
+        _burstModeSemaphore.Dispose();
         await _connection.DisposeAsync();
     }
 

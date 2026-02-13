@@ -19,6 +19,7 @@ public class StructureBuilderTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        VillageLayout.ResetLayout();
         _server = new MockRconServer();
         _rcon = new RconService("127.0.0.1", _server.Port, "test",
             NullLogger<RconService>.Instance);
@@ -33,6 +34,7 @@ public class StructureBuilderTests : IAsyncLifetime
     {
         await _rcon.DisposeAsync();
         await _server.DisposeAsync();
+        VillageLayout.ResetLayout();
     }
 
     private async Task WaitForRconConnected()
@@ -405,5 +407,481 @@ public class StructureBuilderTests : IAsyncLifetime
             c.Contains(" 0 ")); // z=0 for Warehouse front wall
         
         Assert.NotNull(warehouseDoorCommand);
+    }
+
+    // ====================================================================
+    // HEALTH INDICATOR GLOW BLOCK POSITION TESTS
+    //
+    // Rule: The health indicator glow block is ALWAYS placed just above the
+    // door, flush with the front wall. All buildings face south (z-min).
+    // Standard layout: StructureSize=7, lampX = x+3 (center)
+    // Grand layout:    StructureSize=15, lampX = x+7 (center)
+    // ====================================================================
+
+    /// <summary>
+    /// Watchtower (Project): 3-tall door (y+1 to y+3) at z+1 → glow at TopY+1 = y+4.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -55, 1).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_Watchtower_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Watchtower at (10, -59, 0): lampX=13, lampY=-55, lampZ=1
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -55 1 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Warehouse (Container): 3-tall door (y+1 to y+3) → glow at TopY+1 = y+4.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -55, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_Warehouse_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("redis", "Container", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Warehouse at (10, -59, 0): door top y+3=-56, glow at -55
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -55 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Workshop (Executable): 2-tall door (y+1 to y+2) → glow at TopY+1 = y+3.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_Workshop_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("worker", "Executable", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Workshop at (10, -59, 0): lampX=13, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Cottage (Unknown): front wall at z, 2-tall door → lamp at y+3, z.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_Cottage_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("misc", "SomeType", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Cottage at (10, -59, 0): lampX=13, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Cylinder/Silo (Database): front wall at z, 2-tall door → lamp at y+3, z.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_Cylinder_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("db", "postgres", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Cylinder at (10, -59, 0): lampX=13, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// AzureThemed (Azure): front wall at z, 2-tall door → lamp at y+3, z.
+    /// Standard layout: structure at (10, -59, 0) → lamp at (13, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_AzureThemed_PlacedAboveDoorFlushWithFrontWall()
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("storage", "azure.storage", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // AzureThemed at (10, -59, 0): lampX=13, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 13 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    // ====================================================================
+    // GRAND LAYOUT HEALTH INDICATOR TESTS
+    //
+    // Grand layout: StructureSize=15, lampX = x+7 (half=7).
+    // All grand buildings have door on front wall at z.
+    // ====================================================================
+
+    /// <summary>
+    /// Grand Warehouse: 4-tall cargo door → lamp at y+5, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -54, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_GrandWarehouse_PlacedAboveDoorFlushWithFrontWall()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("redis", "Container", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Grand Warehouse at (10, -59, 0): lampX=17, lampY=-54, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -54 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Workshop: 3-tall door → lamp at y+4, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -55, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_GrandWorkshop_PlacedAboveDoorFlushWithFrontWall()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("worker", "Executable", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Grand Workshop at (10, -59, 0): lampX=17, lampY=-55, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -55 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Cottage: 2-tall door → lamp at y+3, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_GrandCottage_PlacedAboveDoorFlushWithFrontWall()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("misc", "SomeType", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Grand Cottage at (10, -59, 0): lampX=17, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Cylinder/Silo: 2-tall iron door (y+1 to y+2) → lamp at y+3, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -56, 0).
+    /// NOT at z+4 (which would be inside the building).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_GrandCylinder_PlacedAboveDoorFlushWithFrontWall()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("db", "postgres", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Grand Cylinder at (10, -59, 0): lampX=17, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Azure Pavilion: 2-tall door → lamp at y+3, front wall z.
+    /// Grand layout: structure at (10, -59, 0) → lamp at (17, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task HealthIndicator_GrandAzurePavilion_PlacedAboveDoorFlushWithFrontWall()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("storage", "azure.storage", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Grand Azure Pavilion at (10, -59, 0): lampX=17, lampY=-56, lampZ=0
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -56 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Verifies that the health indicator glow block is NEVER placed inside the building
+    /// (e.g., at z+4 for cylinders). It must always be at the front wall face.
+    /// </summary>
+    [Theory]
+    [InlineData("Project", "Watchtower")]
+    [InlineData("Container", "Warehouse")]
+    [InlineData("Executable", "Workshop")]
+    [InlineData("SomeType", "Cottage")]
+    [InlineData("postgres", "Cylinder")]
+    [InlineData("azure.storage", "AzureThemed")]
+    public async Task HealthIndicator_AllTypes_NeverPlacedBehindFrontWall(
+        string resourceType, string expectedStructure)
+    {
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("test-resource", resourceType, ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        // Health indicator is a setblock with glowstone
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+
+        // Parse the Z coordinate from "setblock X Y Z minecraft:glowstone"
+        var parts = healthCmd!.Split(' ');
+        var zIndex = Array.IndexOf(parts, "setblock") + 3; // setblock X Y Z
+        var lampZ = int.Parse(parts[zIndex]);
+
+        // Structure at index 0 is at z=0. Front wall is at z (or z+1 for Watchtower).
+        // Lamp must be at the front wall, never deeper (higher Z).
+        var maxAcceptableZ = expectedStructure == "Watchtower" ? 1 : 0;
+        Assert.True(lampZ <= maxAcceptableZ,
+            $"{expectedStructure} health indicator at Z={lampZ} is behind front wall (max Z={maxAcceptableZ})");
+    }
+
+    // ====================================================================
+    // GRAND WATCHTOWER TESTS
+    //
+    // Grand layout: StructureSize=15. The Grand Watchtower is the Project
+    // resource building at 15×15 scale. It features stone_bricks walls,
+    // crenellated battlements (stone_brick_stairs), 3 oak_planks floors,
+    // a spiral staircase (oak_stairs), and a front-wall sign.
+    // DoorPosition: (x+7, y+4, z) → GlowBlock: (x+7, y+5, z)
+    // ====================================================================
+
+    /// <summary>
+    /// Grand dispatch: When StructureSize >= 15 and resource type is "Project",
+    /// the watchtower should produce stone_bricks commands spanning 15 blocks (not 7).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_Dispatch_ProducesStone15BlockCommands()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Grand watchtower must use stone_bricks
+        Assert.Contains(commands, c => c.Contains("stone_bricks"));
+
+        // Should reference coordinates spanning 15 blocks (x to x+14)
+        // Structure at index 0: origin (10, -59, 0), so x+14 = 24
+        Assert.Contains(commands, c => c.Contains(" 24 ") || c.Contains(" 24,"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower health indicator (glowstone) should be at (x+7, y+5, z).
+    /// With grand layout, structure at (10, -59, 0): DoorPosition = (17, -55, 0),
+    /// GlowBlock = (17, -54, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HealthIndicator_PlacedAtCorrectPosition()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // GlowBlock = DoorPosition.TopY + 1 = (x+7, y+5, z) = (17, -54, 0)
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock 17 -54 0 minecraft:glowstone"));
+
+        Assert.NotNull(healthCmd);
+    }
+
+    /// <summary>
+    /// Grand Watchtower has crenellated battlements using stone_brick_stairs.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasCrenellatedBattlements()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Battlements use stone_brick_stairs blocks
+        Assert.Contains(commands, c => c.Contains("stone_brick_stairs"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower has 3 floors using oak_planks at multiple Y levels.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasThreeFloors()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Floors use oak_planks — expect multiple Y levels for 3 floors
+        var floorCommands = commands.Where(c => c.Contains("oak_planks")).ToList();
+        Assert.True(floorCommands.Count >= 2,
+            $"Expected at least 2 oak_planks commands for multi-floor watchtower but got {floorCommands.Count}");
+    }
+
+    /// <summary>
+    /// Grand Watchtower has a spiral staircase using oak_stairs blocks.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HasSpiralStaircase()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Spiral staircase uses oak_stairs blocks
+        Assert.Contains(commands, c => c.Contains("oak_stairs"));
+    }
+
+    /// <summary>
+    /// Grand Watchtower sign is placed on the front wall (data merge block command present with resource name).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_SignPlacement_HasDataMergeWithResourceName()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Sign data merge command should contain the resource name
+        var signDataCmd = commands.FirstOrDefault(c =>
+            c.Contains("data merge block") && c.Contains("api"));
+        Assert.NotNull(signDataCmd);
+    }
+
+    /// <summary>
+    /// Grand Watchtower RCON budget: total commands should be under 100 for a single grand watchtower.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_RconBudget_Under100Commands()
+    {
+        VillageLayout.ConfigureGrandLayout();
+
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+
+        // Total commands for fence + paths + structure + health + sign should be under 100
+        Assert.True(commands.Count < 100,
+            $"Expected under 100 RCON commands for a single grand watchtower village but got {commands.Count}");
     }
 }

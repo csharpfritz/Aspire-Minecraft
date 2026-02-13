@@ -168,3 +168,16 @@
  Team update (2026-02-12): Famous Buildings API designed  AsMinecraftFamousBuilding(FamousBuilding enum), 15 iconic buildings (geographic diversity), pure C# build models, annotation-based with env var flow, requires WithGrandVillage(), 200 RCON command max per building, two-sprint phasing (3 buildings in Sprint A, 12 remaining in Sprint B)  decided by Rhodey
  Team update (2026-02-12): MonitorAllResources convenience API design approved  .MonitorAllResources() extension auto-discovers all non-Minecraft resources, ExcludeFromMonitoring() opt-out, eliminates manual WithMonitoredResource() calls, eager discovery, Famous Building annotations pass through  decided by Rhodey
  Team update (2026-02-12): Aspire observability visualization ideas documented (10 ideas: Trace River, Enchanting Tower, Log Campfires, Nether Portal Gateway, Sculk Sensor Network, Minecart Rails, Villager Trading Hall, Redstone Clock Dashboard, Ender Chest Trace Explorer, Dragon Health Egg)  Dragon Egg + Redstone Clock + Sculk recommended for Sprint 4; Trace River + Log Campfires + Nether Portal for Sprint 5 (requires OTLP architecture investment)  decided by Rhodey
+📌 Team update (2026-02-12): Terminology directive — use "milestones" instead of "sprints" going forward for all planning documents and discussions — decided by Jeffrey T. Fritz
+
+### 2026-02-13: v0.5.0 API Review & Release Verification
+
+- **API surface is clean.** 35 public extension methods, 5 public types, 0 internal type leakage. `WithGrandVillage()` and `WithMinecartRails()` follow the established guard clause pattern (WorkerBuilder null check → env var set → fluent return). Both included in `WithAllFeatures()`. XML docs complete on all public members.
+- **Build passes:** 0 errors. 1 pre-existing CS8604 warning (nullable in `MinecraftServerResource.ConnectionStringExpression`). 1 pre-existing xUnit1026 warning (unused parameter in `VillageLayoutTests`).
+- **434 unit tests pass:** 45 Rcon + 19 Hosting + 370 Worker. 0 unit test failures.
+- **5 integration test failures are expected** — they require a running Minecraft Docker container. The `--filter "Category!=Integration"` doesn't exclude them because integration tests are missing `[Trait("Category", "Integration")]` — they use `[Collection("Minecraft")]` instead. Non-blocking, filed as observation.
+- **NuGet package created:** `Fritz.Aspire.Hosting.Minecraft.0.1.0-dev.nupkg` (~39.6 MB). Package validation passed. Version set to `0.5.0` at release time via CI pipeline `-p:Version` override.
+- **Three non-blocking observations for future work:** (1) Add `[Trait("Category", "Integration")]` to integration tests. (2) Fix CS8604 nullable warning. (3) Confirm CI sets correct version from git tag.
+- **Release decision:** APPROVED — written to `.ai-team/decisions/inbox/rhodey-v050-release-ready.md`.
+
+📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey

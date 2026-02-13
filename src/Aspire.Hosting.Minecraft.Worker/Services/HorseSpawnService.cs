@@ -43,7 +43,7 @@ internal sealed class HorseSpawnService(
             var z = VillageLayout.BaseZ - 6;
 
             var command = $"summon minecraft:horse {x} {y} {z} " +
-                "{" + $"CustomName:\"\\\"" + name + "\\\"\",Variant:" + variant + ",Tame:1b,PersistenceRequired:1b}";
+                "{CustomName:'" + name + "',Variant:" + variant + ",Tame:1b,PersistenceRequired:1b}";
 
             await rcon.SendCommandAsync(command, ct);
 

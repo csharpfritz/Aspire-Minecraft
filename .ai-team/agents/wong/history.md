@@ -18,6 +18,8 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+📌 Milestone release changelog template: Section headers (Features Delivered, Issues Resolved, Test Coverage, Breaking Changes), bulleted feature lists with issue references, test metrics summary — use this for future release documentation — decided by Wong
+
 📌 Team update (2026-02-10): NuGet packages blocked — no CI/CD pipeline exists, must be created — decided by Shuri
 📌 Team update (2026-02-10): 3-sprint roadmap adopted — Sprint 1 assigns Wong: build.yml CI, release.yml stub, branch protection — decided by Rhodey
 

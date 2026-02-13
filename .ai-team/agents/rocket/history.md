@@ -253,3 +253,118 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 **Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.
  Team update (2026-02-12): Village spacing doubled to 24 blocks (15 + 9 gap between buildings) with enhanced fence clearance (10 blocks)  decided by Rocket
  Team update (2026-02-12): Sprint 4 building designs specified: database cylinders (77 cell, smooth stone + deepslate, ~88 RCON commands), Azure banners (light_blue with patterns on all Azure resources), enhanced palettes (Watchtower, Warehouse, Workshop, Cottage with detailed interior)  decided by Rocket
+
+### RCON Burst Mode (Milestone 5, Issue #85)
+
+Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `IDisposable` — callers wrap construction in a `using` block and the rate limit auto-restores on dispose.
+
+### Ornate Grand Watchtower Exterior (Milestone 5, Issue #78)
+
+Redesigned `BuildGrandWatchtowerAsync` exterior from plain cube to ornate medieval tower. Same 15×15 footprint, 20 blocks tall, interior unchanged. Key exterior features:
+
+- **Tapered base:** mossy_stone_bricks foundation (y) + stone_brick_stairs sloped plinth (y+1) facing outward on all 4 sides — anchors the tower visually.
+- **Mixed wall materials:** stone_bricks hollow shell (y+2 to y+18), cracked_stone_bricks weathering on lower front/back walls (y+2 to y+4).
+- **Prominent 3×3 corner buttresses:** polished_andesite pillars extending full height at all 4 corners — much more imposing than the old 2×2.
+- **Wool bands preserved** at y+6 and y+12, skipping corner buttress areas (x+3 to x+s-3 / z+3 to z+s-3).
+- **Corbel string courses:** stone_brick_stairs (half=top) above wool bands at y+7 on front/back — adds horizontal depth lines.
+- **Wider window bays:** 2-wide glass_pane pairs on ground floor (y+3), full-width on second floor (y+9), panoramic observation on third floor (y+15) all 4 sides.
+- **Machicolations:** upside-down stone_brick_stairs at y+19 on all 4 sides, creating the characteristic medieval overhang below the parapet.
+- **Pronounced battlements:** stone_bricks hollow ring at y+20, 2-high merlons (y+20-21) at regular intervals on front/back.
+- **Corner turret caps:** stone_brick_stairs conical roofs over buttresses at y+19, stone_brick_wall pinnacles at y+20.
+- **Pointed gatehouse arch:** 5-wide stone_bricks frame, stone_brick_stairs converging on keystone (chiseled_stone_bricks), 3×4 air opening, flanking lanterns.
+- **4 banners** on turret pinnacles at (x+1,y+21,z+1), (x+s-1,y+21,z+1), (x+1,y+21,z+s-1), (x+s-1,y+21,z+s-1).
+- **RCON budget:** 84 commands in method, ~98 total with fence/paths/health/sign — under 100 limit.
+
+**Implementation details:**
+- `_maxCommandsPerSecond` changed from `readonly` to mutable. `_defaultCommandsPerSecond` stores the original value.
+- Thread safety via `_burstModeSemaphore` (SemaphoreSlim(1,1)): `Wait(0)` for non-blocking acquire; throws `InvalidOperationException` if already active.
+- `BurstModeScope` inner class: `IDisposable` with `Interlocked.Exchange` guard preventing double-dispose.
+- Logs at INFO on enter and exit with before/after rate values.
+- Token bucket (`RefillTokens()`) automatically adapts because it reads `_maxCommandsPerSecond` dynamically — no bucket reset needed.
+- `_burstModeSemaphore` disposed in `DisposeAsync`.
+
+**Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
+
+### Grand Workshop (Milestone 5, Issue #82)
+
+Redesigned `BuildWorkshopAsync()` with Grand mode (15×15) branching. When `VillageLayout.StructureSize >= 15`, delegates to `BuildGrandWorkshopAsync()`. Standard 7×7 version preserved unchanged.
+
+**Grand Workshop exterior (15×15, 10 blocks tall):**
+- Oak plank walls with spruce log corner posts (y+1 to y+5) and horizontal beam frame at y+5.
+- A-frame peaked roof: 4 layers of spruce stair shingles (y+6 eaves → y+9 ridge cap with spruce_slab).
+- 2×2 cobblestone chimney at back-right corner (y+6 to y+10) topped with campfire.
+- Cyan stained glass windows (2×2) flanking door on front wall, plus side and back walls.
+- Flower pots under front windows at y+2.
+- 3-wide × 3-tall door centered at x+6..x+8 on front wall (z).
+
+**Grand Workshop interior:**
+- Tool stations along back wall: crafting_table, smithing_table, stonecutter, anvil, grindstone (spaced evenly).
+- Furnace at left back corner, brewing_stand at right back corner.
+- Loft at y+6: half-floor (back half, z+7 to z+13) with oak fence railing, ladder access against side wall (x+1, y+1..y+6).
+- Loft furnishing: 3 barrels + bookshelf against back wall.
+- 3 hanging lanterns at ceiling (y+5).
+
+**Support method updates:**
+- `PlaceAzureBannerAsync`: Grand Workshop roofY = y+10, flagpole centered at x+half/z+half.
+- `PlaceHealthIndicatorAsync`: Grand Workshop lampY = y+4 (above 3-tall door), lampX = x+7 (centered).
+
+**RCON budget:** 47 commands in `BuildGrandWorkshopAsync` + 3-5 external (health lamp, sign, optional azure banner) = ~50-52 total. Within the ~55-65 budget.
+
+**Key learning:** A-frame roof on a 15-block-wide building needs 4 layers to reach the ridge. Each layer uses matching spruce stair `facing` directions (south for front slope, north for back slope) with oak plank fill in the gable center. The ridge cap uses `spruce_slab` for a clean peak line.
+
+### Grand Azure Pavilion & Grand Cottage (Milestone 5, Issue #80)
+
+Added grand variants for the two remaining building types: Azure Pavilion and Cottage. Both branch on `VillageLayout.StructureSize == 15` — if grand, delegate to `BuildGrandAzurePavilionAsync` / `BuildGrandCottageAsync`; otherwise keep the standard 7×7 build.
+
+**Grand Azure Pavilion (BuildGrandAzurePavilionAsync):**
+- 15×15 footprint, 8 blocks tall. Light blue concrete walls with blue concrete pilaster strips at all 4 corners and 4 wall midpoints.
+- Blue concrete trim band at wall top (y+7). Flat light blue concrete roof (y+8) with 3×3 light blue stained glass skylight in center.
+- Azure banners on all 4 roof corners (y+9). Blue stained glass pane windows on all 4 walls.
+- Interior: light blue carpet floor, brewing stand + cauldron (cloud services aesthetic), 4 hanging lanterns.
+- ~50 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Grand Cottage (BuildGrandCottageAsync):**
+- 15×15 footprint, 8 blocks tall. Cobblestone lower walls (y+1 to y+4), oak plank upper walls (y+5 to y+7).
+- Language-colored wool trim band at y+7. Cobblestone slab pitched roof (y+8).
+- Flower pots on front face below windows. Glass pane windows on front and sides.
+- Interior: red bed, crafting table, bookshelf, furnace, 2 chests, potted poppy + dandelion, 4 wall torches.
+- ~45 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Supporting changes:**
+- `PlaceHealthIndicatorAsync` — lampX now uses `x + half` for all grand variants (was only handling Watchtower/Warehouse/Cylinder).
+- `PlaceAzureBannerAsync` — roofY for grand Cottage updated to `y + 9` (was `y + 6` for standard).
+- `PlaceSignAsync` — signX now uses `x + half - 1` derived from `VillageLayout.StructureSize / 2`, keeping backward compat (7/2 = 3, so x+2).
+- `BuildFencePerimeterAsync` — gate width now uses `VillageLayout.GateWidth` (3 standard, 5 grand).
+- `BuildPathsAsync` — grand layout gets a central stone brick boulevard between the two columns.
+- `BuildCylinderAsync` — added size check to branch to `BuildGrandCylinderAsync` when grand.
+
+**Key learning:** When modifying shared placement methods (health lamp, sign, banner) for new grand variants, use `VillageLayout.StructureSize / 2` instead of hardcoding `3` vs `7`. This makes the code adaptive to any structure size without needing per-type grand checks.
+
+### Grand Watchtower (Milestone 5, Issue #78) — IMPLEMENTED
+
+**Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize >= 15` (same check as all other grand builders); standard 7×7 watchtower remains the fallback.
+
+**Architecture (as built):**
+- Single `fill ... hollow` for full 19-block-tall stone brick shell (y+1 to y+19) — simpler than per-floor sections.
+- 4 polished andesite corner buttresses (2×2) rising full height, placed after walls so they overlay corners.
+- Language-colored wool bands at y+6 and y+12 (floor boundaries) on all 4 wall faces.
+- Arrow slit windows: individual glass panes at y+3 and y+9 (ground/second floor), 3-wide glass pane fills at y+15 on all sides for observation deck.
+- Crenellated battlements at y+20: fill full ring of stone bricks, then place stone_brick_stairs[half=top] at alternating positions.
+- 4 standing banners at roof corner posts (y+21) on buttress inner corners.
+- Spiral staircase: Flight 1 along north wall (z+1, east-facing oak stairs, y+1 to y+6); Flight 2 along east wall (x+s-1, south-facing, y+8 to y+13). Stairwell holes cleared in floor platforms.
+- Floor platforms: oak planks at y+7 (second floor) and y+13 (third floor) with air holes for stairwell access.
+- Ground floor: crafting table, resource name sign on back wall, 4 wall torches.
+- Second floor: enchanting table centered at (half, y+8, half), bookshelves along south and west walls.
+- Third floor: lectern centered at (half, y+14, half) as observation deck.
+- Iron door entrance: stone brick archway frame with stone_brick_stairs[half=top] lintel at y+5, 3-wide × 4-tall air opening.
+- Returns `DoorPosition(x + half, y + 4, z)` — door on front wall at z, matching 4-tall opening.
+
+**RCON command count:** ~85 commands. Single hollow fill for the full tower shell is key to staying under budget.
+
+**Key learnings:**
+- Single tall `fill ... hollow` + floor platform fills is more command-efficient than per-floor wall sections.
+- Crenellations: fill a complete row of stone brick, then overlay stairs at alternating positions (no air carving needed).
+- Door archway with stone_brick_stairs[half=top] lintel gives a nice visual effect.
+- Grand variant branching uses `>= 15` (not `== 15`) to match all other grand builder checks.
+
+📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket

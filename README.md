@@ -6,7 +6,7 @@ A .NET Aspire integration for Minecraft servers — featuring OpenTelemetry inst
 
 ![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](img/sample-1.png)
 
-> 🎉 **v0.4.0:** Sprint 4 complete! New database **Cylinder** buildings, **Azure-themed** structures with blue banners, a **Redstone Dashboard** wall showing health history over time, and **WithAllFeatures()** to enable everything in one call. Plus all Sprint 3 features: themed structures, cobblestone pathways, redstone dependency graphs, interactive service switches, configurable boss bar, achievements, and heartbeat.
+> 🎉 **v0.5.0:** Milestone 5 complete! **Grand Village** — walkable 15×15 buildings with furnished interiors, multi-story watchtowers with spiral staircases, silos with two data floors, and workshops with lofts. **Minecart Rails** — powered rail connections between dependent resources with chest minecarts that stop when a parent goes unhealthy. Plus the DoorPosition architecture ensures every building's glow block health indicator sits directly above its door.
 
 ## 🚀 Quick Start
 
@@ -36,6 +36,8 @@ builder.AddMinecraftServer("minecraft")
     .WithWeatherEffects()
     .WithHeartbeat()
     .WithAchievements()
+    .WithGrandVillage()       // 15×15 walkable buildings with interiors
+    .WithMinecartRails()      // Powered rail connections between dependencies
     .WithMonitoredResource(api);
 
 builder.Build().Run();
@@ -69,6 +71,14 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
   - **Cylinder** (smooth stone, domed roof) — Database resources (Postgres, Redis, SQL Server, MongoDB, etc.)
   - **Azure-Themed** (light blue concrete, blue glass roof, banner) — Azure resources (Service Bus, Key Vault, etc.)
   - **Cottage** (cobblestone, humble dwelling) — Other resources
+- **Grand Village** — Enable with `.WithGrandVillage()` for 15×15 walkable buildings with furnished interiors:
+  - **Grand Watchtower** — 3 floors with spiral staircase, enchanting table, observation deck
+  - **Grand Warehouse** — Loading dock, barrel storage, hanging lanterns
+  - **Grand Workshop** — Loft with ladder access, crafting stations, chimney
+  - **Grand Silo** — Two-story data cylinder with central copper pillar
+  - **Grand Azure Pavilion** — Skylight, azure banners on all corners
+  - **Grand Cottage** — Bed, bookshelves, flower pots, split cobblestone/oak walls
+- **Minecart Rails** — Enable with `.WithMinecartRails()` for powered rail connections between dependent resources. Chest minecarts circulate along L-shaped paths; rails disable when a parent resource goes unhealthy
 - **Comprehensive Paths** — Complete cobblestone coverage throughout the village, flush with the ground for seamless walking
 - **Beacon Towers** — Per-resource beacons with color-coded stained glass matching Aspire dashboard colors (blue/purple/cyan). Beam turns red when resource fails
 - **Redstone Dashboard** — A wall west of the village showing scrolling health history using redstone lamps. Each row is a resource, each column is a time slot. Lit = healthy, dark = unhealthy, sea lantern = unknown. Enable with `.WithRedstoneDashboard()`
@@ -107,6 +117,8 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 - **OpenTelemetry** — `WithOpenTelemetry()` injects the OTEL Java agent for automatic JVM metrics (heap, GC, threads, CPU)
 - **RCON Debug Logging** — `WithRconDebugLogging()` enables debug-level logging of every command sent to the server, visible in Aspire dashboard logs
 - **All Features** — `WithAllFeatures()` enables every opt-in feature in a single call — perfect for demos or when you want everything
+- **Grand Village** — `WithGrandVillage()` upgrades all buildings to 15×15 walkable structures with furnished interiors, spiral staircases, and multi-story layouts
+- **Minecart Rails** — `WithMinecartRails()` adds powered rail connections between dependent resources with circulating chest minecarts. Rails break when parent resources go unhealthy
 - **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot (~30 seconds)
 
 ### 🔧 Using a server.properties File
@@ -169,7 +181,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
-    .WithAllFeatures()  // Enables all opt-in features at once
+    .WithAllFeatures()  // Enables all opt-in features at once (including Grand Village and Minecart Rails)
     // Resources to monitor
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
