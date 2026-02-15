@@ -189,3 +189,5 @@
 - Added `NoOpDisposable` private sealed class with static singleton pattern inside `RconService`.
 - Burst mode is still thread-safe: `_burstModeSemaphore.Wait(0)` guards against concurrent activation; only the first caller gets the real `BurstModeScope` that restores the rate limit on dispose.
 - Fence/Paths/Forceload (#84) were already correctly implemented in the prior sprint — verified no hardcoded values remain. Gate uses `BaseX + StructureSize`, fence uses `FenceClearance`, forceload uses `GetFencePerimeter(10)` dynamically, `MAX_WORLD_SIZE` is 512.
+
+📌 Team update (2026-02-15): JAR files (e.g., opentelemetry-javaagent.jar) OK to keep in repo under lib/ folder; no need for build-time downloads — decided by Jeffrey T. Fritz

@@ -357,3 +357,5 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 - Design constraint: visual richness must come from block variety and placement order (layering fills), not from additional commands. Every decorative element must justify its RCON cost.
 - Interior left completely unchanged — floors, staircase, furniture, sign, torches all preserved.
 - DoorPosition return value unchanged at (x + half, y + 4, z) to maintain health indicator and sign compatibility.
+
+📌 Team update (2026-02-15): Python and Node.js sample APIs added to MinecraftAspireDemo; separate GrandVillageDemo created on milestone-5 showcasing all grand building variants (15×15 structures for Project, Container, Database, Azure types) — decided by Shuri

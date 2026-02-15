@@ -1913,3 +1913,19 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 **What:** Replaced the flat rectangular exterior with a visually rich medieval castle tower. Corner buttresses now use deepslate_bricks (darker contrast against stone_bricks). Turrets extend 2 blocks above the parapet (y+22) with pinnacle posts and banners at y+23. Gatehouse has a taller pointed arch (keystone at y+6) with iron_bars portcullis across the top of the door opening. Lower walls have cracked_stone_bricks weathering. Ground floor windows are iron_bars arrow slits. Observation windows are 2-high. String course corbel ledge runs above the first wool band. Machicolations remain on all 4 sides. Total method uses 85 RCON commands (was 84), staying under the 100-command village budget.
 
 **Why:** Jeff flagged the Grand Watchtower as "still just a plain rectangle" and wants Projects to be the showpiece. The redesign focuses on visual depth through block variety, layered fill ordering, and taller proportions — all within the existing RCON budget constraint. The deepslate vs stone_brick contrast and taller turrets create more dramatic shadows and silhouette.
+
+### 2026-02-15: User directive
+
+**By:** Jeffrey T. Fritz (via Copilot)
+
+**What:** JAR files for needed extensions (like opentelemetry-javaagent.jar) are acceptable to keep committed in the repo, in a lib folder or similar location. No need to switch to build-time downloads.
+
+**Why:** User request — captured for team memory
+
+### 2026-02-15: Python and Node.js sample projects added; Grand Village demo created
+
+**By:** Shuri
+
+**What:** Added minimal Python (http.server) and Node.js (http module) sample APIs to MinecraftAspireDemo on main. Created a new GrandVillageDemo sample on milestone-5 that uses WithAllFeatures() + WithGrandVillage() with all resource types (Project, Container, Database, Azure, Python, Node.js) so every 15×15 grand building variant is visible.
+
+**Why:** The existing sample only showed .NET projects, Redis, and Postgres. Adding Python and Node.js demonstrates that Aspire can orchestrate polyglot stacks and that the Workshop building type works for executable resources. The separate Grand Village demo gives a clean, focused showcase of the milestone-5 feature without cluttering the main sample's toggle pattern.
