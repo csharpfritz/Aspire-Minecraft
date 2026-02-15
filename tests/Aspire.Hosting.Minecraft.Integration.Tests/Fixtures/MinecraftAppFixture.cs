@@ -61,7 +61,7 @@ public sealed class MinecraftAppFixture : IAsyncLifetime
 
     /// <summary>
     /// Polls for a known block at the first structure origin every 5 seconds.
-    /// The watchtower at index 0 places cobblestone at origin (10, -59, 0).
+    /// The watchtower at index 0 places stone_bricks at origin (10, -59, 0).
     /// When the block exists, the village build is complete.
     /// </summary>
     private async Task WaitForVillageBuildAsync()
@@ -76,7 +76,7 @@ public sealed class MinecraftAppFixture : IAsyncLifetime
             {
                 // 'execute if block' returns empty string on match
                 var result = await Rcon.SendCommandAsync(
-                    "execute if block 10 -59 0 minecraft:cobblestone");
+                    "execute if block 10 -59 0 minecraft:stone_bricks");
 
                 if (string.IsNullOrEmpty(result))
                     return; // Block found — village is built
@@ -91,7 +91,7 @@ public sealed class MinecraftAppFixture : IAsyncLifetime
 
         throw new TimeoutException(
             "Village was not built within the 3-minute timeout. " +
-            "Expected cobblestone at (10, -59, 0).");
+            "Expected stone_bricks at (10, -59, 0).");
     }
 
     public async Task DisposeAsync()

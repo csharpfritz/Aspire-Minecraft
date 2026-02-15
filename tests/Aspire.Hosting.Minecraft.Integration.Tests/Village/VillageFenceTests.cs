@@ -10,6 +10,7 @@ namespace Aspire.Hosting.Minecraft.Integration.Tests.Village;
 /// coordinates calculated by <see cref="VillageLayout.GetFencePerimeter"/>.
 /// </summary>
 [Collection("Minecraft")]
+[Trait("Category", "Integration")]
 public class VillageFenceTests(MinecraftAppFixture fixture)
 {
     [Fact]

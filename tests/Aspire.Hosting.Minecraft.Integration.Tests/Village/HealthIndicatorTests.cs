@@ -6,34 +6,38 @@ using Xunit;
 namespace Aspire.Hosting.Minecraft.Integration.Tests.Village;
 
 /// <summary>
-/// Verifies that health indicator wool blocks are placed on top of structures.
-/// A healthy resource should have a colored wool block at the indicator position.
+/// Verifies that health indicator glow blocks are placed above structure doors.
+/// Healthy resources get glowstone, unhealthy get redstone_lamp, unknown get sea_lantern.
 /// </summary>
 [Collection("Minecraft")]
+[Trait("Category", "Integration")]
 public class HealthIndicatorTests(MinecraftAppFixture fixture)
 {
     [Fact]
-    public async Task HealthIndicator_FirstResource_HasWoolBlock()
+    public async Task HealthIndicator_FirstResource_HasGlowBlock()
     {
         var (x, y, z) = VillageLayout.GetStructureOrigin(0);
 
-        // Health indicator is placed above the structure.
-        // Check for any wool variant (healthy=green, degraded=yellow, unhealthy=red).
-        // We use a broad check — the exact color depends on resource state at test time.
-        var indicatorX = x + 3;
-        var indicatorZ = z + 3;
+        // Watchtower DoorPosition: (x+3, y+3, z+1) → GlowBlock at (x+3, y+4, z+1)
+        var glowX = x + 3;
+        var glowY = y + 4;
+        var glowZ = z + 1;
 
-        // Try green_wool first (expected for healthy resources)
-        // If the resource is healthy, this block should be green_wool
-        var result = await fixture.Rcon.SendCommandAsync(
-            $"execute if block {indicatorX} {y + 10} {indicatorZ} #minecraft:wool");
+        // The glow block should be glowstone (healthy), redstone_lamp (unhealthy),
+        // or sea_lantern (unknown) depending on resource state at test time.
+        // Try all three — at least one should match.
+        var glowResult = await fixture.Rcon.SendCommandAsync(
+            $"execute if block {glowX} {glowY} {glowZ} minecraft:glowstone");
+        var lampResult = await fixture.Rcon.SendCommandAsync(
+            $"execute if block {glowX} {glowY} {glowZ} minecraft:redstone_lamp");
+        var lanternResult = await fixture.Rcon.SendCommandAsync(
+            $"execute if block {glowX} {glowY} {glowZ} minecraft:sea_lantern");
 
-        // #minecraft:wool is a block tag — if not supported, fall back to individual checks
-        if (!string.IsNullOrEmpty(result))
-        {
-            // Try specific wool colors that the health indicator uses
-            await RconAssertions.AssertBlockAsync(
-                fixture.Rcon, indicatorX, y + 10, indicatorZ, "minecraft:green_wool");
-        }
+        var foundIndicator = string.IsNullOrEmpty(glowResult)
+            || string.IsNullOrEmpty(lampResult)
+            || string.IsNullOrEmpty(lanternResult);
+
+        Assert.True(foundIndicator,
+            $"Expected a health indicator (glowstone/redstone_lamp/sea_lantern) at ({glowX}, {glowY}, {glowZ})");
     }
 }

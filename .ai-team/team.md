@@ -16,6 +16,7 @@
 | Shuri | Backend Dev | `.ai-team/agents/shuri/charter.md` | ✅ Active |
 | Rocket | Integration Dev | `.ai-team/agents/rocket/charter.md` | ✅ Active |
 | Nebula | Tester | `.ai-team/agents/nebula/charter.md` | ✅ Active |
+| Hawkeye | Playwright Expert | `.ai-team/agents/hawkeye/charter.md` | ✅ Active |
 | Mantis | Blogger | `.ai-team/agents/mantis/charter.md` | ✅ Active |
 | Wong | GitHub Ops | `.ai-team/agents/wong/charter.md` | ✅ Active |
 | Vision | Technical Writer | `.ai-team/agents/vision/charter.md` | ✅ Active |

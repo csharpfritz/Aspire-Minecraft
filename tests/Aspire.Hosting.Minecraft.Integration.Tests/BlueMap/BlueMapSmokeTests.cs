@@ -8,6 +8,7 @@ namespace Aspire.Hosting.Minecraft.Integration.Tests.BlueMap;
 /// These do not verify rendering correctness — they confirm BlueMap is reachable.
 /// </summary>
 [Collection("Minecraft")]
+[Trait("Category", "Integration")]
 public class BlueMapSmokeTests(MinecraftAppFixture fixture)
 {
     [Fact]

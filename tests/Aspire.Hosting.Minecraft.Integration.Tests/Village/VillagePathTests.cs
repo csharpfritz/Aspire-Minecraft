@@ -10,6 +10,7 @@ namespace Aspire.Hosting.Minecraft.Integration.Tests.Village;
 /// Paths are laid at <see cref="VillageLayout.SurfaceY"/> between the fence perimeter edges.
 /// </summary>
 [Collection("Minecraft")]
+[Trait("Category", "Integration")]
 public class VillagePathTests(MinecraftAppFixture fixture)
 {
     [Fact]
