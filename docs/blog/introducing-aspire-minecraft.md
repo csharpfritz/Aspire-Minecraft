@@ -17,7 +17,7 @@ You fix the config. The service recovers. The sun comes out. Fireworks explode. 
 
 **This is real.** It's a NuGet package called `Fritz.Aspire.Hosting.Minecraft`. It ships today. And it turns .NET Aspire into the most dramatic monitoring system you've ever seen.
 
-![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](../../glow-block.png)
+![Resource village in Minecraft with themed structures, beacons, cobblestone paths, fence perimeter, boss bar showing fleet health, and Aspire Status scoreboard](../img/glow-block.png)
 
 ---
 
