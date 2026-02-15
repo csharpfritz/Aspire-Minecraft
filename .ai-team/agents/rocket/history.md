@@ -359,3 +359,19 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 - DoorPosition return value unchanged at (x + half, y + 4, z) to maintain health indicator and sign compatibility.
 
 📌 Team update (2026-02-15): Python and Node.js sample APIs added to MinecraftAspireDemo; separate GrandVillageDemo created on milestone-5 showcasing all grand building variants (15×15 structures for Project, Container, Database, Azure types) — decided by Shuri
+
+### Grand Watchtower Entrance Cleanup (2026-02-16)
+- Eliminated the visible "lower level" by removing the stair skirt at y+1 and starting walls at y+1 instead of y+2.
+- The tapered base concept (4 stair fills at y+1) created an awkward 2-block-high shelf below the entrance — players saw grass, mossy stone, stairs, THEN the actual door. Removing it gives a clean transition: mossy plinth at y, walls at y+1.
+- Simplified the gatehouse entrance from a tall cluttered opening (5-wide frame up to y+7 with portcullis iron bars and lanterns) to a clean 3-wide × 4-tall opening (y+1 to y+4) with a proportional arch at y+5.
+- Removed: iron_bars portcullis at y+6 (visual noise), hanging lanterns at y+5 (clutter), oversized gatehouse frame reaching y+7 (exposed oak planks from second floor visible inside entrance).
+- Kept: chiseled stone keystone, decorative stone_brick_stairs arch shoulders, all upper features (wool bands, battlements, turrets, banners, observation windows).
+- DoorPosition updated from (x+half, y+5, z) to (x+half, y+4, z). GlowBlock now at y+5 (was y+6).
+- Net savings: 6 fewer RCON commands (removed 4 stair skirt + portcullis + 2 lanterns, gatehouse frame shrunk).
+- Health indicator test updated to match new GlowBlock position (17, -54, 0).
+
+## Learnings
+- Stair skirts around a building base look like unintentional sub-floors when there's a door at that level. Only use them on non-entrance faces.
+- Gatehouse entrances get cluttered fast — each decorative element (portcullis, lanterns, extra frame height) competes for attention in a narrow space. Simpler is better.
+- DoorPosition.TopY should match the actual top of the walkable opening, not decorative elements above it.
+📌 Team update (2026-02-15): Grand Watchtower entrance redesigned — removed stair skirt, simplified gatehouse to 3×4 opening, walls start at y+1, DoorPosition.TopY changed from y+5 to y+4. All 7 tests pass. — decided by Rocket

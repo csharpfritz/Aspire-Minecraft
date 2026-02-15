@@ -1929,3 +1929,19 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 **What:** Added minimal Python (http.server) and Node.js (http module) sample APIs to MinecraftAspireDemo on main. Created a new GrandVillageDemo sample on milestone-5 that uses WithAllFeatures() + WithGrandVillage() with all resource types (Project, Container, Database, Azure, Python, Node.js) so every 15×15 grand building variant is visible.
 
 **Why:** The existing sample only showed .NET projects, Redis, and Postgres. Adding Python and Node.js demonstrates that Aspire can orchestrate polyglot stacks and that the Workshop building type works for executable resources. The separate Grand Village demo gives a clean, focused showcase of the milestone-5 feature without cluttering the main sample's toggle pattern.
+
+
+### 2026-02-15: Grand Watchtower Entrance Redesign — decided by Rocket
+
+**Context:** Jeff reported the Grand Watchtower entrance was "an ugly mess" with a visible "strange lower level."
+
+**Decision:**
+1. **Removed stair skirt entirely.** The 4 `stone_brick_stairs` fills at y+1 created a visible 2-block base below the entrance that looked like a cramped lower floor. Walls now start at y+1 directly above the mossy stone plinth.
+2. **Simplified entrance to 3×4 opening.** The gatehouse was cluttered with a tall frame (up to y+7), portcullis iron bars, hanging lanterns, and exposed second-floor oak planks. Now it's a clean 3-wide × 4-tall doorway (y+1 to y+4) with a proportional arch.
+3. **DoorPosition.TopY changed from y+5 to y+4.** GlowBlock (health indicator) is now at y+5 instead of y+6.
+
+**Impact:**
+- Saves 6 RCON commands (well within the <100 budget)
+- All 7 Grand Watchtower tests pass
+- Any code referencing Grand Watchtower DoorPosition should expect TopY = y+4
+

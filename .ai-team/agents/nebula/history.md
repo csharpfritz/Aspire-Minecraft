@@ -82,3 +82,5 @@
 📌 Team update (2026-02-12): RCON Burst Mode API (#85) — unit tests must cover: enter/exit logging, double-enter rejection, dispose restoration, thread safety — decided by Rocket
 
 📌 Grand building test patterns (2026-02-12): Grand building tests must call `VillageLayout.ConfigureGrandLayout()` at the start of each test. The test class already calls `VillageLayout.ResetLayout()` in `DisposeAsync()` for isolation. Grand Watchtower expects DoorPosition `(x+7, y+4, z)` → GlowBlock `(x+7, y+5, z)`. Key block types: stone_bricks (walls), stone_brick_stairs (battlements), oak_planks (floors), oak_stairs (spiral staircase). RCON budget cap is 100 commands per single grand building. Sign verified via `data merge block` containing the resource name.
+
+📌 Team update (2026-02-15): Grand Watchtower entrance redesigned — removed stair skirt, simplified gatehouse to 3×4 opening, walls start at y+1, DoorPosition.TopY changed from y+5 to y+4. All 7 tests pass. — decided by Rocket
