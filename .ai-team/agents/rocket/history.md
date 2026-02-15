@@ -377,3 +377,21 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 📌 Team update (2026-02-15): Grand Watchtower entrance redesigned — removed stair skirt, simplified gatehouse to 3×4 opening, walls start at y+1, DoorPosition.TopY changed from y+5 to y+4. All 7 tests pass. — decided by Rocket
 
 📌 Team update (2026-02-15): Improved acceptance testing required before marking work complete — validate against known constraints (geometry, visibility, placement). Nebula added 26 geometric validation tests covering doorway visibility, ground-level continuity, and health indicator placement. — decided by Jeff
+
+### Minecraft Test Automation Research (2026-02-15)
+
+Key findings from researching automated acceptance testing against a live Minecraft server:
+
+- `execute if block X Y Z minecraft:<block>` is the canonical RCON command for block verification — returns empty string on match. Already used in our integration tests via `RconAssertions.AssertBlockAsync()`.
+- `execute if blocks` compares two world regions block-by-block in a single RCON command — useful for whole-structure validation against a "golden reference" region.
+- `data get block X Y Z` only works for block entities (chests, signs, banners), NOT simple blocks (stone, cobblestone, etc.). Useful for verifying sign text and banner patterns.
+- `/testforblock` was removed in Minecraft 1.13+, replaced by `execute if block`.
+- Structure blocks have a 48×48×48 size limit and require Docker file extraction to compare NBT — more complex than direct RCON checks.
+- Paper server in Docker starts in ~45-60s cold (with JAR download), ~15-20s warm (cached JAR). Flat worlds with no players need ~1 GB RAM minimum.
+- Minecraft's Java GameTest Framework (`@GameTest`) requires writing a Java mod/plugin — wrong tech stack for our .NET project. Not applicable.
+- .NET NBT libraries exist (fNbt, SharpNBT, NbtToolkit, Unmined.Minecraft.Nbt) for parsing Anvil world files, but none handle the region file format out of the box — need a ~200-300 line wrapper.
+- World file inspection (reading .mca files directly) bypasses RCON entirely and gives ground-truth block state. Requires `save-all flush` RCON command first to ensure chunks are written to disk.
+- BlueMap can render headlessly via CLI (`java -jar bluemap-cli.jar -r`), but visual diff testing is inherently flaky (lighting, anti-aliasing) and not suitable as primary verification.
+- Recommended approach: tiered strategy with RCON block verification as primary (P0), world file inspection as secondary (P1), and BlueMap visual regression as tertiary (P2).
+📌 Team update (2026-02-15): Minecraft automated acceptance testing strategy — gap analysis and solution roadmap consolidated. Current state: 372 tests but zero world-state verification. Root cause: tests verify RCON command strings are correct but not what actually exists in the Minecraft world (command-ordering and fill-overlap bugs escape). P0 recommendations: fix integration test CI, add fill-overlap detection (unit test), expand RCON block verification (integration test). With CI optimizations, integration tests will run in ~2 minutes. — decided by Nebula, Rocket
+

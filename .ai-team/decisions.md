@@ -1970,3 +1970,159 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 **Why:** Jeff rejected Grand Watchtower work 3 times due to geometric bugs (lower-level stair skirt visible at z-plane, entrance cluttered with decorations, floating torch in doorway). Existing tests only verified RCON command format, not spatial geometry. New tests parse setblock commands to extract x/y/z coordinates and assert geometric constraints: doorway region boundaries, front-face material restrictions, health indicator position validation. Pattern is reusable for any future Minecraft structure tests requiring spatial validation beyond string matching.
 
 
+
+
+
+### 2026-02-15: Minecraft automated acceptance testing — gap analysis and solution roadmap (consolidated)
+
+**By:** Nebula, Rocket
+
+**What:** Analysis of current test coverage gaps (372 tests across 4 projects but zero world-state verification) paired with research into 6 automated testing approaches. Recommendation: tiered strategy — expand RCON block verification (P0), add world file inspection (P1), explore BlueMap visual regression (P2).
+
+**Why:** Multiple visual bugs escaped testing (Grand Watchtower rejected 3 times). Tests verify RCON command strings are correct but not what actually exists in the Minecraft world after execution. This "RCON-to-reality gap" is where command-ordering and fill-overlap bugs hide.
+
+---
+
+## Current State: The Gap
+
+We have strong unit test coverage (372 tests): 45 RCON protocol tests, 179 service command format tests, 46 StructureBuilder command generation tests, 26 geometric validation tests. But there is a **critical blind spot**: no test verifies what blocks actually exist in the world after commands execute. The 5 integration tests that could do this are broken in CI and cover only 4 blocks total.
+
+**The bug pattern that escapes:** 
+- Unit tests pass: ✅ "Correct RCON command strings generated"
+- But in the world: ❌ "Fill commands overlap, doors are blocked, walls have gaps"
+
+Examples from recent rejections:
+- Grand Watchtower buttresses (lines 422–428) overlap with wall fills — no test catches coordinate collisions.
+- Wool bands (lines 431–446) can collide with string course stairs at same Y level — silent overwrite.
+- Doorways cleared with ill ... air can be blocked by later decorative commands — no command-ordering test.
+
+---
+
+## Solution: Tiered Automation Strategy
+
+### Tier 1 (P0 — Do Now): RCON Block Verification
+
+**Primary approach: Expand existing RCON infrastructure.**
+
+We already have RconAssertions.AssertBlockAsync() using xecute if block X Y Z <block>. Extend this with:
+
+1. **AssertBlocksAsync(rcon, coords[]):** Batch multiple block checks — verify all doorway blocks are ir, all corners exist.
+2. **AssertRegionMatchesAsync(rcon, region1, region2):** Use xecute if blocks for whole-structure comparison against a golden reference.
+3. **AssertSignTextAsync(rcon, x, y, z, text):** Verify sign contents via data get block.
+
+**What to test:**
+- Doorway completeness (3-wide, 3-tall, no obstructions)
+- Corner and signature blocks per structure type
+- Health indicator blocks change type when resource status changes
+- Fence perimeter completeness
+- Path coverage
+
+**Cost:** ~5ms per block query via RCON. Sample-based verification (20–30 critical blocks per structure) is practical. ~30 seconds per integration test with RCON latency.
+
+**Status:** ✅ Feasible, builds on existing code. Recommended for immediate implementation.
+
+### Tier 2 (P1 — Do Soon): World File Inspection
+
+**Secondary approach: Direct Anvil region file parsing.**
+
+Minecraft stores world data in Anvil format (.mca region files). Read directly without RCON:
+
+1. Stop or flush the server (save-all flush RCON command)
+2. Mount world directory as Docker bind mount
+3. Parse region files using Anvil reader (wrap Unmined.Minecraft.Nbt or write ~200 lines)
+4. Verify blocks at specific coordinates instantly — no network latency.
+
+**Why:** Fastest possible verification. Direct ground truth of what's actually in the world. Useful for bulk verification and CI pipelines where server interaction is slow.
+
+**Cost:** File I/O is instant compared to RCON round-trips. Requires ensuring chunks are saved to disk before reading (one RCON command).
+
+**Status:** ⚠️ Medium effort, high value. Implement after RCON verification is solid.
+
+### Tier 3 (P2 — Explore Later): BlueMap Visual Regression
+
+**Tertiary approach: Screenshot comparison at fixed camera angles.**
+
+BlueMap renders 3D web tiles. Capture screenshots at known positions, compare against golden baselines.
+
+**Why:** Catches visual issues (misplaced textures, floating blocks, "looks wrong") that block-level tests miss. High-fidelity for marketing/demo scenarios.
+
+**Cost:** High — screenshot tests are brittle (rendering differences across environments), slow (BlueMap re-render 3–10 seconds per test), require maintained golden images. Flaky due to lighting and anti-aliasing.
+
+**Status:** ⚠️ Low priority. Defer until RCON-level verification is mature.
+
+---
+
+## Immediate Action Plan (Priority Ranked)
+
+**1. 🔴 Fix integration test infrastructure (HIGH ROI, LOW EFFORT)**
+- Add [Trait("Category", "Integration")] to all 5 integration tests
+- Add --filter "Category!=Integration" to CI unit test step
+- Add separate CI job for integration tests (Linux only, Docker required)
+- Fix watchtower assertion (currently checks cobblestone but should check stone_bricks)
+
+**2. 🔴 Expand RCON block verification tests (HIGH ROI, MEDIUM EFFORT)**
+- For each of 6 structure types (standard + grand), verify 20–30 critical blocks per structure
+- Verify doorway accessibility (all 3 blocks air, 3 blocks headroom)
+- Verify health indicator blocks and sign text
+- Verify fence and path coverage
+- **Estimated:** ~50 new integration tests
+
+**3. 🟡 Add fill-overlap detection to geometric tests (HIGH ROI, LOW EFFORT)**
+- Parse ALL ill commands into bounding boxes
+- Detect 3D overlaps between fill regions
+- Assert overlapping fills are intentional (buttresses, etc.) via whitelist
+- **Runs as unit tests — no Docker needed**
+- Catches the "silent overwrite" bug class for free.
+
+**4. 🟡 Add structural integrity scan tests (MEDIUM ROI, MEDIUM EFFORT)**
+- Query every block on each structure wall face
+- Assert all non-window, non-door blocks are solid
+- Catches wall-gap bugs that geometric tests miss.
+
+**5. 🟠 Add command-ordering regression tests (MEDIUM ROI, LOW EFFORT)**
+- Record full command sequence from UpdateStructuresAsync
+- Assert doorway-clearing commands execute AFTER all wall/decoration commands
+- Runs as unit tests with MockRconServer.
+
+**6. 🟠 Health indicator state change tests (MEDIUM ROI, MEDIUM EFFORT)**
+- Trigger resource status change, wait for 10-second update cycle, verify block change
+
+**7. ⚪ BlueMap visual regression (LOW ROI, HIGH EFFORT)**
+- Defer until RCON verification is comprehensive.
+
+---
+
+## Estimated Impact
+
+The Grand Watchtower was rejected 3 times for visual bugs — every rejection was a **command-ordering or fill-overlap issue**. These three P0 investments would have caught all 3 before they reached review:
+
+- ✅ Fill-overlap detection (geometric unit test) → catches buttress/wall collisions
+- ✅ RCON block verification (integration test) → catches doorway blockage
+- ✅ Command-ordering test (unit test with MockRconServer) → catches decoration overwrites
+
+**With CI optimizations (pre-baked Docker image, test-mode RCON rate limits):**
+- Server startup: ~20s
+- Village build: ~60s
+- Block verification tests: ~30s
+- **Total: ~2 minutes per CI run** — acceptable for integration tests.
+
+---
+
+## Technical Details
+
+### RCON Verification Commands Reference
+
+| Command | Purpose | RCON? | Notes |
+|---------|---------|-------|-------|
+| xecute if block X Y Z <block> | Single block check | ✅ | Empty string = match. Already in use. |
+| xecute if blocks X1 Y1 Z1 X2 Y2 Z2 DX DY DZ | Region comparison | ✅ | Compares regions block-by-block. Requires golden reference. |
+| data get block X Y Z | Get NBT data | ✅ | Block entities only (chests, signs, banners). |
+| data get block X Y Z <path> | Get NBT path | ✅ | Same — useful for sign text, banner patterns. |
+
+### World File Inspection Path
+
+1. save-all flush RCON → force chunk save to disk
+2. Mount world dir as Docker bind mount
+3. Parse Anvil region file (chunk offset + zlib decompress + NBT)
+4. Query block at (x, y, z) from block palette + block states
+5. ~200 lines of code or wrap Unmined.Minecraft.Nbt
