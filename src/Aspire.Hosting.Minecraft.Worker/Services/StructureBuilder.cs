@@ -526,24 +526,25 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 1} {y + 23} {z + s - 1} {banner}[rotation=8]", ct);
 
-        // === GATEHOUSE: deep arch with portcullis bars and flanking lanterns ===
+        // === GATEHOUSE: tall pointed arch with portcullis bars and flanking lanterns ===
         await rcon.SendCommandAsync(
-            $"fill {x + half - 2} {y + 2} {z} {x + half + 2} {y + 6} {z} minecraft:stone_bricks", ct);
+            $"fill {x + half - 2} {y + 1} {z} {x + half + 2} {y + 7} {z} minecraft:stone_bricks", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half - 1} {y + 6} {z} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
+            $"setblock {x + half - 1} {y + 7} {z} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half + 1} {y + 6} {z} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+            $"setblock {x + half + 1} {y + 7} {z} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half} {y + 6} {z} minecraft:chiseled_stone_bricks", ct);
+            $"setblock {x + half} {y + 7} {z} minecraft:chiseled_stone_bricks", ct);
+        // Clear doorway opening: 3 wide, 5 tall (y+1 to y+5) — player walks in at ground level
         await rcon.SendCommandAsync(
-            $"fill {x + half - 1} {y + 1} {z} {x + half + 1} {y + 5} {z} minecraft:air", ct);
+            $"fill {x + half - 1} {y + 1} {z} {x + half + 1} {y + 6} {z} minecraft:air", ct);
         // Portcullis iron bars across the top of the doorway
         await rcon.SendCommandAsync(
-            $"fill {x + half - 1} {y + 5} {z} {x + half + 1} {y + 5} {z} minecraft:iron_bars", ct);
+            $"fill {x + half - 1} {y + 6} {z} {x + half + 1} {y + 6} {z} minecraft:iron_bars", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half - 2} {y + 4} {z} minecraft:lantern[hanging=true]", ct);
+            $"setblock {x + half - 2} {y + 5} {z} minecraft:lantern[hanging=true]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half + 2} {y + 4} {z} minecraft:lantern[hanging=true]", ct);
+            $"setblock {x + half + 2} {y + 5} {z} minecraft:lantern[hanging=true]", ct);
 
         // === INTERIOR: FLOOR PLATFORMS ===
         // Second floor platform at y+7 (oak planks)
@@ -627,7 +628,7 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + half} {y + 14} {z + half} minecraft:lectern[facing=south]", ct);
 
-        return new DoorPosition(x + half, y + 4, z);
+        return new DoorPosition(x + half, y + 5, z);
     }
 
     /// <summary>

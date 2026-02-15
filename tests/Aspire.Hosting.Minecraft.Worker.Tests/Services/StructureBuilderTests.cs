@@ -768,9 +768,9 @@ public class StructureBuilderTests : IAsyncLifetime
 
         var commands = _server.GetCommands();
 
-        // GlowBlock = DoorPosition.TopY + 1 = (x+7, y+5, z) = (17, -54, 0)
+        // GlowBlock = DoorPosition.TopY + 1 = (x+7, y+6, z) = (17, -53, 0)
         var healthCmd = commands.FirstOrDefault(c =>
-            c.Contains("setblock 17 -54 0 minecraft:glowstone"));
+            c.Contains("setblock 17 -53 0 minecraft:glowstone"));
 
         Assert.NotNull(healthCmd);
     }
