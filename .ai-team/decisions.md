@@ -1176,6 +1176,396 @@ Above the hall, **item frames** on the wall show what data is being exchanged �
 
 **Technical feasibility:** **Medium.** Villager spawning with professions is supported (`/summon villager ~ ~ ~ {VillagerData:{profession:"librarian"}}`). Movement between positions needs repeated `/tp` commands (villagers don't pathfind to coordinates on command). Zombie conversion via `/data merge` or kill+respawn. The RCON budget for moving villagers frequently could be tight — limit to 1 update per cycle, not real-time movement.
 
+### 2026-02-15: User directive — structural validation requirements for tests
+
+**By:** Jeff (via Copilot)
+
+**What:** All acceptance tests must verify: (1) all doors open and are wide enough for a player to walk through, (2) all stairs connect to floors and have room to enter and dismount, (3) all signs, torches, and levers are mounted on walls (not floating in air).
+
+**Why:** User request — captured for team memory. These are the structural integrity checks that prevent visual bugs from shipping.
+
+---
+
+# Decision: Fill-Overlap Detection as Standard Test Pattern
+
+**Author:** Nebula  
+**Date:** 2026-02-15  
+**Status:** Proposed
+
+## Context
+
+Every building type constructs structures by issuing multiple `/fill` commands in sequence. When a later fill writes to coordinates that overlap an earlier fill, blocks are silently overwritten. This has caused bugs (e.g., Grand Watchtower gatehouse overwriting arrow slits, wool trim overwriting stair caps) that escaped code review because existing tests only checked command string format, not geometric correctness.
+
+## Decision
+
+All new building types and structural changes MUST have fill-overlap detection tests. The `FillOverlapDetectionTests` class provides reusable infrastructure:
+
+1. **ParseFillCommand** — extracts bounding boxes from `/fill` command strings
+2. **DetectSolidOnSolidOverlaps** — checks all fill pairs for overlapping volumes
+3. **IsIntentionalLayering** — whitelists known architectural patterns
+
+## Intentional Overlap Whitelist
+
+These patterns are normal Minecraft building technique:
+- Same block type (redundant fills are harmless)
+- Fence gate replacing fence
+- Smaller detail volume over larger structural volume
+- Interior furnishing inside wall volumes
+- Same material family (cracked → polished stone)
+- Wool/banner decorative trim
+- Gatehouse stonework over window elements
+
+## Impact
+
+- **Rocket**: New building types must pass fill-overlap detection tests
+- **Nebula**: Add a test for each new structure type
+- **All**: Any fill overlap not in the whitelist is a potential bug
+
+---
+
+### 2026-02-15: MCA Inspector milestone plan
+
+**By:** Rhodey
+
+**What:** Milestone plan for Minecraft Anvil (MCA) format inspector — read region files directly to verify block state without RCON
+
+**Why:** Bypass RCON latency, enable bulk verification of entire structures, catch block placement errors that RCON single-coordinate probes might miss, support integration tests in CI with mounted world directories
+
+---
+
+## Goal Statement
+
+The **MCA Inspector** enables direct verification of block state in the Minecraft world save on disk. Instead of executing `/execute if block` commands over RCON (which probes one coordinate at a time), the inspector reads `.mca` region files to verify block placement in bulk. This:
+
+- **Eliminates RCON latency** for acceptance tests (no round-trip delays)
+- **Verifies entire structures at once** (query a 15×15 footprint, not 225 individual RCON calls)
+- **Works offline** in CI (mount server world directory, read blocks after `save-all flush`)
+- **Catches placement errors** our RCON tests might miss (e.g., incorrect block type in interior vs. corner blocks)
+- **Complements, not replaces, RCON testing** (RCON is still the source of truth for dynamic state; MCA is the auditor)
+
+**Success looks like:** An integration test that verifies a complete watchtower building by reading the region file directly, compared to today's test that makes 30+ RCON calls.
+
+---
+
+## Architecture
+
+### New Component: `Aspire.Hosting.Minecraft.Anvil`
+
+**Purpose:** Read-only Minecraft Anvil format (NBT) library tailored for integration testing.
+
+**Scope:** A new NuGet package or internal library (decision pending) that:
+- Reads `.mca` region files from disk
+- Parses NBT chunk data to extract block state at coordinates
+- Provides a simple API: `GetBlockAt(x, y, z) -> (BlockType, Properties)`
+- No write support (read-only)
+- Minimal dependencies (one of: fNbt, SharpNBT, Unmined.Minecraft.Nbt, or custom lightweight wrapper)
+
+**Integration Point:**
+- Placed in `src/Aspire.Hosting.Minecraft.Anvil/` as a new project
+- Optional reference from `Aspire.Hosting.Minecraft.Integration.Tests`
+- Does NOT depend on Aspire hosting or RCON client
+- Depends on NBT library only
+
+### Integration with Existing Tests
+
+**Where:** `Aspire.Hosting.Minecraft.Integration.Tests`
+
+**Pattern:**
+1. Test class obtains world save directory from fixture (mounted volume or temp directory)
+2. Ensures chunks are flushed: call `RCON save-all flush` before reading
+3. Create `AnvilRegionReader` instance pointing to world directory
+4. Query block state: `var block = reader.GetBlockAt(x, y, z)`
+5. Assert expected block type and properties
+
+**Example (pseudocode):**
+```csharp
+[Fact]
+public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
+{
+    // Wait for build to complete (existing RCON verification)
+    await RconAssertions.AssertBlockAsync(fixture.Rcon, originX, originY, originZ, "stone_bricks");
+    
+    // Flush world to disk
+    await fixture.Rcon.SendCommandAsync("save-all flush");
+    await Task.Delay(1000); // Small grace period
+    
+    // Read from disk
+    var reader = new AnvilRegionReader(fixture.WorldSaveDirectory);
+    
+    // Verify entire floor corners at once
+    foreach (var (x, z) in cornerCoordinates)
+    {
+        var block = reader.GetBlockAt(originX + x, originY, originZ + z);
+        Assert.Equal("minecraft:stone_bricks", block.Type);
+    }
+}
+```
+
+### Why MCA Over BlueMap?
+
+**BlueMap REST:** ❌ No block-level query API. Web server only serves pre-rendered tiles, not raw block data.
+
+**BlueMap Java Plugin API:** ❌ Requires injecting into Paper server process, breaks test isolation, complex setup.
+
+**RCON single-block queries:** ✅ Works well for spot checks, but slow for bulk verification. We use this for current tests.
+
+**MCA region file reading:** ✅ Direct filesystem access, offline capability, no RCON overhead, bulk operations.
+
+**Verdict:** Use MCA as the bulk auditor, keep RCON for single-point verification in real-time scenarios.
+
+---
+
+## Work Items
+
+### Phase 1: Anvil Library Foundation (Size M)
+
+#### 1.1 Research & Spike NBT Library Evaluation (Size S)
+- Compare fNbt, SharpNBT, Unmined.Minecraft.Nbt for feature completeness, performance, licensing
+- Test reading a sample .mca file from itzg Docker image
+- Document API shape preferences (we need: `GetBlockAt(x, y, z)`, chunk lookup)
+- **Dependency for:** All other Phase 1 items
+
+#### 1.2 Create Aspire.Hosting.Minecraft.Anvil Project (Size S)
+- New .csproj in `src/Aspire.Hosting.Minecraft.Anvil/`
+- Add selected NBT library dependency
+- Create `AnvilRegionReader` class with basic structure
+- Add `Directory.Build.props` inheritance (NuGet metadata, XML docs)
+- Update main README with new package description
+- **Acceptance:** Project builds, no errors
+
+#### 1.3 Implement AnvilRegionReader (Size M)
+- Parse region file paths: `r.<rx>.<rz>.mca` → extract region coordinates
+- Implement `GetBlockAt(x, y, z)` using NBT library
+  - Convert world coordinates to region/chunk/section/block offsets
+  - Handle section indexing (Y=-64 to Y=319 in 1.20+)
+  - Return block state object (type + properties dict)
+- Handle edge cases: out-of-bounds coordinates, unloaded chunks, missing region files
+- **Acceptance:** Single unit test reading a known .mca file, verifying block at specific coordinate
+
+#### 1.4 Unit Tests for AnvilRegionReader (Size M)
+- Mock or use real .mca test fixture (extract from itzg Docker image)
+- Test block lookup at corners, center, different Y levels
+- Test error handling (missing files, invalid coordinates)
+- Target: 20 test cases
+- **Acceptance:** All tests pass, >90% code coverage on AnvilRegionReader
+
+---
+
+### Phase 2: Integration Test Infrastructure (Size M)
+
+#### 2.1 Add `WorldSaveDirectory` to MinecraftAppFixture (Size S)
+- Fixture already mounts server world; expose the path
+- Add property: `public string WorldSaveDirectory { get; }`
+- Update fixture setup to capture mount path from Docker container
+- **Acceptance:** Fixture property accessible in integration tests
+
+#### 2.2 Create AnvilTestHelper (Size S)
+- Convenience wrapper around `AnvilRegionReader` for tests
+- Methods: `VerifyStructureAsync(originX, originY, originZ, expectedBlockMap)`, `VerifyBlockRangeAsync(x1, z1, x2, z2, expectedType)`
+- Handles the `save-all flush` + delay pattern automatically
+- **Acceptance:** Helper compiles, 3 example usages documented
+
+#### 2.3 Integration Test: MCA vs. RCON Parity (Size M)
+- Test same structure with both RCON probe and MCA reader
+- Verify results match (same block type at sampled coordinates)
+- Run both methods, compare execution time (should see MCA much faster)
+- **Acceptance:** Test passes, execution time logged
+
+---
+
+### Phase 3: Watchtower Bulk Verification (Size L)
+
+#### 3.1 Migrate VillageStructureTests to Dual-Mode (Size L)
+- Keep existing RCON spot checks
+- **Add** MCA-based full-building verification
+- Verify: all corners, all walls (15×15 footprint), interior floor, roof
+- Extract expected block map from `StructureBuilder` code or constant
+- **Acceptance:** Test verifies 200+ block coordinates for one complete watchtower
+
+#### 3.2 Add MCA Tests for Other Building Types (Size M)
+- Apply dual-mode to warehouse, workshop, cylinder
+- Verify each building type's unique blocks (e.g., cylinder's polished_deepslate)
+- **Acceptance:** 4 test classes, one per building type, each verifying full footprint
+
+#### 3.3 Performance Baseline & Documentation (Size S)
+- Measure RCON-only vs. MCA-only vs. dual-mode execution times for VillageStructureTests
+- Document findings in `docs/mca-inspector-performance.md`
+- Provide guidance: when to use RCON, when to use MCA, when to use both
+- **Acceptance:** Performance doc written, numbers collected
+
+---
+
+### Phase 4: Polish & Release (Size M)
+
+#### 4.1 NuGet Package Metadata & README (Size S)
+- Add description to `Aspire.Hosting.Minecraft.Anvil.csproj`
+- Write package README (usage, examples, limitations)
+- Add tags: minecraft, anvil, nbt, testing, verification
+- **Acceptance:** Package readme complete, package can be built
+
+#### 4.2 Update Main Documentation (Size S)
+- Update project README with MCA Inspector section
+- Add decision log: `.ai-team/decisions/inbox/rhodey-mca-inspector-architecture.md`
+- Update `docs/designs/bluemap-integration-tests.md` to reference MCA as complementary tool
+- **Acceptance:** All docs updated, links verified
+
+#### 4.3 CI/CD Integration (Size S)
+- Integration tests already run in Linux-only CI (gated after unit tests)
+- Verify world save directory is mounted and accessible to tests
+- No new secrets or permissions needed
+- **Acceptance:** CI job runs, MCA tests execute and pass
+
+---
+
+## Dependencies
+
+### Hard Blockers
+1. **NBT Library Selection** (1.1) — must choose before implementing AnvilRegionReader
+2. **MinecraftAppFixture exposure of world path** (2.1) — required for all Phase 2+ work
+3. **v0.5.0 release shipped** — new package must not block current release
+
+### Phase Sequence
+- Phases 1 & 2 are parallel-safe (1 works on library, 2 prepares test infrastructure)
+- Phase 3 depends on 1 & 2 complete
+- Phase 4 is final polish, depends on 1-3
+
+### External
+- itzg/minecraft-server Docker image must have readable world save at known mount path (✅ already does)
+- Paper server `save-all flush` command available (✅ Paper 1.20+ supports this)
+
+---
+
+## Acceptance Criteria
+
+### Definition of Done: MCA Inspector Milestone
+
+The milestone is **complete** when:
+
+1. **Library is shippable**
+   - ✅ `Aspire.Hosting.Minecraft.Anvil` package builds cleanly
+   - ✅ `AnvilRegionReader` reads block state from real .mca files
+   - ✅ 20+ unit tests with >90% coverage
+   - ✅ Zero open bugs in NBT parsing
+   - ✅ Documentation in package README with working example
+
+2. **Integration tests use MCA**
+   - ✅ `VillageStructureTests` verifies at least one complete building (all ~50 blocks) using AnvilRegionReader
+   - ✅ RCON vs. MCA parity test passes (same blocks, both methods agree)
+   - ✅ Tests run in Linux CI without adding new permissions or mounts
+
+3. **Performance is validated**
+   - ✅ Execution time documented (MCA should be ~2–5× faster than RCON spot checks)
+   - ✅ Guidance written: "Use MCA for bulk structural verification, RCON for dynamic state"
+   - ✅ Performance doc in `docs/`
+
+4. **Architecture is clear**
+   - ✅ Decision log written (why MCA, why separate package, when to use vs. RCON)
+   - ✅ README and docs updated with MCA mention
+   - ✅ No undocumented design decisions
+
+5. **Zero regressions**
+   - ✅ All existing integration tests still pass
+   - ✅ All unit tests still pass
+   - ✅ Build time < +5 seconds (verify AnvilRegionReader doesn't slow build)
+
+---
+
+## Integration with Existing Tests
+
+### Complementary, Not Competitive
+
+**Today (RCON-based):**
+```csharp
+await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "stone_bricks"); // 1 block, 1 RCON call
+```
+
+**Tomorrow (MCA-enhanced):**
+```csharp
+var reader = new AnvilRegionReader(fixture.WorldSaveDirectory);
+var block = reader.GetBlockAt(x, y, z); // 1 block, 0 RCON calls, instant
+```
+
+**Best practice (hybrid):**
+```csharp
+// Fast structural audit via MCA
+var reader = new AnvilRegionReader(fixture.WorldSaveDirectory);
+for (var (x, z) in watchtowerCorners) {
+    Assert.Equal("stone_bricks", reader.GetBlockAt(x, originY, z).Type);
+}
+
+// Real-time dynamic state via RCON (e.g., test an RCON command's effect)
+await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "glowstone");
+```
+
+### No Replacement for RCON
+
+- RCON is still the primary test method for dynamic behavior (e.g., "this feature puts glowstone at X")
+- MCA is the auditor: "The structure was built correctly, and the server didn't corrupt it"
+- We'll keep both; RCON tests become more focused on behavior, MCA tests on structure correctness
+
+---
+
+## Key Decisions
+
+1. **New package vs. internal helper?** → New package. Other Aspire consumers might want to audit Minecraft world saves. Separation also keeps main package free of NBT dependencies.
+
+2. **Which NBT library?** → Research (1.1) will decide. Criteria: feature completeness, performance, license compatibility (MIT-compatible).
+
+3. **NuGet publishing?** → Yes. Publish to nuget.org alongside main package. Version lock: `Aspire.Hosting.Minecraft.Anvil` uses same major.minor as main package (e.g., v0.6.0), but independent patch (e.g., v0.6.1 if only Anvil gets a fix).
+
+4. **When to use MCA vs. RCON?**
+   - RCON: single-block checks, dynamic behavior verification, real-time testing
+   - MCA: bulk structure audits, baseline correctness checks, offline verification
+   - Recommend MCA for >10 blocks per assertion
+
+---
+
+## Estimated Timeline
+
+- **Phase 1** (Library): 3–4 days (1 dev, parallel spike + implementation)
+- **Phase 2** (Test Infrastructure): 2 days (overlap with Phase 1)
+- **Phase 3** (Bulk Verification): 3 days (once Phases 1–2 land)
+- **Phase 4** (Polish): 1 day
+- **Total**: ~1.5 weeks with 1 FTE
+
+---
+
+## Risk Mitigation
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|-----------|
+| NBT library is unmaintained | Low | High | Research step (1.1) vets all candidates; prioritize fNbt (most popular) |
+| Region file format changes in new MC versions | Low | Medium | Pin server version in tests; document format version targeted |
+| Parsing errors in NBT reader | Medium | High | Spike (1.1) + extensive unit tests (1.4) + real .mca file fixture |
+| Docker mount path changes | Very Low | Medium | Already working for current integration tests; just expose property |
+| Performance degrades | Low | Low | Baseline in Phase 3 gives early warning; can optimize NBT parsing |
+
+---
+
+## Next Steps (For Sprint Planning)
+
+1. **Immediate** (2–3 days): Assign NBT library spike (1.1) to research candidate libraries
+2. **Week 1**: Start Phase 1 (library) in parallel with Phase 2 (test fixture prep)
+3. **Week 2**: Phase 3 (bulk verification tests) begins once Phase 1 delivers AnvilRegionReader
+4. **Week 3**: Phase 4 polish, documentation, release preparation
+5. **Acceptance**: MCA Inspector ships as new NuGet package in next release (v0.6.0 or later)
+
+---
+
+## Appendix: Why Not Alternatives?
+
+### Why not use BlueMap REST API?
+BlueMap's web server doesn't expose block-level queries. The REST endpoints are for tile rendering (map geometry + images), not raw block data. No way to query "what block is at X,Y,Z?" without injecting a server-side plugin.
+
+### Why not inject NBT parsing into Worker service?
+Worker is for in-world gameplay. Parsing region files is a test/verification concern. Separation keeps concerns clean and avoids adding I/O dependencies to the game-facing service.
+
+### Why not use server-side plugins (e.g., custom Bukkit plugin)?
+Adds complexity to Docker setup, requires compilation & deployment, makes CI harder. Reading files locally is simpler and offline-capable.
+
+### Why not expand RCON testing further?
+RCON has latency (~50ms per call). Bulk verification of 200+ blocks = 10+ seconds. MCA reader on same filesystem ≈ <1 second. For acceptance tests, performance matters for CI throughput.
+
 ---
 
 ## Idea 8: Redstone Clock Dashboard

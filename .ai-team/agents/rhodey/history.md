@@ -147,3 +147,43 @@
 📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey
 
 📌 Team update (2026-02-15): Grand Watchtower exterior redesigned with ornate medieval aesthetics (deepslate buttresses, iron bar arrow slits, taller turrets with pinnacles, portcullis gatehouse, string courses) — stays under 100 RCON command budget — decided by Rocket
+
+### 2026-02-15: MCA Inspector Milestone Planned
+
+- **Milestone document created** at `.ai-team/decisions/inbox/rhodey-mca-inspector-milestone.md` — comprehensive plan for reading Minecraft Anvil region files directly to verify block state.
+- **Goal:** Bypass RCON for bulk structure verification. Today's tests make 225+ RCON calls to verify one 15×15 watchtower; MCA inspector will query all blocks from disk in <1 second.
+- **Architecture:** New optional NuGet package `Aspire.Hosting.Minecraft.Anvil` (separate from main, keeps main free of NBT dependencies). AnvilRegionReader class provides `GetBlockAt(x, y, z)` API.
+- **Four phases planned:** (1) Library + NBT selection (~4 days), (2) Test fixture integration (~2 days), (3) Bulk verification tests (~3 days), (4) Polish + docs (~1 day). Total ~1.5 weeks with 1 FTE.
+- **Why separate package?** Other Aspire consumers might want to audit Minecraft world saves independently. Cleaner separation of concerns.
+- **Why MCA over RCON?** RCON has ~50ms latency per call; 200 blocks = 10+ seconds. MCA on same filesystem ≈ <1 second. Trade-off: MCA is offline-only; RCON verifies real-time behavior.
+- **Why not BlueMap REST?** BlueMap serves rendered tiles, not raw block data. No block-level query API.
+- **Why not NBT parsing in Worker?** Worker is for gameplay. Parsing is a test concern. Separation keeps logic clean.
+- **GitHub issues created:** #92 (NBT library spike), #93 (AnvilRegionReader), #94 (MinecraftAppFixture integration).
+
+## Learnings
+
+### MCA Inspector Architecture Decisions
+
+1. **Separate package is the right call.** By making Anvil optional, we:
+   - Keep the main package free of NBT library dependencies (lighter for non-testing consumers)
+   - Allow version independence (Anvil can patch independently)
+   - Enable other Aspire consumers to adopt the library without taking the full Minecraft hosting SDK
+   - Match the precedent of `Aspire.Hosting.Minecraft.Azure` being separate
+
+2. **Bulk verification is what MCA enables that RCON can't.** A single `GetBlockAt()` call on disk is ~1ms; RCON calls are ~50ms. When you need to verify 200+ blocks (entire structure geometry), the difference is material: 200ms (MCA) vs. 10s (RCON). But for single-point verification (did this command work?), RCON is fine. Tests will use both.
+
+3. **NBT parsing is commodity work; library selection matters.** fNbt is the obvious choice (MIT, widely used, documented), but the spike (Issue #92) is essential. We could find performance surprises or licensing issues. 2–3 days of prototyping saves regret later.
+
+4. **World save directory exposure is a small but critical fixture change.** The MinecraftAppFixture already mounts the world directory; we just need to expose the path. This unblocks all Phase 2+ work.
+
+5. **Coordinate system complexity is the risky part.** Anvil format uses: world coords (x, y, z) → region coords (rx, rz) → chunk coords (cx, cz) → section index (y/16) → block index (x%16, y%16, z%16). We'll need careful unit tests with known test data (.mca files with pre-placed blocks) to verify the math.
+
+### Milestone Planning Approach
+
+1. **Four-phase sequencing with clear blockers.** NBT selection (Phase 1.1) is a hard blocker for implementation. MinecraftAppFixture world path (Phase 2.1) is a hard blocker for integration tests. By identifying blockers upfront, we unblock parallel work (Phases 1 & 2 can overlap once 1.1 is done).
+
+2. **Performance baseline is mandatory.** We're proposing MCA *because* it's faster than RCON. If we ship without proving it, the claim is unvalidated. Phase 3.3 (performance doc) is not optional.
+
+3. **Complementary, not competitive.** The milestone plan explicitly frames MCA as a complement to RCON, not a replacement. This is important for adoption: teams will use both methods in the same test suite, each for what it's best at.
+
+4. **Risk mitigation table is underrated.** The milestone includes a risk table; this forces us to think about what could go wrong (unmaintained library, parsing errors, format changes) and what we'll do about each. Makes sprint planning more realistic.
