@@ -11,7 +11,7 @@ Sprint 3 shipped the resource village — themed buildings, redstone dependency 
 
 **Sprint 3.1 fixes that.** This is the "it actually works every time now" release. No new features, just the kind of quality work that turns a demo into a product.
 
-![Resource village with watchtower structures, glowstone health indicators, boss bar, and Aspire Status scoreboard](../../glow-block.png)
+![Resource village with watchtower structures, glowstone health indicators, boss bar, and Aspire Status scoreboard](../img/glow-block.png)
 
 ---
 
