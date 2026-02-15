@@ -121,3 +121,6 @@ public sealed class FeatureNameService(
 5. **Per-resource features** (particles, titles, sounds) iterate changes list
 6. **Aggregate features** (weather, boss bar) read `monitor.HealthyCount/TotalCount`
 7. **All services are opt-in** — never break backward compatibility
+8. **Structure visual depth** — layer fills in order: base shell (`fill hollow`), then overlay contrasting blocks (buttresses, weathering), then decorative elements (stairs, glass, iron bars). Later fills overwrite earlier ones, creating material variety without `replace` commands.
+9. **Block palette for depth** — use 3+ block types per structure face: a primary (stone_bricks), a dark accent (deepslate_bricks), weathering (cracked/mossy), and decorative (chiseled, stairs, walls). Contrast creates perceived depth even on flat surfaces.
+10. **RCON budget accounting** — count commands in the method AND all village overhead (fence, paths, health indicator, sign, BlueMap). The test asserts total < 100.
