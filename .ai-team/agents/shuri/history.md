@@ -99,6 +99,24 @@
  Team update (2026-02-12): SourceLink removed from Directory.Build.props per user directive (v0.4.0 release)  decided by Jeffrey T. Fritz
  Team update (2026-02-12): Sprint 4 and Sprint 5 feature sets finalized; Sprint 4 scope confirmed: Redstone Dashboard, Enhanced Buildings, Dragon Egg monument, DX polish, documentation  decided by Rhodey
 
+### Python and Node.js Sample Projects (2026-02-15)
+
+- Added Python (http.server) and Node.js (http module) minimal API projects to MinecraftAspireDemo sample.
+- Both are Executable resources in Aspire → mapped to Workshop building type by GetStructureType.
+- Aspire.Hosting.Python v13.1.1: `AddPythonApp(name, appDirectory, scriptPath)` — 3-param non-obsolete overload.
+- Aspire.Hosting.JavaScript v13.1.1: `AddNodeApp(name, appDirectory, scriptPath)` — returns IResourceBuilder<NodeAppResource> which implements IResourceWithEndpoints (inherits from ExecutableResource → JavaScriptAppResource).
+- PythonAppResource extends ExecutableResource, NodeAppResource extends JavaScriptAppResource extends ExecutableResource.
+- WithMonitoredResource accepts both via covariant IResourceBuilder<IResourceWithEndpoints> overload.
+- Key paths: samples/MinecraftAspireDemo/MinecraftAspireDemo.PythonApi/, samples/MinecraftAspireDemo/MinecraftAspireDemo.NodeApi/
+
+### Grand Village Demo Sample (2026-02-15)
+
+- Created samples/GrandVillageDemo/ as a self-contained Aspire sample on milestone-5 branch.
+- Includes all resource types (Project, Container/Database, Azure, Python, Node.js) so every grand building variant renders.
+- Uses WithAllFeatures() which chains WithGrandVillage() and WithMinecartRails() along with all Sprint 1-3 features.
+- Different ports (15272 for dashboard, 5280/5281 for services, 5300/5400 for Python/Node) to avoid conflicts with the existing sample.
+- Key path: samples/GrandVillageDemo/GrandVillageDemo.AppHost/Program.cs
+
 ### Milestone 5: VillageLayout Configurable Properties (#77)
 
 - Converted `Spacing`, `StructureSize` from `const int` to `static int { get; private set; }` with defaults matching Sprint 4 values (Spacing=24, StructureSize=7).
