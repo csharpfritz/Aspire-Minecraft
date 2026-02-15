@@ -1,5 +1,10 @@
 <Solution>
   <Folder Name="/samples/" />
+  <Folder Name="/samples/GrandVillageDemo/">
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.ApiService/GrandVillageDemo.ApiService.csproj" />
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.AppHost/GrandVillageDemo.AppHost.csproj" />
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.Web/GrandVillageDemo.Web.csproj" />
+  </Folder>
   <Folder Name="/samples/MinecraftAspireDemo/">
     <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.ApiService/MinecraftAspireDemo.ApiService.csproj" />
     <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost/MinecraftAspireDemo.AppHost.csproj" />
