@@ -593,7 +593,7 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 1} {y + 3} {z + 4} minecraft:wall_torch[facing=west]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + half} {y + 3} {z + 1} minecraft:wall_torch[facing=south]", ct);
+            $"setblock {x + 3} {y + 3} {z + 1} minecraft:wall_torch[facing=south]", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 4} {y + 3} {z + s} minecraft:wall_torch[facing=north]", ct);
 
