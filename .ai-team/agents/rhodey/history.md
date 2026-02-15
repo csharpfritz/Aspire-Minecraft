@@ -145,3 +145,5 @@
 - **Release decision:** APPROVED — written to `.ai-team/decisions/inbox/rhodey-v050-release-ready.md`.
 
 📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey
+
+📌 Team update (2026-02-15): Grand Watchtower exterior redesigned with ornate medieval aesthetics (deepslate buttresses, iron bar arrow slits, taller turrets with pinnacles, portcullis gatehouse, string courses) — stays under 100 RCON command budget — decided by Rocket
