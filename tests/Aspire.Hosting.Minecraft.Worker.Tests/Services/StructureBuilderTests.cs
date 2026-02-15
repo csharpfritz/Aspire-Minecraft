@@ -884,4 +884,703 @@ public class StructureBuilderTests : IAsyncLifetime
         Assert.True(commands.Count < 100,
             $"Expected under 100 RCON commands for a single grand watchtower village but got {commands.Count}");
     }
+
+    // ====================================================================
+    // GEOMETRIC VALIDATION TESTS
+    //
+    // These tests catch the categories of bugs that escaped review:
+    // 1. Doorway overlap - blocks placed inside the door opening
+    // 2. Ground-level continuity - stairs/decorations at y+1 on front face
+    // 3. Health indicator placement - glow block position validation
+    // ====================================================================
+
+    /// <summary>
+    /// Grand Watchtower doorway (3-wide, 4-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8 (CenterX-1 to CenterX+1), y+1 to y+4, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -55, 0) → door opening x=16-18, y=-58 to -55, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57, -56, -55 };
+        var doorZ = 0;
+
+        // Find all setblock commands that place non-air blocks in the door region
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            // Check if this is in the door opening and NOT air
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("oak_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Grand Warehouse doorway (3-wide, 4-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8, y+1 to y+4, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandWarehouse_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("cache", "Container", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -55, 0) → door x=16-18, y=-58 to -55, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57, -56, -55 };
+        var doorZ = 0;
+
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("iron_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Grand Workshop doorway (3-wide, 3-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8, y+1 to y+3, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandWorkshop_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("worker", "Executable", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -56, 0) → door x=16-18, y=-58 to -56, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57, -56 };
+        var doorZ = 0;
+
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("oak_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Grand Cottage doorway (3-wide, 2-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8, y+1 to y+2, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandCottage_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("misc", "SomeType", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=16-18, y=-58 to -57, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57 };
+        var doorZ = 0;
+
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("oak_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Grand Cylinder doorway (3-wide, 2-tall iron door): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8, y+1 to y+2, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandCylinder_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("db", "postgres", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=16-18, y=-58 to -57, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57 };
+        var doorZ = 0;
+
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("iron_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Grand Azure Pavilion doorway (3-wide, 2-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+8, y+1 to y+2, z=0.
+    /// </summary>
+    [Fact]
+    public async Task GrandAzurePavilion_DoorwayVisibility_NoBlocksOverlapDoorOpening()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("storage", "azure.storage", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=16-18, y=-58 to -57, z=0
+        var doorX = new[] { 16, 17, 18 };
+        var doorY = new[] { -58, -57 };
+        var doorZ = 0;
+
+        var overlappingBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
+                   !block.Contains("air") && !block.Contains("oak_door");
+        }).ToList();
+
+        Assert.Empty(overlappingBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Watchtower front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks except in the door opening region. The front face should be
+    /// either wall material or air (for the door).
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Structure at (10, -59, 0). Front face z=0, ground level y=-58 (y+1).
+        // Check x=10 to x=24 (full 15-block width), y=-58, z=0.
+        // NO stairs or decorative blocks outside door opening (x=16-18).
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            // Check if this is ground level front face
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false; // Outside structure bounds
+            
+            // Door opening x=16-18 is allowed to have air/door
+            if (x >= 16 && x <= 18) return false;
+            
+            // Everything else should be wall material (stone_bricks, etc.) or air
+            // Flag stairs, lanterns, torches, etc.
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Warehouse front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks outside the door opening.
+    /// </summary>
+    [Fact]
+    public async Task GrandWarehouse_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("cache", "Container", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false;
+            if (x >= 16 && x <= 18) return false; // Door opening
+            
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Workshop front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks outside the door opening.
+    /// </summary>
+    [Fact]
+    public async Task GrandWorkshop_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("worker", "Executable", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false;
+            if (x >= 16 && x <= 18) return false;
+            
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Cottage front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks outside the door opening.
+    /// </summary>
+    [Fact]
+    public async Task GrandCottage_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("misc", "SomeType", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false;
+            if (x >= 16 && x <= 18) return false;
+            
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Cylinder front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks outside the door opening.
+    /// </summary>
+    [Fact]
+    public async Task GrandCylinder_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("db", "postgres", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false;
+            if (x >= 16 && x <= 18) return false;
+            
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Ground level continuity: Grand Azure Pavilion front face at y+1 (z=0) should have NO stairs
+    /// or decorative blocks outside the door opening.
+    /// </summary>
+    [Fact]
+    public async Task GrandAzurePavilion_GroundLevel_NoStairsOnFrontFace()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("storage", "azure.storage", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var groundZ = 0;
+        var groundY = -58;
+
+        var unwantedGroundBlocks = commands.Where(c =>
+        {
+            if (!c.StartsWith("setblock ")) return false;
+            var parts = c.Split(' ');
+            if (parts.Length < 5) return false;
+
+            if (!int.TryParse(parts[1], out int x)) return false;
+            if (!int.TryParse(parts[2], out int y)) return false;
+            if (!int.TryParse(parts[3], out int z)) return false;
+            
+            var block = parts[4];
+            
+            if (y != groundY || z != groundZ) return false;
+            if (x < 10 || x > 24) return false;
+            if (x >= 16 && x <= 18) return false;
+            
+            return block.Contains("stairs") || block.Contains("lantern") || 
+                   block.Contains("torch") || block.Contains("fence") ||
+                   block.Contains("carpet") || block.Contains("slab");
+        }).ToList();
+
+        Assert.Empty(unwantedGroundBlocks);
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Watchtower glow block must be at (CenterX, TopY+1, FaceZ).
+    /// For structure at (10, -59, 0), DoorPosition(17, -55, 0) → GlowBlock at (17, -54, 0).
+    /// Must be flush with front wall, NEVER inside the building.
+    /// </summary>
+    [Fact]
+    public async Task GrandWatchtower_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("api", "Project", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        // Expected: GlowBlock = (17, -54, 0) - just above door, flush with front wall
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);  // CenterX
+        Assert.Equal("-54", parts[2]); // TopY + 1
+        Assert.Equal("0", parts[3]);   // FaceZ (front wall)
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Warehouse glow block must be at (CenterX, TopY+1, FaceZ).
+    /// </summary>
+    [Fact]
+    public async Task GrandWarehouse_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("cache", "Container", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);
+        Assert.Equal("-54", parts[2]);
+        Assert.Equal("0", parts[3]);
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Workshop glow block must be at (CenterX, TopY+1, FaceZ).
+    /// DoorPosition(17, -56, 0) → GlowBlock at (17, -55, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandWorkshop_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("worker", "Executable", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);
+        Assert.Equal("-55", parts[2]); // TopY=y+3, so TopY+1=y+4=-55
+        Assert.Equal("0", parts[3]);
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Cottage glow block must be at (CenterX, TopY+1, FaceZ).
+    /// DoorPosition(17, -57, 0) → GlowBlock at (17, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandCottage_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("misc", "SomeType", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);
+        Assert.Equal("-56", parts[2]);
+        Assert.Equal("0", parts[3]);
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Cylinder glow block must be at (CenterX, TopY+1, FaceZ).
+    /// DoorPosition(17, -57, 0) → GlowBlock at (17, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandCylinder_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("db", "postgres", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);
+        Assert.Equal("-56", parts[2]);
+        Assert.Equal("0", parts[3]);
+    }
+
+    /// <summary>
+    /// Health indicator placement: Grand Azure Pavilion glow block must be at (CenterX, TopY+1, FaceZ).
+    /// DoorPosition(17, -57, 0) → GlowBlock at (17, -56, 0).
+    /// </summary>
+    [Fact]
+    public async Task GrandAzurePavilion_HealthIndicator_AtCorrectDoorPositionCoordinates()
+    {
+        VillageLayout.ConfigureGrandLayout();
+        TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
+            ("storage", "azure.storage", ResourceStatus.Healthy)
+        );
+        _server.ClearCommands();
+
+        await _structureBuilder.UpdateStructuresAsync();
+
+        var commands = _server.GetCommands();
+        
+        var healthCmd = commands.FirstOrDefault(c =>
+            c.Contains("setblock") && c.Contains("minecraft:glowstone"));
+        
+        Assert.NotNull(healthCmd);
+        
+        var parts = healthCmd!.Split(' ');
+        Assert.Equal("17", parts[1]);
+        Assert.Equal("-56", parts[2]);
+        Assert.Equal("0", parts[3]);
+    }
 }

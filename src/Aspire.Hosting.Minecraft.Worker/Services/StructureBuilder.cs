@@ -50,6 +50,9 @@ internal sealed class StructureBuilder(
 
         try
         {
+            // Burst mode: 40 cmd/sec during construction (vs default 10)
+            using var burst = rcon.EnterBurstMode();
+
             if (!_fenceBuilt && monitor.TotalCount > 0)
             {
                 await BuildFencePerimeterAsync(monitor.TotalCount, ct);
