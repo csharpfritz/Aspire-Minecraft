@@ -378,6 +378,37 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 
 📌 Team update (2026-02-15): Improved acceptance testing required before marking work complete — validate against known constraints (geometry, visibility, placement). Nebula added 26 geometric validation tests covering doorway visibility, ground-level continuity, and health indicator placement. — decided by Jeff
 
+### Structural Geometry Validation Tests (2026-02-15)
+
+Created comprehensive structural geometry tests in `StructuralGeometryTests.cs` (86 passing, 5 skipped) that validate physical integrity of all 12 building variants by parsing RCON setblock/fill commands.
+
+**Test categories:**
+- Door accessibility (12 tests): door opening dimensions, air blocks, ground floor connectivity
+- Staircase connectivity (5 tests): grand watchtower spiral stairs, stairwell holes, facing direction
+- Wall-mounted items (59 tests): torch support, sign support, lever support, ladder support for all structure types
+- Bug documentation (5 skipped tests): each documents a specific StructureBuilder bug
+
+**5 bugs discovered in StructureBuilder.cs:**
+1. Grand Watchtower torch (line ~601): `wall_torch[facing=north]` at z+s — support at z+s+1 is outside structure
+2. Grand Watchtower spiral staircase (line ~547): first stair at (x+2, y+1, z+1) overlaps corner buttress footprint
+3. Grand Watchtower/Warehouse wall signs (lines ~586-592, ~792-799): same outside-support pattern as torch bug
+4. Grand Cylinder wall signs (lines ~1494-1496): interior air clear removes support block at z+2
+5. Grand Cylinder ladders (lines ~1474-1475): `facing=west` but copper pillar support is to the west, not east
+
+**Key technical patterns established:**
+- `ParseSetblockCommands()` / `ParseFillCommands()` with `[GeneratedRegex]` for efficient RCON parsing
+- `GetBlockAt()` with last-write-wins semantics and hollow fill support
+- `GetWallMountDirection()` for Minecraft facing→support direction mapping (east→west, north→south, etc.)
+- `BuildResult` record captures VillageLayout state immediately to avoid static state race conditions
+- Wall torches/signs/ladders use opposite-direction convention: `facing=X` means support block is in opposite direction
+
+**VillageLayout parallelism issue:**
+- VillageLayout is a static class shared across all test classes running in parallel
+- Tests that call ConfigureGrandLayout()/ResetLayout() can interfere with parallel tests
+- Fix: capture layout state (origin coords, StructureSize) immediately after setting it, before any parallel test can mutate it
+- Pre-existing race condition in StructureBuilderTests.UpdateStructuresAsync_TenResources_NoExceptions — not caused by our tests
+📌 Team update (2026-02-15): Created 91 structural geometry validation tests (86 pass, 5 skipped with bug documentation). Discovered 5 StructureBuilder bugs in grand structure wall-mounted items and staircase placement. Fixed VillageLayout static state race condition in test infrastructure. — decided by Rocket
+
 ### Minecraft Test Automation Research (2026-02-15)
 
 Key findings from researching automated acceptance testing against a live Minecraft server:
