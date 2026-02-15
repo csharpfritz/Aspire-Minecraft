@@ -9,9 +9,17 @@ var pg = builder.AddPostgres("db-host");
 
 var db = pg.AddDatabase("db");
 
+// Azure resources — these will appear as AzureThemed buildings
+var storage = builder.AddAzureStorage("storage")
+    .RunAsEmulator();
+var blobs = storage.AddBlobs("blobs");
+
+var keyVault = builder.AddAzureKeyVault("keyvault");
+
 // Add sample API service
 var api = builder.AddProject<Projects.MinecraftAspireDemo_ApiService>("api")
-    .WithReference(redis);
+    .WithReference(redis)
+    .WithReference(blobs);
 
 // Add sample web frontend
 var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web")
@@ -59,9 +67,14 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithRedstoneDashboard()
 
     // Monitored resources — each gets in-world representation
+    // Projects → Watchtower buildings
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
+    // Containers → Warehouse buildings (Redis/Postgres detected as Cylinder for databases)
     .WithMonitoredResource(redis)
-    .WithMonitoredResource(pg);
+    .WithMonitoredResource(pg)
+    // Azure resources → AzureThemed buildings
+    .WithMonitoredResource(blobs, "AzureStorage")
+    .WithMonitoredResource(keyVault, "AzureKeyVault");
 
 builder.Build().Run();

@@ -7,7 +7,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Displays resource health over time as a scrolling grid of self-luminous blocks.
 /// Each row represents a resource; each column represents a time slot (oldest left, newest right).
 /// Glowstone = healthy, redstone_lamp (unlit) = unhealthy, sea lantern = unknown.
-/// Uses /clone to shift the lamp layer left each update cycle, then writes the newest column.
+/// Repaints all columns from HealthHistoryTracker each update cycle (oldest left, newest right).
 /// </summary>
 internal sealed class RedstoneDashboardService(
     RconService rcon,
@@ -48,7 +48,7 @@ internal sealed class RedstoneDashboardService(
     }
 
     /// <summary>
-    /// Records current health into the ring buffer, scrolls the display left, and writes the newest column.
+    /// Records current health into the ring buffer and repaints all columns from history.
     /// </summary>
     public async Task UpdateAsync(CancellationToken ct = default)
     {
@@ -65,11 +65,8 @@ internal sealed class RedstoneDashboardService(
                 }
             }
 
-            // Scroll the lamp layer left by 1 column using /clone
-            await ScrollDisplayAsync(ct);
-
-            // Write the newest column (rightmost)
-            await WriteNewestColumnAsync(ct);
+            // Repaint all columns from history (oldest left, newest right)
+            await RepaintAllColumnsAsync(ct);
         }
         catch (Exception ex)
         {
@@ -192,55 +189,36 @@ internal sealed class RedstoneDashboardService(
         }
     }
 
-    private async Task ScrollDisplayAsync(CancellationToken ct)
+    private async Task RepaintAllColumnsAsync(CancellationToken ct)
     {
         var x = VillageLayout.DashboardX;
         var y = VillageLayout.SurfaceY + 2;
         var z = VillageLayout.BaseZ;
-
-        // Clone the lamp layer left by 1 column in a single command.
-        // Source: from column 2 to column N (z+2 to z+columns) across all rows
-        // Dest: column 1 (z+1) — shifts everything left
-        var yBottom = y;
-        var yTop = y + ((_rows - 1) * 2);
-        var srcZStart = z + 2;
-        var srcZEnd = z + _columns;
-        var destZ = z + 1;
-
-        if (_columns > 1)
-        {
-            await rcon.SendCommandAsync(
-                $"clone {x} {yBottom} {srcZStart} {x} {yTop} {srcZEnd} {x} {yBottom} {destZ} replace",
-                CommandPriority.Normal, ct);
-        }
-    }
-
-    private async Task WriteNewestColumnAsync(CancellationToken ct)
-    {
-        var x = VillageLayout.DashboardX;
-        var y = VillageLayout.SurfaceY + 2;
-        var z = VillageLayout.BaseZ;
-        var newestZ = z + _columns;
 
         for (var r = 0; r < _rows; r++)
         {
             var lampY = y + (r * 2);
             var resourceName = _resourceOrder[r];
+            var history = tracker.GetHistory(resourceName);
 
-            if (!monitor.Resources.TryGetValue(resourceName, out var info))
-                continue;
-
-            // Place self-luminous blocks directly — no redstone power layer needed
-            var block = info.Status switch
+            // Write each column from left (oldest) to right (newest)
+            // Pad with empty (redstone_lamp) if history is shorter than columns
+            for (var c = 0; c < _columns; c++)
             {
-                ResourceStatus.Healthy => "minecraft:glowstone",
-                ResourceStatus.Unhealthy => "minecraft:redstone_lamp",
-                _ => "minecraft:sea_lantern"
-            };
+                var historyIndex = c - (_columns - history.Count);
+                var block = historyIndex >= 0 && historyIndex < history.Count
+                    ? history[historyIndex] switch
+                    {
+                        ResourceStatus.Healthy => "minecraft:glowstone",
+                        ResourceStatus.Unhealthy => "minecraft:redstone_lamp",
+                        _ => "minecraft:sea_lantern"
+                    }
+                    : "minecraft:redstone_lamp";
 
-            await rcon.SendCommandAsync(
-                $"setblock {x} {lampY} {newestZ} {block}",
-                CommandPriority.Normal, ct);
+                await rcon.SendCommandAsync(
+                    $"setblock {x} {lampY} {z + c + 1} {block}",
+                    CommandPriority.Normal, ct);
+            }
         }
     }
 }
