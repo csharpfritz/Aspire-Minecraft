@@ -72,6 +72,12 @@
  Team update (2026-02-11): Boss bar title now configurable via WithBossBar(title) parameter and ASPIRE_BOSSBAR_TITLE env var; ASPIRE_APP_NAME no longer affects boss bar  decided by Rocket
  Team update (2026-02-11): Village structures now use idempotent build pattern (build once, then only update health indicators)  decided by Rocket
 � Team update (2026-02-11): CI pipelines now skip docs-only changes (docs/**, user-docs/**, *.md, .ai-team/**)  decided by Wong
+
+📌 Team update (2026-02-15): Structural validation requirements — all acceptance tests must verify door accessibility, staircase connectivity, and wall-mounted items. Created 76 new fill-overlap detection tests (20), RCON block verification tests (56), fixed 5 integration test files. — decided by Jeff (Jeffrey T. Fritz)
+
+📌 Team update (2026-02-15): Fill-overlap detection is now a standard test pattern. New building types must include fill-overlap detection tests using the FillOverlapDetectionTests infrastructure (ParseFillCommand, DetectSolidOnSolidOverlaps, IsIntentionalLayering). — decided by Nebula
+
+📌 Team update (2026-02-15): MCA Inspector milestone launched — read-only Minecraft Anvil format (NBT) library for bulk structural verification instead of RCON single-point queries. Complements RCON testing. Phase 1-4 with 3-4 days for library, 2 days for test infra, 3 days for bulk verification. — decided by Rhodey
  Team update (2026-02-12): Sprint 4 scope finalized (14 issues: Redstone Dashboard, Enhanced Buildings, Dragon Egg, DX polish, documentation)  tests needed for HealthHistoryTracker, village spacing changes (382 passing), and new building structures  decided by Rhodey
 
 📌 BlueMap integration test infrastructure (2026-02-12): Created `tests/Aspire.Hosting.Minecraft.Integration.Tests/` project with 5 test classes — VillageFenceTests, VillagePathTests, VillageStructureTests, HealthIndicatorTests, BlueMapSmokeTests. Uses xUnit `[Collection("Minecraft")]` + `ICollectionFixture<MinecraftAppFixture>` for single-server-per-run. Fixture uses `DistributedApplicationTestingBuilder.CreateAsync<Projects.MinecraftAspireDemo_AppHost>()` and `app.GetEndpoint("minecraft", "rcon")` for RCON connection. Poll-based readiness: checks `execute if block 10 -59 0 minecraft:cobblestone` every 5s with 3-minute timeout. Added `InternalsVisibleTo` for integration tests in both Worker and Hosting csproj. Total: 5 test stubs (3 RCON village + 1 health indicator + 1 BlueMap HTTP).

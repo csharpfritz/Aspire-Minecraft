@@ -319,6 +319,12 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 
 **Key learning:** When modifying shared placement methods (health lamp, sign, banner) for new grand variants, use `VillageLayout.StructureSize / 2` instead of hardcoding `3` vs `7`. This makes the code adaptive to any structure size without needing per-type grand checks.
 
+📌 Team update (2026-02-15): Structural validation requirements — all acceptance tests must verify door accessibility, staircase connectivity, and wall-mounted items. Created 86 structural geometry tests. — decided by Jeff (Jeffrey T. Fritz)
+
+📌 Team update (2026-02-15): Fill-overlap detection is now a standard test pattern. New building types must include fill-overlap detection tests using the FillOverlapDetectionTests infrastructure. — decided by Nebula
+
+📌 Team update (2026-02-15): MCA Inspector milestone launched — read-only Minecraft Anvil format (NBT) library for bulk structural verification. Phase 1 (library) and Phase 2 (test infrastructure) are parallel-safe. Timeline: ~1.5 weeks. — decided by Rhodey
+
 ### Grand Watchtower (Milestone 5, Issue #78) — IMPLEMENTED
 
 **Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize >= 15` (same check as all other grand builders); standard 7×7 watchtower remains the fallback.
