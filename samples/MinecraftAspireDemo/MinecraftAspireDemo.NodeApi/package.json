@@ -1,0 +1,9 @@
+{
+  "name": "minecraft-aspire-demo-node-api",
+  "version": "1.0.0",
+  "description": "Minimal Node.js API for Aspire Minecraft demo",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  }
+}

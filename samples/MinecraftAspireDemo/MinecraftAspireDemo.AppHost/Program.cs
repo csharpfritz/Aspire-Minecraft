@@ -26,6 +26,14 @@ var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web")
     .WithReference(api)
     .WithExternalHttpEndpoints();
 
+// Add sample Python API — Executable resource → Workshop building
+var pythonApi = builder.AddPythonApp("python-api", "../MinecraftAspireDemo.PythonApi", "main.py")
+    .WithHttpEndpoint(port: 5100);
+
+// Add sample Node.js API — Executable resource → Workshop building
+var nodeApi = builder.AddNodeApp("node-api", "../MinecraftAspireDemo.NodeApi", "app.js")
+    .WithHttpEndpoint(port: 5200);
+
 // Add Minecraft server with all integrations — the worker is created internally.
 // World data is ephemeral by default (fresh world each run).
 // Uncomment .WithPersistentWorld() to keep world data across restarts.
@@ -75,6 +83,9 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithMonitoredResource(pg)
     // Azure resources → AzureThemed buildings
     .WithMonitoredResource(blobs, "AzureStorage")
-    .WithMonitoredResource(keyVault, "AzureKeyVault");
+    .WithMonitoredResource(keyVault, "AzureKeyVault")
+    // Executable resources (Python, Node.js) → Workshop buildings
+    .WithMonitoredResource(pythonApi)
+    .WithMonitoredResource(nodeApi);
 
 builder.Build().Run();
