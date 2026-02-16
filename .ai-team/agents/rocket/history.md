@@ -455,3 +455,30 @@ Key findings from researching automated acceptance testing against a live Minecr
 
 
  Team update (2026-02-16): Minecart lifecycle finalizedspawn on HTTP request, 3s timeout-based despawn at destination, max 5 carts/rail. NBT Age tracking with 5s polling cycle. ~1-2 RCON cmd/sec sustainable. Affects MinecartRailService implementation  decided by Rhodey
+
+### Tech Branding Color System Update (2026-02-16)
+
+Updated the `GetLanguageColor` method in StructureBuilder.cs to modernize tech stack color palette and apply Docker branding to Container resources:
+
+**Color changes:**
+- Rust: brown → red (matches Rust logo)
+- Go: cyan → light_blue (matches Go gopher branding)
+- Docker Container types: NEW cyan/aqua branding (Docker whale logo color)
+
+**New language support:**
+- PHP: magenta (Laravel/Symfony)
+- Ruby: pink (Ruby/Rails)
+- Elixir/Erlang: lime (Phoenix framework)
+
+**Warehouse building enhancements:**
+- Standard Warehouse: added language-colored stripe at y+2 (hollow fill) and banner on roof
+- Grand Warehouse: added two hollow stripe bands (y+3, y+5) and four corner banners on roof (wall_banner facing N/S)
+- Both now match Workshop buildings with tech branding visual identity
+- Container types (AddContainer()) get aqua stripes/banners automatically
+
+**RCON budget impact:** Standard Warehouse +2 commands, Grand Warehouse +6 commands — both well under burst mode limits.
+
+**Final color palette:**
+.NET Project = purple | JavaScript/Node = yellow | Python = yellow + blue secondary | Rust = red | Go = light_blue | Java/Spring = orange | Docker Container = cyan | PHP = magenta | Ruby = pink | Elixir/Erlang = lime | Default = white
+
+📌 Team update (2026-02-16): Tech branding color system updated — Rust→red, Go→light_blue, Container→cyan, +3 new languages (PHP/Ruby/Elixir). Warehouse buildings now have language-colored stripes and banners matching Workshop aesthetic. — decided by Rocket

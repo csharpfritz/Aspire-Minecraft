@@ -142,6 +142,9 @@ internal sealed class StructureBuilder(
         if (resourceType.Equals("Project", StringComparison.OrdinalIgnoreCase))
             return ("minecraft:purple_wool", "minecraft:purple_banner", "minecraft:purple_wall_banner");
 
+        if (resourceType.Equals("Container", StringComparison.OrdinalIgnoreCase))
+            return ("minecraft:cyan_wool", "minecraft:cyan_banner", "minecraft:cyan_wall_banner");
+
         var combined = (resourceType + " " + resourceName).ToLowerInvariant();
 
         if (combined.Contains("node") || combined.Contains("javascript") || combined.Contains("js"))
@@ -149,11 +152,17 @@ internal sealed class StructureBuilder(
         if (combined.Contains("python") || combined.Contains("flask") || combined.Contains("django"))
             return ("minecraft:yellow_wool", "minecraft:yellow_banner", "minecraft:yellow_wall_banner");
         if (combined.Contains("go") || combined.Contains("golang"))
-            return ("minecraft:cyan_wool", "minecraft:cyan_banner", "minecraft:cyan_wall_banner");
+            return ("minecraft:light_blue_wool", "minecraft:light_blue_banner", "minecraft:light_blue_wall_banner");
         if (combined.Contains("java") || combined.Contains("spring"))
             return ("minecraft:orange_wool", "minecraft:orange_banner", "minecraft:orange_wall_banner");
         if (combined.Contains("rust"))
-            return ("minecraft:brown_wool", "minecraft:brown_banner", "minecraft:brown_wall_banner");
+            return ("minecraft:red_wool", "minecraft:red_banner", "minecraft:red_wall_banner");
+        if (combined.Contains("php") || combined.Contains("laravel") || combined.Contains("symfony"))
+            return ("minecraft:magenta_wool", "minecraft:magenta_banner", "minecraft:magenta_wall_banner");
+        if (combined.Contains("ruby") || combined.Contains("rails"))
+            return ("minecraft:pink_wool", "minecraft:pink_banner", "minecraft:pink_wall_banner");
+        if (combined.Contains("elixir") || combined.Contains("erlang") || combined.Contains("phoenix"))
+            return ("minecraft:lime_wool", "minecraft:lime_banner", "minecraft:lime_wall_banner");
 
         return ("minecraft:white_wool", "minecraft:white_banner", "minecraft:white_wall_banner");
     }
@@ -702,6 +711,15 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + 5} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
 
+        // Language-colored accent stripe at mid-height
+        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 2} {z} {x + 6} {y + 2} {z + 6} {wool} hollow", ct);
+
+        // Language-colored banner on roof center
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 5} {z + 3} {banner}", ct);
+
         return new DoorPosition(x + 3, y + 3, z);
     }
 
@@ -833,12 +851,29 @@ internal sealed class StructureBuilder(
             "\"\"]}}";
         await rcon.SendCommandAsync(signCmd, ct);
 
+        // === LANGUAGE-COLORED ACCENT STRIPES: two hollow bands (y+3 and y+5) ===
+        var (wool, _, wallBanner) = GetLanguageColor(info.Type, info.Name);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 3} {z} {x + s} {y + 3} {z + s} {wool} hollow", ct);
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 5} {z} {x + s} {y + 5} {z + s} {wool} hollow", ct);
+
+        // === LANGUAGE-COLORED BANNERS: four corner banners on roof ===
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 8} {z + 1} {wallBanner}[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 8} {z + 1} {wallBanner}[facing=south]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + 1} {y + 8} {z + s - 1} {wallBanner}[facing=north]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s - 1} {y + 8} {z + s - 1} {wallBanner}[facing=north]", ct);
+
         return new DoorPosition(x + 7, y + 4, z);
     }
 
     /// <summary>
     /// Workshop — building with chimney and workbench vibe. Executable resources.
-    /// Standard (7×7): Oak planks walls, language-colored wool stripe + banner, cyan stained glass, 6 blocks tall.
+    /// Standard (7×7): Oak planks walls, language-colored wool stripe + banner, cyan stained glass, 7 blocks tall.
     /// Grand (15×15): Spruce log frame, A-frame peaked roof, loft, full tool stations, 10 blocks tall.
     /// </summary>
     private async Task<DoorPosition> BuildWorkshopAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
@@ -855,33 +890,33 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:oak_planks", ct);
 
-        // Walls: hollow box, 4 blocks tall
+        // Walls: hollow box, 5 blocks tall (raised for dual-stripe headroom)
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:oak_planks hollow", ct);
+            $"fill {x} {y + 1} {z} {x + 6} {y + 5} {z + 6} minecraft:oak_planks hollow", ct);
 
         // Language-colored wool stripe at top of walls (hollow = outer ring only)
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z + 6} {wool} hollow", ct);
+            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} {wool} hollow", ct);
         if (secondary is not null)
         {
             // Secondary color stripe one row below for dual-branded languages (e.g., Python)
             await rcon.SendCommandAsync(
-                $"fill {x} {y + 3} {z} {x + 6} {y + 3} {z + 6} {secondary.Value.wool} hollow", ct);
+                $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z + 6} {secondary.Value.wool} hollow", ct);
         }
 
         // Peaked roof (oak stairs forming an A-frame along X axis)
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 1} minecraft:oak_stairs[facing=south,half=bottom]", ct);
+            $"fill {x} {y + 6} {z} {x + 6} {y + 6} {z + 1} minecraft:oak_stairs[facing=south,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 5} {x + 6} {y + 5} {z + 6} minecraft:oak_stairs[facing=north,half=bottom]", ct);
+            $"fill {x} {y + 6} {z + 5} {x + 6} {y + 6} {z + 6} minecraft:oak_stairs[facing=north,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 2} {x + 6} {y + 5} {z + 4} minecraft:oak_planks", ct);
+            $"fill {x} {y + 6} {z + 2} {x + 6} {y + 6} {z + 4} minecraft:oak_planks", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + 3} {x + 6} {y + 6} {z + 3} minecraft:oak_slab", ct);
+            $"fill {x} {y + 7} {z + 3} {x + 6} {y + 7} {z + 3} minecraft:oak_slab", ct);
 
         // Standing banner on roof ridge
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 7} {z + 3} {banner}[rotation=0]", ct);
+            $"setblock {x + 3} {y + 8} {z + 3} {banner}[rotation=0]", ct);
 
         // Door - 2 blocks wide
         await rcon.SendCommandAsync(
@@ -899,9 +934,9 @@ internal sealed class StructureBuilder(
 
         // Chimney (cobblestone column on one corner)
         await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 5} {z + 6} {x + 6} {y + 7} {z + 6} minecraft:cobblestone", ct);
+            $"fill {x + 6} {y + 6} {z + 6} {x + 6} {y + 8} {z + 6} minecraft:cobblestone", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 7} {z + 6} minecraft:campfire", ct);
+            $"setblock {x + 6} {y + 8} {z + 6} minecraft:campfire", ct);
 
         // Interior: crafting table + anvil
         await rcon.SendCommandAsync(
@@ -1863,7 +1898,7 @@ internal sealed class StructureBuilder(
             "Warehouse" when isGrand => y + 9,
             "Warehouse" => y + 6,
             "Workshop" when isGrand => y + 10,
-            "Workshop" => y + 7,
+            "Workshop" => y + 8,
             "Cylinder" => isGrand ? y + 13 : y + 7,
             "Cottage" => isGrand ? y + 9 : y + 6,
             _ => isGrand ? y + 9 : y + 6,
