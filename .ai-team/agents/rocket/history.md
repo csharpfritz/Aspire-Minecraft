@@ -10,42 +10,21 @@
 - Worker service (Aspire.Hosting.Minecraft.Worker) handles in-world display
 - Uses RCON to communicate with Minecraft server for commands
 - DecentHolograms plugin for in-world holograms
-- Worker is created internally by WithAspireWorldDisplay<TWorkerProject>()
-- WithMonitoredResource() applies env vars to the internal worker
+- Worker created by WithAspireWorldDisplay<TWorkerProject>()
+- WithMonitoredResource() applies env vars to worker
 - Metrics: TPS, MSPT, players online, worlds loaded, RCON latency
-- `VillageLayout` static class centralizes all per-resource position calculations (2×N grid, 10-block spacing, 7×7 footprint)
+- `VillageLayout` centralizes position calculations; now supports 7×7 (standard) and 15×15 (grand) structures
+- Current RCON rate limits: 10 cmd/s standard, 40 cmd/s burst mode
 
-## Learnings
+## Recent Summary (Milestones 1-5)
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+**Worker architecture and features:** `MinecraftWorldWorker` polls every 10s with 2-min broadcast cycle. `RconService` enforces rate limiting with token bucket (10 cmd/s standard, 40 cmd/s burst), 250ms dedup throttle, and OTEL tracing. 13 feature toggles across Sprints 1-3 (particles, weather, boss bar, sounds, action bar ticker, beacons, fireworks, guardians, fanfare, heartbeat, achievements, redstone dependency graph, service switches) all follow consistent `With{Feature}()` pattern with conditional DI. Resource discovery via `ASPIRE_RESOURCE_{NAME}_*` env vars. All services (HologramManager, ScoreboardManager, StructureBuilder, PlayerMessageService, etc.) register as singletons and integrate into worker main loop.
 
-### Consolidated Summary: Sprints 1-3 (2026-02-10)
+**Building evolution (v0.1.0-v0.5.0):** Started with 4 themed 7×7 structures (Watchtower/Warehouse/Workshop/Cottage). Sprint 3 added village fence (oak perimeter with paths and gates) and service switches (visual-only levers reflecting resource state). Sprint 4 added database cylinders (smooth_stone + polished_deepslate, ~88 RCON commands) and Azure-themed cottages (light_blue_concrete with banners), language-based color coding (purple=.NET, yellow=Node, blue=Python, cyan=Go, orange=Java, brown=Rust), and enhanced dashboard with self-luminous lamps (glowstone=healthy, redstone_lamp=unhealthy, sea_lantern=unknown). Milestone 5 redesigned all 4 structures as grand 15×15 variants with ornate medieval aesthetics: Grand Watchtower (20 blocks, 3-floor spiral staircase, deepslate brick buttresses, iron bar arrow slits, crenellated battlements), Grand Workshop (A-frame roof with chimney, tool station interior), Grand Azure Pavilion (light blue concrete with blue pilasters, skylight), Grand Cottage (cobblestone+oak upper, pitched roof, homey interior). Ornate Watchtower exterior features mossy foundation, cracked stone brick weathering, 3×3 corner turrets with pinnacles, machicolations, keystone gatehouse arch with portcullis, 2-high observation windows, proper merlons with ~99 total RCON commands.
 
-**Worker architecture:** `MinecraftWorldWorker` (BackgroundService) polls every 10s, broadcasts every 2 min. Core services: `RconService` (OTEL tracing, 250ms dedup throttle, token-bucket rate limiter at 10 cmd/s), `AspireResourceMonitor`, `HologramManager`, `ScoreboardManager`, `StructureBuilder`, `PlayerMessageService`. Resource discovery via `ASPIRE_RESOURCE_{NAME}_TYPE/URL/HOST/PORT/DEPENDS_ON` env vars.
+**RCON and terrain discoveries:** Identical commands get deduped by 250ms throttle — use unique strings or micro-vary parameters to force execution. `/fill ... hollow` is most efficient wall building. Redstone signal propagation unreliable on Paper servers — use self-luminous blocks (glowstone, sea_lantern, redstone_lamp unpowered) instead of redstone power. Binary search terrain probe via `setblock` discovers surface Y-level. `wall_banner[facing=south]` requires solid block support; standing banners need solid block beneath. `/clone` is single RCON command regardless of grid size — perfect for scrolling displays. Burst mode via `EnterBurstMode()` returns `IDisposable` with SemaphoreSlim thread safety. Spacings 10→12→24 accommodate 7×7 structures (3→5→17 block gaps). Village spacing 24 = 15×15 building + 9 blocks gap for rails/paths. Fence clearance 4→10 blocks for horse roaming space. Forceload expanded to `-20,-20,120,120` for grand village coverage.
 
-**Feature opt-in pattern (all 13 features):** `With{Feature}()` extension method sets `ASPIRE_FEATURE_{NAME}=true` env var, conditional DI registration in Worker Program.cs, nullable constructor injection. State tracking avoids redundant RCON commands.
-
-**Sprint 1 features (5):** ParticleEffects, TitleAlerts, WeatherEffects, BossBar (with optional appName via `ASPIRE_APP_NAME`), SoundEffects. Particles/titles/sounds per-resource; weather/boss bar aggregate.
-
-**Sprint 2 features (5):** ActionBarTicker (cycles TPS/MSPT/health/latency), BeaconTowers (resource-type-colored glass matching Aspire dashboard palette), Fireworks (all-recover event), GuardianMobs (iron golem=healthy, zombie=unhealthy with NoAI/Invulnerable NBT), DeploymentFanfare (Unknown->Healthy transitions).
-
-**Sprint 3 features (3 + village rework):**
-- **Resource Village** (#25): 4 themed structures (Watchtower/Warehouse/Workshop/Cottage) in 2x N grid. `fill ... hollow` for walls. Health lamp in front wall.
-- **Village Fence** — oak fence perimeter via `GetVillageBounds()`/`GetFencePerimeter()`. Boulevard at X=17, cross paths to each entrance.
-- **Heartbeat** (#27): First `BackgroundService` feature — independent 1-4s pulse loop. Volume micro-variation avoids RCON dedup throttle.
-- **Achievements** (#32): 4 milestones via RCON titles+sounds (no datapacks). Per-session `HashSet<string>` tracking.
-- **Redstone Graph** (#36): L-shaped wire routing, repeaters every 15 blocks, circuit breaking on unhealthy. `CommandPriority.Low` for bulk building.
-- **Service Switches** (#35): Visual-only levers+lamps on structures. Levers reflect state, cannot control resources.
-
-**Key RCON learnings:**
-- Identical commands in tight loops get deduped by throttle — use unique strings or micro-vary parameters.
-- `fill ... hollow` is the most efficient wall-building command.
-- `setblock` doesn't propagate redstone signals — use glowstone/redstone_lamp swap instead.
-- Redstone wire auto-connects; repeater `facing` must point toward destination.
-- Mob cleanup via `kill @e[name=...]` selector is the standard entity management pattern.
-- NBT tags (`NoAI`, `Invulnerable`, `PersistenceRequired`) essential for stationary display mobs.
-
-**Startup optimizations:** `SPAWN_PROTECTION=0`, `VIEW_DISTANCE=6`, `SIMULATION_DISTANCE=4`, `GENERATE_STRUCTURES=false`, no mob spawning, `MAX_WORLD_SIZE=256`.
+**Grand Village foundation:** Spacing doubled to 24 blocks with 10-block fence clearance. Structure size bumped to 15×15 (13×13 usable interior) supporting ~20 resources before world border issues at 512 MAX_WORLD_SIZE. Grand variants branch on `StructureSize >= 15`. Shared placement methods (health lamp, azure banner, sign) now use `StructureSize / 2` for adaptive positioning. Minecart rails coexist with redstone wires (1-block X offset) — both visual systems coexist. Easter egg: 3 named horses (Charmer/Dancer/Toby) with variants and tameness. All 7 building types (Watchtower, Warehouse, Workshop, Cottage, Cylinder, AzureThemed, + Grand variants) follow consistent placement/health indicator patterns.
 
 ### Azure Resource Visualization Design (2026-02-10)
 
@@ -120,6 +99,25 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 - `tests/Aspire.Hosting.Minecraft.Worker.Tests/Services/TerrainProbeServiceTests.cs` — probe fallback and integration tests
 
 **RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.
+
+## Learnings
+
+### Village Grid Ordering Convention
+- ALL services that place elements on the village grid MUST use `VillageLayout.ReorderByDependency(monitor.Resources)` for index-to-position mapping, not raw `monitor.Resources` dictionary order.
+- Dictionary iteration order is non-deterministic with respect to dependency relationships. Services that used different orderings would place features (beacons, guardians, particles, levers, wires, rails) at wrong buildings.
+- Services affected: `StructureBuilder`, `BeaconTowerService`, `GuardianMobService`, `ParticleEffectService`, `ServiceSwitchService`, `RedstoneDependencyService`, `MinecartRailService`.
+- Services NOT affected (don't use grid indices): `HologramManager`, `ScoreboardManager`, `BossBarService`, `WeatherService`, `FireworksService`, `DeploymentFanfareService`, `ActionBarTickerService`, `WorldBorderService`, `HeartbeatService`.
+
+### Minecraft Wall-Mounted Block Placement
+- `facing=X` means the item extends in X direction; support block is in the OPPOSITE direction.
+- For a lever on a building's front wall (Z-min side): place lever at `FaceZ - 1` (one block in front of wall), use `facing=north` so support is to the south at `FaceZ` (the wall).
+- Never place a wall-mounted block AT the wall's Z coordinate — that replaces the wall block and the support direction points to interior air.
+- Lamp companions for levers go IN the wall at `(leverX, leverY + 1, leverZ + 1)` = `(leverX, leverY + 1, FaceZ)`.
+
+### Worker Loop Feature Gating
+- Transition-only features (`particles`, `titleAlerts`, `sounds`, `fireworks`, `deploymentFanfare`, `achievements`) run inside `changes.Count > 0` guard — correct, they only fire on health changes.
+- Continuous features (`weather`, `bossBar`, `beaconTowers`, etc.) run every cycle — they have internal transition tracking and only send RCON commands when state actually changes.
+- `redstoneGraph` and `minecartRails` were moved to the continuous section because they have their own `_lastKnownStatus` tracking and need to run every cycle to reconcile state.
 
 ### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment (2026-02-11)
 
@@ -253,3 +251,234 @@ Modified `BuildWatchtowerAsync` and `BuildCottageAsync` to accept `ResourceInfo`
 **Key learning:** For mob CustomName via RCON on Paper servers, use the simple double-quoted string format (`CustomName:"\"Name\""`) rather than JSON text component objects. The `GuardianMobService` already uses this pattern correctly.
  Team update (2026-02-12): Village spacing doubled to 24 blocks (15 + 9 gap between buildings) with enhanced fence clearance (10 blocks)  decided by Rocket
  Team update (2026-02-12): Sprint 4 building designs specified: database cylinders (77 cell, smooth stone + deepslate, ~88 RCON commands), Azure banners (light_blue with patterns on all Azure resources), enhanced palettes (Watchtower, Warehouse, Workshop, Cottage with detailed interior)  decided by Rocket
+
+### RCON Burst Mode (Milestone 5, Issue #85)
+
+Added `EnterBurstMode(int commandsPerSecond = 40)` to `RconService`. Returns `IDisposable` — callers wrap construction in a `using` block and the rate limit auto-restores on dispose.
+
+### Ornate Grand Watchtower Exterior (Milestone 5, Issue #78)
+
+Redesigned `BuildGrandWatchtowerAsync` exterior from plain cube to ornate medieval tower. Same 15×15 footprint, 20 blocks tall, interior unchanged. Key exterior features:
+
+- **Tapered base:** mossy_stone_bricks foundation (y) + stone_brick_stairs sloped plinth (y+1) facing outward on all 4 sides — anchors the tower visually.
+- **Mixed wall materials:** stone_bricks hollow shell (y+2 to y+18), cracked_stone_bricks weathering on lower front/back walls (y+2 to y+4).
+- **Prominent 3×3 corner buttresses:** polished_andesite pillars extending full height at all 4 corners — much more imposing than the old 2×2.
+- **Wool bands preserved** at y+6 and y+12, skipping corner buttress areas (x+3 to x+s-3 / z+3 to z+s-3).
+- **Corbel string courses:** stone_brick_stairs (half=top) above wool bands at y+7 on front/back — adds horizontal depth lines.
+- **Wider window bays:** 2-wide glass_pane pairs on ground floor (y+3), full-width on second floor (y+9), panoramic observation on third floor (y+15) all 4 sides.
+- **Machicolations:** upside-down stone_brick_stairs at y+19 on all 4 sides, creating the characteristic medieval overhang below the parapet.
+- **Pronounced battlements:** stone_bricks hollow ring at y+20, 2-high merlons (y+20-21) at regular intervals on front/back.
+- **Corner turret caps:** stone_brick_stairs conical roofs over buttresses at y+19, stone_brick_wall pinnacles at y+20.
+- **Pointed gatehouse arch:** 5-wide stone_bricks frame, stone_brick_stairs converging on keystone (chiseled_stone_bricks), 3×4 air opening, flanking lanterns.
+- **4 banners** on turret pinnacles at (x+1,y+21,z+1), (x+s-1,y+21,z+1), (x+1,y+21,z+s-1), (x+s-1,y+21,z+s-1).
+- **RCON budget:** 84 commands in method, ~98 total with fence/paths/health/sign — under 100 limit.
+
+**Implementation details:**
+- `_maxCommandsPerSecond` changed from `readonly` to mutable. `_defaultCommandsPerSecond` stores the original value.
+- Thread safety via `_burstModeSemaphore` (SemaphoreSlim(1,1)): `Wait(0)` for non-blocking acquire; throws `InvalidOperationException` if already active.
+- `BurstModeScope` inner class: `IDisposable` with `Interlocked.Exchange` guard preventing double-dispose.
+- Logs at INFO on enter and exit with before/after rate values.
+- Token bucket (`RefillTokens()`) automatically adapts because it reads `_maxCommandsPerSecond` dynamically — no bucket reset needed.
+- `_burstModeSemaphore` disposed in `DisposeAsync`.
+
+**Key learning:** The token bucket's `RefillTokens()` already uses `_maxCommandsPerSecond` for both refill rate and cap. Making the field mutable is sufficient — no need to reset the bucket on mode change. The burst rate takes effect on the next token refill cycle naturally.
+
+### Grand Workshop (Milestone 5, Issue #82)
+
+Redesigned `BuildWorkshopAsync()` with Grand mode (15×15) branching. When `VillageLayout.StructureSize >= 15`, delegates to `BuildGrandWorkshopAsync()`. Standard 7×7 version preserved unchanged.
+
+**Grand Workshop exterior (15×15, 10 blocks tall):**
+- Oak plank walls with spruce log corner posts (y+1 to y+5) and horizontal beam frame at y+5.
+- A-frame peaked roof: 4 layers of spruce stair shingles (y+6 eaves → y+9 ridge cap with spruce_slab).
+- 2×2 cobblestone chimney at back-right corner (y+6 to y+10) topped with campfire.
+- Cyan stained glass windows (2×2) flanking door on front wall, plus side and back walls.
+- Flower pots under front windows at y+2.
+- 3-wide × 3-tall door centered at x+6..x+8 on front wall (z).
+
+**Grand Workshop interior:**
+- Tool stations along back wall: crafting_table, smithing_table, stonecutter, anvil, grindstone (spaced evenly).
+- Furnace at left back corner, brewing_stand at right back corner.
+- Loft at y+6: half-floor (back half, z+7 to z+13) with oak fence railing, ladder access against side wall (x+1, y+1..y+6).
+- Loft furnishing: 3 barrels + bookshelf against back wall.
+- 3 hanging lanterns at ceiling (y+5).
+
+**Support method updates:**
+- `PlaceAzureBannerAsync`: Grand Workshop roofY = y+10, flagpole centered at x+half/z+half.
+- `PlaceHealthIndicatorAsync`: Grand Workshop lampY = y+4 (above 3-tall door), lampX = x+7 (centered).
+
+**RCON budget:** 47 commands in `BuildGrandWorkshopAsync` + 3-5 external (health lamp, sign, optional azure banner) = ~50-52 total. Within the ~55-65 budget.
+
+**Key learning:** A-frame roof on a 15-block-wide building needs 4 layers to reach the ridge. Each layer uses matching spruce stair `facing` directions (south for front slope, north for back slope) with oak plank fill in the gable center. The ridge cap uses `spruce_slab` for a clean peak line.
+
+### Grand Azure Pavilion & Grand Cottage (Milestone 5, Issue #80)
+
+Added grand variants for the two remaining building types: Azure Pavilion and Cottage. Both branch on `VillageLayout.StructureSize == 15` — if grand, delegate to `BuildGrandAzurePavilionAsync` / `BuildGrandCottageAsync`; otherwise keep the standard 7×7 build.
+
+**Grand Azure Pavilion (BuildGrandAzurePavilionAsync):**
+- 15×15 footprint, 8 blocks tall. Light blue concrete walls with blue concrete pilaster strips at all 4 corners and 4 wall midpoints.
+- Blue concrete trim band at wall top (y+7). Flat light blue concrete roof (y+8) with 3×3 light blue stained glass skylight in center.
+- Azure banners on all 4 roof corners (y+9). Blue stained glass pane windows on all 4 walls.
+- Interior: light blue carpet floor, brewing stand + cauldron (cloud services aesthetic), 4 hanging lanterns.
+- ~50 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Grand Cottage (BuildGrandCottageAsync):**
+- 15×15 footprint, 8 blocks tall. Cobblestone lower walls (y+1 to y+4), oak plank upper walls (y+5 to y+7).
+- Language-colored wool trim band at y+7. Cobblestone slab pitched roof (y+8).
+- Flower pots on front face below windows. Glass pane windows on front and sides.
+- Interior: red bed, crafting table, bookshelf, furnace, 2 chests, potted poppy + dandelion, 4 wall torches.
+- ~45 RCON commands. Door is 2-wide centered at `x + half - 1` to `x + half`.
+
+**Supporting changes:**
+- `PlaceHealthIndicatorAsync` — lampX now uses `x + half` for all grand variants (was only handling Watchtower/Warehouse/Cylinder).
+- `PlaceAzureBannerAsync` — roofY for grand Cottage updated to `y + 9` (was `y + 6` for standard).
+- `PlaceSignAsync` — signX now uses `x + half - 1` derived from `VillageLayout.StructureSize / 2`, keeping backward compat (7/2 = 3, so x+2).
+- `BuildFencePerimeterAsync` — gate width now uses `VillageLayout.GateWidth` (3 standard, 5 grand).
+- `BuildPathsAsync` — grand layout gets a central stone brick boulevard between the two columns.
+- `BuildCylinderAsync` — added size check to branch to `BuildGrandCylinderAsync` when grand.
+
+**Key learning:** When modifying shared placement methods (health lamp, sign, banner) for new grand variants, use `VillageLayout.StructureSize / 2` instead of hardcoding `3` vs `7`. This makes the code adaptive to any structure size without needing per-type grand checks.
+
+📌 Team update (2026-02-15): Structural validation requirements — all acceptance tests must verify door accessibility, staircase connectivity, and wall-mounted items. Created 86 structural geometry tests. — decided by Jeff (Jeffrey T. Fritz)
+
+📌 Team update (2026-02-15): Fill-overlap detection is now a standard test pattern. New building types must include fill-overlap detection tests using the FillOverlapDetectionTests infrastructure. — decided by Nebula
+
+📌 Team update (2026-02-15): MCA Inspector milestone launched — read-only Minecraft Anvil format (NBT) library for bulk structural verification. Phase 1 (library) and Phase 2 (test infrastructure) are parallel-safe. Timeline: ~1.5 weeks. — decided by Rhodey
+
+📌 Team update (2026-02-16): Feature monitoring services moved to continuous loop and lever placement fixed (facing direction and wall attachment) — decided by Coordinator
+
+### Grand Watchtower (Milestone 5, Issue #78) — IMPLEMENTED
+
+**Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize >= 15` (same check as all other grand builders); standard 7×7 watchtower remains the fallback.
+
+**Architecture (as built):**
+- Single `fill ... hollow` for full 19-block-tall stone brick shell (y+1 to y+19) — simpler than per-floor sections.
+- 4 polished andesite corner buttresses (2×2) rising full height, placed after walls so they overlay corners.
+- Language-colored wool bands at y+6 and y+12 (floor boundaries) on all 4 wall faces.
+- Arrow slit windows: individual glass panes at y+3 and y+9 (ground/second floor), 3-wide glass pane fills at y+15 on all sides for observation deck.
+- Crenellated battlements at y+20: fill full ring of stone bricks, then place stone_brick_stairs[half=top] at alternating positions.
+- 4 standing banners at roof corner posts (y+21) on buttress inner corners.
+- Spiral staircase: Flight 1 along north wall (z+1, east-facing oak stairs, y+1 to y+6); Flight 2 along east wall (x+s-1, south-facing, y+8 to y+13). Stairwell holes cleared in floor platforms.
+- Floor platforms: oak planks at y+7 (second floor) and y+13 (third floor) with air holes for stairwell access.
+- Ground floor: crafting table, resource name sign on back wall, 4 wall torches.
+- Second floor: enchanting table centered at (half, y+8, half), bookshelves along south and west walls.
+- Third floor: lectern centered at (half, y+14, half) as observation deck.
+- Iron door entrance: stone brick archway frame with stone_brick_stairs[half=top] lintel at y+5, 3-wide × 4-tall air opening.
+- Returns `DoorPosition(x + half, y + 4, z)` — door on front wall at z, matching 4-tall opening.
+
+**RCON command count:** ~85 commands. Single hollow fill for the full tower shell is key to staying under budget.
+
+**Key learnings:**
+- Single tall `fill ... hollow` + floor platform fills is more command-efficient than per-floor wall sections.
+- Crenellations: fill a complete row of stone brick, then overlay stairs at alternating positions (no air carving needed).
+- Door archway with stone_brick_stairs[half=top] lintel gives a nice visual effect.
+- Grand variant branching uses `>= 15` (not `== 15`) to match all other grand builder checks.
+
+📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket
+
+### Grand Watchtower Ornate Redesign (2026-02-15)
+
+- Redesigned Grand Watchtower exterior from plain rectangle to ornate medieval castle tower.
+- Key architectural changes: deepslate brick corner buttresses (replacing polished_andesite), cracked_stone_bricks weathering on lower walls, iron_bars arrow slits on ground floor, 2-high observation windows, taller corner turrets with pinnacle wall posts extending above parapet (y+22), portcullis iron bars in gatehouse arch, deeper gatehouse arch (y+6 keystone vs y+5), and proper alternating merlons on the battlements.
+- RCON command budget: 85 commands in BuildGrandWatchtowerAsync (58 exterior + 27 interior), ~14 village overhead = ~99 total, under the <100 test limit.
+- Mixed block palette creates depth: mossy_stone_bricks (base), cracked_stone_bricks (weathering), deepslate_bricks (buttresses), chiseled_stone_bricks (gatehouse keystone), stone_brick_stairs (machicolations/corbels/turret caps), iron_bars (arrow slits + portcullis), glass_pane (observation windows).
+- Design constraint: visual richness must come from block variety and placement order (layering fills), not from additional commands. Every decorative element must justify its RCON cost.
+- Interior left completely unchanged — floors, staircase, furniture, sign, torches all preserved.
+- DoorPosition return value unchanged at (x + half, y + 4, z) to maintain health indicator and sign compatibility.
+
+📌 Team update (2026-02-15): Python and Node.js sample APIs added to MinecraftAspireDemo; separate GrandVillageDemo created on milestone-5 showcasing all grand building variants (15×15 structures for Project, Container, Database, Azure types) — decided by Shuri
+
+### Grand Watchtower Entrance Cleanup (2026-02-16)
+- Eliminated the visible "lower level" by removing the stair skirt at y+1 and starting walls at y+1 instead of y+2.
+- The tapered base concept (4 stair fills at y+1) created an awkward 2-block-high shelf below the entrance — players saw grass, mossy stone, stairs, THEN the actual door. Removing it gives a clean transition: mossy plinth at y, walls at y+1.
+- Simplified the gatehouse entrance from a tall cluttered opening (5-wide frame up to y+7 with portcullis iron bars and lanterns) to a clean 3-wide × 4-tall opening (y+1 to y+4) with a proportional arch at y+5.
+- Removed: iron_bars portcullis at y+6 (visual noise), hanging lanterns at y+5 (clutter), oversized gatehouse frame reaching y+7 (exposed oak planks from second floor visible inside entrance).
+- Kept: chiseled stone keystone, decorative stone_brick_stairs arch shoulders, all upper features (wool bands, battlements, turrets, banners, observation windows).
+- DoorPosition updated from (x+half, y+5, z) to (x+half, y+4, z). GlowBlock now at y+5 (was y+6).
+- Net savings: 6 fewer RCON commands (removed 4 stair skirt + portcullis + 2 lanterns, gatehouse frame shrunk).
+- Health indicator test updated to match new GlowBlock position (17, -54, 0).
+
+## Learnings
+- Stair skirts around a building base look like unintentional sub-floors when there's a door at that level. Only use them on non-entrance faces.
+- Gatehouse entrances get cluttered fast — each decorative element (portcullis, lanterns, extra frame height) competes for attention in a narrow space. Simpler is better.
+- DoorPosition.TopY should match the actual top of the walkable opening, not decorative elements above it.
+📌 Team update (2026-02-15): Grand Watchtower entrance redesigned — removed stair skirt, simplified gatehouse to 3×4 opening, walls start at y+1, DoorPosition.TopY changed from y+5 to y+4. All 7 tests pass. — decided by Rocket
+
+📌 Team update (2026-02-15): Improved acceptance testing required before marking work complete — validate against known constraints (geometry, visibility, placement). Nebula added 26 geometric validation tests covering doorway visibility, ground-level continuity, and health indicator placement. — decided by Jeff
+
+### Structural Geometry Validation Tests (2026-02-15)
+
+Created comprehensive structural geometry tests in `StructuralGeometryTests.cs` (86 passing, 5 skipped) that validate physical integrity of all 12 building variants by parsing RCON setblock/fill commands.
+
+**Test categories:**
+- Door accessibility (12 tests): door opening dimensions, air blocks, ground floor connectivity
+- Staircase connectivity (5 tests): grand watchtower spiral stairs, stairwell holes, facing direction
+- Wall-mounted items (59 tests): torch support, sign support, lever support, ladder support for all structure types
+- Bug documentation (5 skipped tests): each documents a specific StructureBuilder bug
+
+**5 bugs discovered in StructureBuilder.cs:**
+1. Grand Watchtower torch (line ~601): `wall_torch[facing=north]` at z+s — support at z+s+1 is outside structure
+2. Grand Watchtower spiral staircase (line ~547): first stair at (x+2, y+1, z+1) overlaps corner buttress footprint
+3. Grand Watchtower/Warehouse wall signs (lines ~586-592, ~792-799): same outside-support pattern as torch bug
+4. Grand Cylinder wall signs (lines ~1494-1496): interior air clear removes support block at z+2
+5. Grand Cylinder ladders (lines ~1474-1475): `facing=west` but copper pillar support is to the west, not east
+
+**Key technical patterns established:**
+- `ParseSetblockCommands()` / `ParseFillCommands()` with `[GeneratedRegex]` for efficient RCON parsing
+- `GetBlockAt()` with last-write-wins semantics and hollow fill support
+- `GetWallMountDirection()` for Minecraft facing→support direction mapping (east→west, north→south, etc.)
+- `BuildResult` record captures VillageLayout state immediately to avoid static state race conditions
+- Wall torches/signs/ladders use opposite-direction convention: `facing=X` means support block is in opposite direction
+
+**VillageLayout parallelism issue:**
+- VillageLayout is a static class shared across all test classes running in parallel
+- Tests that call ConfigureGrandLayout()/ResetLayout() can interfere with parallel tests
+- Fix: capture layout state (origin coords, StructureSize) immediately after setting it, before any parallel test can mutate it
+- Pre-existing race condition in StructureBuilderTests.UpdateStructuresAsync_TenResources_NoExceptions — not caused by our tests
+📌 Team update (2026-02-15): Created 91 structural geometry validation tests (86 pass, 5 skipped with bug documentation). Discovered 5 StructureBuilder bugs in grand structure wall-mounted items and staircase placement. Fixed VillageLayout static state race condition in test infrastructure. — decided by Rocket
+
+### Minecraft Test Automation Research (2026-02-15)
+
+Key findings from researching automated acceptance testing against a live Minecraft server:
+
+- `execute if block X Y Z minecraft:<block>` is the canonical RCON command for block verification — returns empty string on match. Already used in our integration tests via `RconAssertions.AssertBlockAsync()`.
+- `execute if blocks` compares two world regions block-by-block in a single RCON command — useful for whole-structure validation against a "golden reference" region.
+- `data get block X Y Z` only works for block entities (chests, signs, banners), NOT simple blocks (stone, cobblestone, etc.). Useful for verifying sign text and banner patterns.
+- `/testforblock` was removed in Minecraft 1.13+, replaced by `execute if block`.
+- Structure blocks have a 48×48×48 size limit and require Docker file extraction to compare NBT — more complex than direct RCON checks.
+- Paper server in Docker starts in ~45-60s cold (with JAR download), ~15-20s warm (cached JAR). Flat worlds with no players need ~1 GB RAM minimum.
+- Minecraft's Java GameTest Framework (`@GameTest`) requires writing a Java mod/plugin — wrong tech stack for our .NET project. Not applicable.
+- .NET NBT libraries exist (fNbt, SharpNBT, NbtToolkit, Unmined.Minecraft.Nbt) for parsing Anvil world files, but none handle the region file format out of the box — need a ~200-300 line wrapper.
+- World file inspection (reading .mca files directly) bypasses RCON entirely and gives ground-truth block state. Requires `save-all flush` RCON command first to ensure chunks are written to disk.
+- BlueMap can render headlessly via CLI (`java -jar bluemap-cli.jar -r`), but visual diff testing is inherently flaky (lighting, anti-aliasing) and not suitable as primary verification.
+- Recommended approach: tiered strategy with RCON block verification as primary (P0), world file inspection as secondary (P1), and BlueMap visual regression as tertiary (P2).
+📌 Team update (2026-02-15): Minecraft automated acceptance testing strategy — gap analysis and solution roadmap consolidated. Current state: 372 tests but zero world-state verification. Root cause: tests verify RCON command strings are correct but not what actually exists in the Minecraft world (command-ordering and fill-overlap bugs escape). P0 recommendations: fix integration test CI, add fill-overlap detection (unit test), expand RCON block verification (integration test). With CI optimizations, integration tests will run in ~2 minutes. — decided by Nebula, Rocket
+
+
+ Team update (2026-02-16): Minecart lifecycle finalizedspawn on HTTP request, 3s timeout-based despawn at destination, max 5 carts/rail. NBT Age tracking with 5s polling cycle. ~1-2 RCON cmd/sec sustainable. Affects MinecartRailService implementation  decided by Rhodey
+
+### Tech Branding Color System Update (2026-02-16)
+
+Updated the `GetLanguageColor` method in StructureBuilder.cs to modernize tech stack color palette and apply Docker branding to Container resources:
+
+**Color changes:**
+- Rust: brown → red (matches Rust logo)
+- Go: cyan → light_blue (matches Go gopher branding)
+- Docker Container types: NEW cyan/aqua branding (Docker whale logo color)
+
+**New language support:**
+- PHP: magenta (Laravel/Symfony)
+- Ruby: pink (Ruby/Rails)
+- Elixir/Erlang: lime (Phoenix framework)
+
+**Warehouse building enhancements:**
+- Standard Warehouse: added language-colored stripe at y+2 (hollow fill) and banner on roof
+- Grand Warehouse: added two hollow stripe bands (y+3, y+5) and four corner banners on roof (wall_banner facing N/S)
+- Both now match Workshop buildings with tech branding visual identity
+- Container types (AddContainer()) get aqua stripes/banners automatically
+
+**RCON budget impact:** Standard Warehouse +2 commands, Grand Warehouse +6 commands — both well under burst mode limits.
+
+**Final color palette:**
+.NET Project = purple | JavaScript/Node = yellow | Python = yellow + blue secondary | Rust = red | Go = light_blue | Java/Spring = orange | Docker Container = cyan | PHP = magenta | Ruby = pink | Elixir/Erlang = lime | Default = white
+
+📌 Team update (2026-02-16): Tech branding color system updated — Rust→red, Go→light_blue, Container→cyan, +3 new languages (PHP/Ruby/Elixir). Warehouse buildings now have language-colored stripes and banners matching Workshop aesthetic. — decided by Rocket

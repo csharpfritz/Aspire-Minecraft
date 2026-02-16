@@ -1,5 +1,10 @@
 <Solution>
   <Folder Name="/samples/" />
+  <Folder Name="/samples/GrandVillageDemo/">
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.ApiService/GrandVillageDemo.ApiService.csproj" />
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.AppHost/GrandVillageDemo.AppHost.csproj" />
+    <Project Path="samples/GrandVillageDemo/GrandVillageDemo.Web/GrandVillageDemo.Web.csproj" />
+  </Folder>
   <Folder Name="/samples/MinecraftAspireDemo/">
     <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.ApiService/MinecraftAspireDemo.ApiService.csproj" />
     <Project Path="samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost/MinecraftAspireDemo.AppHost.csproj" />
@@ -11,6 +16,7 @@
     <Project Path="src/Aspire.Hosting.Minecraft/Aspire.Hosting.Minecraft.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Aspire.Hosting.Minecraft.Integration.Tests/Aspire.Hosting.Minecraft.Integration.Tests.csproj" />
     <Project Path="tests/Aspire.Hosting.Minecraft.Rcon.Tests/Aspire.Hosting.Minecraft.Rcon.Tests.csproj" />
     <Project Path="tests/Aspire.Hosting.Minecraft.Tests/Aspire.Hosting.Minecraft.Tests.csproj" />
     <Project Path="tests/Aspire.Hosting.Minecraft.Worker.Tests/Aspire.Hosting.Minecraft.Worker.Tests.csproj" />

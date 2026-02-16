@@ -8,56 +8,20 @@
 ## Key Facts
 
 - Three NuGet packages: Aspire.Hosting.Minecraft (hosting lib), Aspire.Hosting.Minecraft.Rcon (RCON client), Aspire.Hosting.Minecraft.Worker (in-world display)
-- All packages at version 0.1.0
+- Current version: 0.5.0 (v0.5.0-dev in CI)
 - Directory.Build.props sets shared NuGet metadata (author, license, repo URL, README)
 - Uses itzg/minecraft-server Docker image with Paper server
 - RCON for server communication, BlueMap for 3D web maps, DecentHolograms for in-world display
 - OpenTelemetry Java agent injected for JVM metrics
+- 35 public extension methods, 5 public types, 434 unit tests
 
-## Learnings
+## Recent Summary (Milestones 1-5)
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+**v0.1.0-v0.5.0 evolution:** Started with Sprint 1 NuGet hardening (pinned deps, SourceLink, deterministic builds) and 5 feature toggles (particles, titles, weather, boss bar, sounds). Sprint 2 added 5 more features (action bar ticker, beacon towers, fireworks, guardian mobs, deployment fanfare) with consistent API pattern. Sprint 3 implemented Resource Village (4 themed structures), village fence, 3 new features (heartbeat, achievements, redstone dependency graph), and service switches. Sprint 4 focused on DX polish (WithAllFeatures convenience), dashboard wall visualization (health history tracker with `/clone` scrolling), enhanced building designs (database cylinders, Azure-themed cottages), language-based color coding for wool trim/banners, and easter egg horses. Milestone 5 (Grand Village) redesigned buildings to 15×15 footprint with 3 interior floors, added RCON burst mode for faster construction (40 cmd/s), implemented ornate watchtower exterior (medieval castle aesthetic), and set up minecart rail network foundation.
 
-### 2026-02-10: Sprint Planning Decisions
+**Key learnings:** RCON dedup throttle (250ms) requires unique strings to avoid duplicate command drops. `/fill ... hollow` is most efficient wall building. Redstone signal propagation unreliable on Paper — use self-luminous blocks (glowstone/sea_lantern). Terrain detection via binary search with `setblock` probe. Single tall hollow fill + floor fills more efficient than per-floor sections. Grand Village requires 15×15 buildings (11×11 interior) with 24-block spacing to avoid world border issues.
 
-- **NuGet before features:** Pinning floating `Version="*"` deps and adding SourceLink/deterministic builds is Sprint 1 priority — nothing ships to nuget.org without it.
-- **OTel jar extraction is the biggest S1 risk:** The 23 MB opentelemetry-javaagent.jar must move to runtime download. This touches container startup and could have edge cases with offline scenarios.
-- **All 5 "Must-Have" features are Size S and go into Sprint 1:** Boss bars, title alerts, sounds, weather, particles — they're all RCON one-liners and transform the demo immediately.
-- **Feature toggle builder pattern in Sprint 2:** Each Rocket feature should be opt-in via `AddMinecraftServer(opts => ...)`. This keeps the API clean and avoids surprising consumers.
-- **Cut line for Sprint 3:** If time is tight, Rail Network drops first, then anything beyond Resource Village + Achievements. Those two are the conference must-haves.
-- **Nether Portals, Log Wall, /trigger Commands punted to backlog:** Good ideas but not needed for the initial 3-sprint arc. v0.3.0 candidates.
-- **CI in Sprint 1, CD in Sprint 2:** Build workflow ships immediately; NuGet publish automation comes after tests are solid.
-- **Blog post gates on release tag:** Mantis doesn't publish until Rhodey cuts the release, avoiding announcing something that isn't live.
-
-📌 Team updates (2026-02-10, consolidated): NuGet hardening completed (Shuri). 3-sprint roadmap adopted (Rhodey). CI/CD pipeline created (Wong). Test infrastructure with 62 tests (Nebula). FluentAssertions removed for licensing (Jeff/Nebula). Single NuGet package as Fritz.Aspire.Hosting.Minecraft (Jeff/Shuri). All work tracked as 34 GitHub issues (Jeff). Redstone Graph + Switches proposed for Sprint 3 (Jeff).
-
-📌 Team updates (2026-02-10, Sprint 2): NuGet version defaults to 0.1.0-dev (Shuri). Release workflow extracts version from git tag (Wong). Beacon colors match Aspire palette (Rocket). ServerProperty API added (Shuri). Hologram line-add bug fixed (Rocket). Azure RG epic designed (Rhodey). Azure SDK separate package recommended (Shuri). Sprint branches with PRs directive (Jeff). API surface frozen at 31 methods for v0.2.0 (Rhodey).
-
-### 2026-02-10: Sprint 2 API Review & Release Prep
-
-- **API surface is clean and consistent.** All 10 feature extension methods (5 Sprint 1 + 5 Sprint 2) follow identical patterns: same signature shape, guard clause, env var naming (`ASPIRE_FEATURE_*`), and XML docs.
-- **No breaking changes needed.** Sprint 2 methods (`WithActionBarTicker`, `WithBeaconTowers`, `WithFireworks`, `WithGuardianMobs`, `WithDeploymentFanfare`) are exact copies of the Sprint 1 pattern.
-- **5 non-breaking concerns documented** for Sprint 3: add `WithAllFeatures()` convenience, tighten env var checks to `== "true"`, extract duplicated `ParseConnectionString`, add `IRconCommandSender` interface, consider auto-discovery of monitored resources.
-- **Demo AppHost updated** with all Sprint 2 feature calls chained alongside Sprint 1 calls.
-- **README updated** with 11 new feature bullet points (Sprint 1 + Sprint 2) and full code sample showing all features enabled.
-- **Build:** 0 warnings, 0 errors. **Tests:** 248 pass (186 worker + 45 RCON + 17 hosting).
-
-📌 Team update (2026-02-10): Sprint 2 API review complete — 10 feature methods consistent, no breaking changes, 5 additive recommendations for Sprint 3, demo + README updated — decided by Rhodey
-
-📌 Team update (2026-02-10): NuGet package version now defaults to 0.1.0-dev; CI overrides via -p:Version from git tag — decided by Shuri
-📌 Team update (2026-02-10): Release workflow extracts version from git tag and passes to dotnet build/pack — decided by Wong
-📌 Team update (2026-02-10): Beacon tower colors now match Aspire dashboard resource type palette (blue/purple/cyan/red/yellow) — decided by Rocket
-📌 Team update (2026-02-10): WithServerProperty API and ServerProperty enum added for server.properties configuration — decided by Shuri
-📌 Team update (2026-02-10): Hologram line-add bug fixed (RCON throttle was dropping duplicate commands) — decided by Rocket
-
-### 2026-02-10: Azure Resource Group Integration — Architecture Trade-offs
-
-- **Separate NuGet package is the right call for Azure.** Putting `Azure.ResourceManager.*` deps into the main package penalizes every consumer, even those who never touch Azure. `Fritz.Aspire.Hosting.Minecraft.Azure` keeps the dependency graph clean and follows .NET ecosystem conventions.
-- **The critical architectural insight is that Azure is a new discovery source, not a new rendering pipeline.** `AzureResourceMonitor` should emit the same `ResourceInfo`/`ResourceStatusChange` records that the existing worker services already consume. All 10+ in-world services (beacons, particles, boss bar, guardian mobs, etc.) work unchanged.
-- **Polling beats Event Grid for v1.** Event Grid requires Azure infrastructure setup (topics, subscriptions, ingress) that destroys the "clone and run" developer experience. Polling at 30s intervals stays well within ARM API rate limits (~6,000 calls/hr vs ~12,000/hr cap).
-- **Scale is the biggest unknown.** A production Azure RG can have 200+ resources. The current 2-column village layout at 10-block spacing would stretch 1,000+ blocks — well beyond beacon render distance (256 blocks) and the configured `MAX_WORLD_SIZE` (256). A `MaxResources` cap and default resource type exclusion list are mandatory for v1.
-- **RCON throughput is a hidden constraint for Azure.** 50 resources × ~15 fill commands × 250ms throttle = ~3 minutes for initial world build. The Aspire path typically has 3–8 resources, so this never surfaced. May need batch mode or throttle bypass for initial construction.
-- **`DefaultAzureCredential` is the right default but first-run DX will be rough.** The credential chain's error messages are notoriously confusing for devs who haven't done `az login`. A connectivity pre-check in the worker before building structures would save support headaches.
+**Architecture decisions:** Separate Azure NuGet package (no Azure.ResourceManager in main). Polling (30s) beats Event Grid for developer experience. All feature toggles use consistent env var pattern (`ASPIRE_FEATURE_*`). Dedicated RCON rate limiter (10 cmd/s standard, burst mode 40 cmd/s). BlueMap integration testing uses RCON block verification + shared Aspire test fixture. Anonymous horseSpawner provides easter egg discovery.
 
 ### 2026-02-10: API Surface Freeze & Demo Review for v0.2.0
 
@@ -168,3 +132,84 @@
  Team update (2026-02-12): Famous Buildings API designed  AsMinecraftFamousBuilding(FamousBuilding enum), 15 iconic buildings (geographic diversity), pure C# build models, annotation-based with env var flow, requires WithGrandVillage(), 200 RCON command max per building, two-sprint phasing (3 buildings in Sprint A, 12 remaining in Sprint B)  decided by Rhodey
  Team update (2026-02-12): MonitorAllResources convenience API design approved  .MonitorAllResources() extension auto-discovers all non-Minecraft resources, ExcludeFromMonitoring() opt-out, eliminates manual WithMonitoredResource() calls, eager discovery, Famous Building annotations pass through  decided by Rhodey
  Team update (2026-02-12): Aspire observability visualization ideas documented (10 ideas: Trace River, Enchanting Tower, Log Campfires, Nether Portal Gateway, Sculk Sensor Network, Minecart Rails, Villager Trading Hall, Redstone Clock Dashboard, Ender Chest Trace Explorer, Dragon Health Egg)  Dragon Egg + Redstone Clock + Sculk recommended for Sprint 4; Trace River + Log Campfires + Nether Portal for Sprint 5 (requires OTLP architecture investment)  decided by Rhodey
+📌 Team update (2026-02-12): Terminology directive — use "milestones" instead of "sprints" going forward for all planning documents and discussions — decided by Jeffrey T. Fritz
+
+### 2026-02-13: v0.5.0 API Review & Release Verification
+
+- **API surface is clean.** 35 public extension methods, 5 public types, 0 internal type leakage. `WithGrandVillage()` and `WithMinecartRails()` follow the established guard clause pattern (WorkerBuilder null check → env var set → fluent return). Both included in `WithAllFeatures()`. XML docs complete on all public members.
+- **Build passes:** 0 errors. 1 pre-existing CS8604 warning (nullable in `MinecraftServerResource.ConnectionStringExpression`). 1 pre-existing xUnit1026 warning (unused parameter in `VillageLayoutTests`).
+- **434 unit tests pass:** 45 Rcon + 19 Hosting + 370 Worker. 0 unit test failures.
+
+📌 Team update (2026-02-15): Structural validation requirements — all acceptance tests must verify door accessibility, staircase connectivity, and wall-mounted items. Session milestone plan created, GitHub issues #93, #94, #95 generated. — decided by Jeff (Jeffrey T. Fritz)
+
+📌 Team update (2026-02-15): MCA Inspector milestone launched — read-only Minecraft Anvil format (NBT) library for bulk structural verification without RCON latency. Complements RCON testing. 4 phases: (1) Library foundation (3-4 days), (2) Test infrastructure (2 days), (3) Watchtower bulk verification (3 days), (4) Polish & release (1 day). Timeline: ~1.5 weeks. Success: AnvilRegionReader reads block state from real .mca files, 20+ unit tests (>90% coverage), integration tests verify 200+ block coordinates per building. — decided by Rhodey
+- **5 integration test failures are expected** — they require a running Minecraft Docker container. The `--filter "Category!=Integration"` doesn't exclude them because integration tests are missing `[Trait("Category", "Integration")]` — they use `[Collection("Minecraft")]` instead. Non-blocking, filed as observation.
+- **NuGet package created:** `Fritz.Aspire.Hosting.Minecraft.0.1.0-dev.nupkg` (~39.6 MB). Package validation passed. Version set to `0.5.0` at release time via CI pipeline `-p:Version` override.
+- **Three non-blocking observations for future work:** (1) Add `[Trait("Category", "Integration")]` to integration tests. (2) Fix CS8604 nullable warning. (3) Confirm CI sets correct version from git tag.
+- **Release decision:** APPROVED — written to `.ai-team/decisions/inbox/rhodey-v050-release-ready.md`.
+
+📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey
+
+📌 Team update (2026-02-15): Grand Watchtower exterior redesigned with ornate medieval aesthetics (deepslate buttresses, iron bar arrow slits, taller turrets with pinnacles, portcullis gatehouse, string courses) — stays under 100 RCON command budget — decided by Rocket
+
+### 2026-02-15: MCA Inspector Milestone Planned
+
+- **Milestone document created** at `.ai-team/decisions/inbox/rhodey-mca-inspector-milestone.md` — comprehensive plan for reading Minecraft Anvil region files directly to verify block state.
+- **Goal:** Bypass RCON for bulk structure verification. Today's tests make 225+ RCON calls to verify one 15×15 watchtower; MCA inspector will query all blocks from disk in <1 second.
+- **Architecture:** New optional NuGet package `Aspire.Hosting.Minecraft.Anvil` (separate from main, keeps main free of NBT dependencies). AnvilRegionReader class provides `GetBlockAt(x, y, z)` API.
+- **Four phases planned:** (1) Library + NBT selection (~4 days), (2) Test fixture integration (~2 days), (3) Bulk verification tests (~3 days), (4) Polish + docs (~1 day). Total ~1.5 weeks with 1 FTE.
+- **Why separate package?** Other Aspire consumers might want to audit Minecraft world saves independently. Cleaner separation of concerns.
+- **Why MCA over RCON?** RCON has ~50ms latency per call; 200 blocks = 10+ seconds. MCA on same filesystem ≈ <1 second. Trade-off: MCA is offline-only; RCON verifies real-time behavior.
+- **Why not BlueMap REST?** BlueMap serves rendered tiles, not raw block data. No block-level query API.
+- **Why not NBT parsing in Worker?** Worker is for gameplay. Parsing is a test concern. Separation keeps logic clean.
+- **GitHub issues created:** #92 (NBT library spike), #93 (AnvilRegionReader), #94 (MinecraftAppFixture integration).
+
+### 2026-02-16: Minecart Representation Brainstorm
+
+- **MinecartRailService foundation:** Places L-shaped powered rail networks between dependent resources, spawns chest minecarts at start, health-reactive disable/restore of powered rails. Already handles station placement (detector+powered+detector sequence), rail positioning math, and connection state tracking.
+- **Six minecart concept ideas evaluated:** (1) HTTP Request Flows (spawn minecarts per request), (2) Health Check Polling (round-trip cycle), (3) OTLP Trace Propagation (trace as minecart chain), (4) Log Message Flow (log level + color), (5) Startup Sequence (dependency propagation at boot), (6) Queue Depth Visualization (consumer/enqueue rate mismatch).
+- **Recommendation: HTTP Request Flows (#1).** Immediate feasibility (service spawns minecarts per active request, ~5 max per rail for visual clarity), real diagnostic value (visualizes actual runtime request traffic, not just infrastructure), conference demo narrative (visible cause/effect: API call → minecart move → service degradation → minecart stall), no new data source required (leverages existing health checks), scales cleanly to 20+ resources.
+- **Secondary pick: Startup Sequence (#5).** Low RCON cost (one-time event), visually memorable, fits existing dependency ordering logic, could ship as phase 2 if request flows is ambitious.
+- **Reject OTLP Traces (#3) for now.** Dream feature but requires Sprint 5 OTLP ingestion architecture to land first. Put on v1.0 roadmap.
+- **Feasibility analysis:** Request flow = Medium risk (minecart spawning + hitbox counting). Health checks = Hard (pathfinding). Queue depth = Medium (metric polling + spawn/despawn logic). All others = Hard or Very Hard (new data sources or complex routing).
+- **Key MinecartRailService files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs` (L-shaped path calculation, station placement, health-reactive rail disable). `VillageLayout.cs` (structure positioning, dependency ordering). `AspireResourceMonitor.cs` (health polling source). Extension method: `WithMinecartRails()` in main package.
+
+## Learnings
+
+### MinecartRailService Architecture Insights
+
+1. **Minecart rails are health-reactive but static.** Current design builds rails once, then toggles powered rails on/off based on parent health. Minecarts (if spawned) would inherit this reactive behavior automatically — they stop when powered rails are disabled, resume when restored. This is the hook for request flow visualization: spawn minecarts per request, let the health-reactive rail system do the "stalling on degradation" part naturally.
+
+2. **L-shaped path geometry is optimal for the village grid.** Rails travel X-axis first, then Z-axis. This avoids corners that would require sloped rail blocks (not implemented) and keeps minecarts aligned to grid. Powered rails every 8 blocks is the refresh rate (minecart speed in Minecraft).
+
+3. **Station design (detector + powered + detector) is the integration point.** Detector rails trigger redstone at endpoints. If we want to count minecarts arriving at a station or measure request completion, we hook into the detector rail's redstone output. This is the path to "request latency visualization" later.
+
+4. **RCON cost scales with rail length, not minecart count.** Building a 50-block rail = ~50 setblock commands (one-time cost). Spawning 5 minecarts = 5 summon commands. The visual density problem isn't RCON; it's entity performance. Paper can handle ~50 minecarts server-wide before TPS drops, so limiting to 5 per rail and ~20 total active is safe.
+
+5. **Minecart respawning logic is trivial but needs debounce.** Spawn on demand (when request count increases), despawn when not needed (request count decreases). Use a `RequestCountTracker` polling the health endpoints every 5s, comparing desired count to actual minecarts via `execute as @e[type=chest_minecart]` count query. Avoid rapid spawn/despawn thrashing with 10s hysteresis.
+
+### MCA Inspector Architecture Decisions
+
+1. **Separate package is the right call.** By making Anvil optional, we:
+   - Keep the main package free of NBT library dependencies (lighter for non-testing consumers)
+   - Allow version independence (Anvil can patch independently)
+   - Enable other Aspire consumers to adopt the library without taking the full Minecraft hosting SDK
+   - Match the precedent of `Aspire.Hosting.Minecraft.Azure` being separate
+
+2. **Bulk verification is what MCA enables that RCON can't.** A single `GetBlockAt()` call on disk is ~1ms; RCON calls are ~50ms. When you need to verify 200+ blocks (entire structure geometry), the difference is material: 200ms (MCA) vs. 10s (RCON). But for single-point verification (did this command work?), RCON is fine. Tests will use both.
+
+3. **NBT parsing is commodity work; library selection matters.** fNbt is the obvious choice (MIT, widely used, documented), but the spike (Issue #92) is essential. We could find performance surprises or licensing issues. 2–3 days of prototyping saves regret later.
+
+4. **World save directory exposure is a small but critical fixture change.** The MinecraftAppFixture already mounts the world directory; we just need to expose the path. This unblocks all Phase 2+ work.
+
+5. **Coordinate system complexity is the risky part.** Anvil format uses: world coords (x, y, z) → region coords (rx, rz) → chunk coords (cx, cz) → section index (y/16) → block index (x%16, y%16, z%16). We'll need careful unit tests with known test data (.mca files with pre-placed blocks) to verify the math.
+
+### Milestone Planning Approach
+
+1. **Four-phase sequencing with clear blockers.** NBT selection (Phase 1.1) is a hard blocker for implementation. MinecraftAppFixture world path (Phase 2.1) is a hard blocker for integration tests. By identifying blockers upfront, we unblock parallel work (Phases 1 & 2 can overlap once 1.1 is done).
+
+2. **Performance baseline is mandatory.** We're proposing MCA *because* it's faster than RCON. If we ship without proving it, the claim is unvalidated. Phase 3.3 (performance doc) is not optional.
+
+3. **Complementary, not competitive.** The milestone plan explicitly frames MCA as a complement to RCON, not a replacement. This is important for adoption: teams will use both methods in the same test suite, each for what it's best at.
+
+4. **Risk mitigation table is underrated.** The milestone includes a risk table; this forces us to think about what could go wrong (unmaintained library, parsing errors, format changes) and what we'll do about each. Makes sprint planning more realistic.

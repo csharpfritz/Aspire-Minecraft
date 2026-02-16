@@ -47,6 +47,18 @@ builder.Services.AddSingleton(sp =>
         minCommandInterval: TimeSpan.FromMilliseconds(250));
 });
 
+// Grand Village mode — configure larger layout before any structure placement
+if (builder.Configuration["ASPIRE_FEATURE_GRAND_VILLAGE"] == "true")
+{
+    VillageLayout.ConfigureGrandLayout();
+}
+
+// Minecart rail network — register service when enabled
+if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
+{
+    builder.Services.AddSingleton<MinecartRailService>();
+}
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
@@ -148,7 +160,8 @@ file sealed class MinecraftWorldWorker(
     HeartbeatService? heartbeat = null,
     RedstoneDependencyService? redstoneGraph = null,
     ServiceSwitchService? serviceSwitches = null,
-    RedstoneDashboardService? redstoneDashboard = null) : BackgroundService
+    RedstoneDashboardService? redstoneDashboard = null,
+    MinecartRailService? minecartRails = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -165,8 +178,10 @@ file sealed class MinecraftWorldWorker(
         logger.LogInformation("Connected to Minecraft server via RCON");
 
         // Force-load the village chunks so block commands work before any player joins.
-        // Covers a generous area around the village grid (BaseX=10, BaseZ=0) plus margins.
-        await rcon.SendCommandAsync("forceload add -20 -20 120 120", stoppingToken);
+        // Dynamically calculated from fence perimeter with extra margin.
+        var (flMinX, flMinZ, flMaxX, flMaxZ) = VillageLayout.GetFencePerimeter(10);
+        await rcon.SendCommandAsync(
+            $"forceload add {flMinX - 10} {flMinZ - 10} {flMaxX + 10} {flMaxZ + 10}", stoppingToken);
         logger.LogInformation("Village chunks force-loaded");
 
         // Detect terrain surface height before building anything
@@ -182,6 +197,8 @@ file sealed class MinecraftWorldWorker(
             await redstoneGraph.InitializeAsync(stoppingToken);
         if (redstoneDashboard is not null)
             await redstoneDashboard.InitializeAsync(stoppingToken);
+        if (minecartRails is not null)
+            await minecartRails.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
@@ -220,8 +237,6 @@ file sealed class MinecraftWorldWorker(
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
                     if (achievements is not null)
                         await achievements.CheckAchievementsAsync(changes, stoppingToken);
-                    if (redstoneGraph is not null)
-                        await redstoneGraph.UpdateAsync(stoppingToken);
                 }
 
                 // Achievement checks that run every cycle (e.g., Night Shift needs time query)
@@ -249,10 +264,14 @@ file sealed class MinecraftWorldWorker(
                     await worldBorder.UpdateWorldBorderAsync(stoppingToken);
                 if (heartbeat is not null)
                     await heartbeat.PulseAsync(stoppingToken);
+                if (redstoneGraph is not null)
+                    await redstoneGraph.UpdateAsync(stoppingToken);
                 if (serviceSwitches is not null)
                     await serviceSwitches.UpdateAsync(stoppingToken);
                 if (redstoneDashboard is not null)
                     await redstoneDashboard.UpdateAsync(stoppingToken);
+                if (minecartRails is not null)
+                    await minecartRails.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

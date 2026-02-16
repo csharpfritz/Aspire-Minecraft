@@ -12,6 +12,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 internal sealed class ServiceSwitchService(
     RconService rcon,
     AspireResourceMonitor monitor,
+    StructureBuilder structureBuilder,
     ILogger<ServiceSwitchService> logger)
 {
     private bool _switchesPlaced;
@@ -51,15 +52,14 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Place lever to the right of entrance (door is x+2 to x+4, so lever at x+5)
-            // Lever at ground level (y+1) on front wall (z).
-            // No separate lamp — StructureBuilder's health indicator already shows status.
-            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);
+            await PlaceLeverAsync(leverX, leverY, leverZ, powered, ct);
+            await PlaceLampAsync(leverX, leverY + 1, leverZ + 1, powered, ct);
 
             _lastKnownStatus[name] = info.Status;
 
             logger.LogInformation("Service switch placed for {ResourceName} at ({X},{Y},{Z}), powered={Powered}",
-                name, x + 5, y + 1, z, powered);
+                name, leverX, leverY, leverZ, powered);
         }
 
         logger.LogInformation("Service switches placed for {Count} resources", orderedNames.Count);
@@ -77,9 +77,9 @@ internal sealed class ServiceSwitchService(
             var (x, y, z) = VillageLayout.GetStructureOrigin(i);
             var powered = info.Status == ResourceStatus.Healthy;
 
-            // Always place switches (self-healing if destroyed)
-            // Position: to the right of entrance at x+5, y+1 (lever)
-            await PlaceLeverAsync(x + 5, y + 1, z, powered, ct);
+            var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);
+            await PlaceLeverAsync(leverX, leverY, leverZ, powered, ct);
+            await PlaceLampAsync(leverX, leverY + 1, leverZ + 1, powered, ct);
 
             _lastKnownStatus.TryGetValue(name, out var lastStatus);
             if (info.Status != lastStatus)
@@ -91,9 +91,29 @@ internal sealed class ServiceSwitchService(
         }
     }
 
+    /// <summary>
+    /// Computes the lever position: 2 blocks right of door center, at door base height,
+    /// one block in front of the wall face so the lever attaches to the wall behind it.
+    /// Falls back to a calculated position if the door position is not yet available.
+    /// </summary>
+    private (int X, int Y, int Z) GetLeverPosition(string resourceName, int originX, int originY, int originZ)
+    {
+        if (structureBuilder.TryGetDoorPosition(resourceName, out var door))
+        {
+            // 2 blocks to the right of door center, at door base height,
+            // one block in front of the wall face so it attaches to the wall behind it
+            return (door.CenterX + 2, door.TopY - 1, door.FaceZ - 1);
+        }
+
+        // Fallback: estimate from origin (one block in front of front wall)
+        return (originX + (VillageLayout.StructureSize / 2) + 2, originY + 1, originZ - 1);
+    }
+
     private async Task PlaceLeverAsync(int x, int y, int z, bool powered, CancellationToken ct)
     {
         var poweredState = powered ? "true" : "false";
+        // Lever is one block in front of the wall, facing north (extends toward player,
+        // attached to the wall behind it at z+1 = FaceZ)
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z} minecraft:lever[face=wall,facing=north,powered={poweredState}]",
             CommandPriority.Normal, ct);

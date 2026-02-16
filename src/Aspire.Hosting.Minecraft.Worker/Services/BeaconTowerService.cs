@@ -41,11 +41,12 @@ internal sealed class BeaconTowerService(
     /// </summary>
     public async Task UpdateBeaconTowersAsync(CancellationToken ct = default)
     {
-        var index = 0;
-        foreach (var (_, info) in monitor.Resources)
+        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
+        for (var index = 0; index < orderedNames.Count; index++)
         {
+            var name = orderedNames[index];
+            if (!monitor.Resources.TryGetValue(name, out var info)) continue;
             await BuildBeaconTowerAsync(info, index, ct);
-            index++;
         }
 
         logger.LogDebug("Beacon towers updated for {Count} resources", monitor.TotalCount);

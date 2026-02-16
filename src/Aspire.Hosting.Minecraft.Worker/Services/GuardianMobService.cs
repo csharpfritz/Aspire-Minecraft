@@ -12,12 +12,6 @@ internal sealed class GuardianMobService(
     AspireResourceMonitor monitor,
     ILogger<GuardianMobService> logger)
 {
-    private const int BaseX = 10;
-    private const int BaseZ = -4; // Offset to avoid overlap with structures
-    private const int Spacing = 10;
-
-    private int BaseY => VillageLayout.SurfaceY + 2;
-
     private readonly Dictionary<string, ResourceStatus> _lastKnownStatus = new();
 
     /// <summary>
@@ -25,26 +19,28 @@ internal sealed class GuardianMobService(
     /// </summary>
     public async Task UpdateGuardianMobsAsync(CancellationToken ct = default)
     {
-        var index = 0;
-        foreach (var (name, info) in monitor.Resources)
+        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
+        for (var index = 0; index < orderedNames.Count; index++)
         {
+            var name = orderedNames[index];
+            if (!monitor.Resources.TryGetValue(name, out var info)) continue;
+
             // Only respawn if status changed or first time
             if (!_lastKnownStatus.TryGetValue(name, out var lastStatus) || lastStatus != info.Status)
             {
                 await SpawnGuardianAsync(name, info.Status, index, ct);
                 _lastKnownStatus[name] = info.Status;
             }
-            index++;
         }
     }
 
     private async Task SpawnGuardianAsync(string resourceName, ResourceStatus status, int index, CancellationToken ct)
     {
-        var col = index % VillageLayout.Columns;
-        var row = index / VillageLayout.Columns;
-        var x = BaseX + 3 + (col * Spacing);
-        var y = BaseY;
-        var z = BaseZ + (row * Spacing);
+        // Position guardian in front of the structure entrance, offset by -3 in Z
+        var (ox, _, oz) = VillageLayout.GetStructureOrigin(index);
+        var x = ox + (VillageLayout.StructureSize / 2);
+        var y = VillageLayout.SurfaceY + 2;
+        var z = oz - 3;
 
         var mobTag = $"guardian_{resourceName}";
 

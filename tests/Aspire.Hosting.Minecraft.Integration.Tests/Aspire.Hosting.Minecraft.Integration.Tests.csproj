@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Testing" Version="*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />
+    <PackageReference Include="xunit" Version="*" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="*" />
+    <PackageReference Include="coverlet.collector" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\MinecraftAspireDemo\MinecraftAspireDemo.AppHost\MinecraftAspireDemo.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" />
+    <ProjectReference Include="..\..\src\Aspire.Hosting.Minecraft.Worker\Aspire.Hosting.Minecraft.Worker.csproj" />
+  </ItemGroup>
+
+</Project>
