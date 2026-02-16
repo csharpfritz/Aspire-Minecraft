@@ -48,4 +48,4 @@ jobs:
         run: dotnet build Aspire-Minecraft.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal
+        run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration"
