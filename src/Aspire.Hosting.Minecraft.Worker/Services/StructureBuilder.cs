@@ -65,9 +65,14 @@ internal sealed class StructureBuilder(
                 _pathsBuilt = true;
             }
 
-            var index = 0;
-            foreach (var (name, info) in monitor.Resources)
+            // Use dependency ordering so structures match the layout used by
+            // RedstoneDependencyService, MinecartRailService, ServiceSwitchService, etc.
+            var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
+            for (var index = 0; index < orderedNames.Count; index++)
             {
+                var name = orderedNames[index];
+                if (!monitor.Resources.TryGetValue(name, out var info)) continue;
+
                 if (!_builtStructures.Contains(name))
                 {
                     await BuildResourceStructureAsync(info, index, ct);
@@ -88,7 +93,6 @@ internal sealed class StructureBuilder(
                         logger.LogWarning(ex, "Failed to update health indicator for {ResourceName}", name);
                     }
                 }
-                index++;
             }
 
             // After the first complete build, flush world to disk and trigger BlueMap re-render
@@ -190,8 +194,23 @@ internal sealed class StructureBuilder(
     }
 
     /// <summary>
+    /// Determines if a resource type represents an executable-based resource.
+    /// Matches ExecutableResource subclasses like PythonAppResource and NodeAppResource
+    /// whose concrete type names are sent via environment variables.
+    /// </summary>
+    internal static bool IsExecutableResource(string resourceType)
+    {
+        var lower = resourceType.ToLowerInvariant();
+        return lower.Contains("executable")
+            || lower.Contains("pythonapp")
+            || lower.Contains("nodeapp")
+            || lower.Contains("javascriptapp");
+    }
+
+    /// <summary>
     /// Selects the structure type based on Aspire resource type.
     /// Database resources get Cylinder, Azure (non-database) resources get AzureThemed,
+    /// executable-based resources (Python, Node.js) get Workshop,
     /// then falls through to standard type mapping.
     /// </summary>
     internal static string GetStructureType(string resourceType)
@@ -202,11 +221,13 @@ internal sealed class StructureBuilder(
         if (IsAzureResource(resourceType))
             return "AzureThemed";
 
+        if (IsExecutableResource(resourceType))
+            return "Workshop";
+
         return resourceType.ToLowerInvariant() switch
         {
             "project" => "Watchtower",
             "container" => "Warehouse",
-            "executable" => "Workshop",
             _ => "Cottage"
         };
     }

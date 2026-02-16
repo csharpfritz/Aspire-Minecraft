@@ -237,10 +237,6 @@ file sealed class MinecraftWorldWorker(
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
                     if (achievements is not null)
                         await achievements.CheckAchievementsAsync(changes, stoppingToken);
-                    if (redstoneGraph is not null)
-                        await redstoneGraph.UpdateAsync(stoppingToken);
-                    if (minecartRails is not null)
-                        await minecartRails.UpdateAsync(stoppingToken);
                 }
 
                 // Achievement checks that run every cycle (e.g., Night Shift needs time query)
@@ -268,10 +264,14 @@ file sealed class MinecraftWorldWorker(
                     await worldBorder.UpdateWorldBorderAsync(stoppingToken);
                 if (heartbeat is not null)
                     await heartbeat.PulseAsync(stoppingToken);
+                if (redstoneGraph is not null)
+                    await redstoneGraph.UpdateAsync(stoppingToken);
                 if (serviceSwitches is not null)
                     await serviceSwitches.UpdateAsync(stoppingToken);
                 if (redstoneDashboard is not null)
                     await redstoneDashboard.UpdateAsync(stoppingToken);
+                if (minecartRails is not null)
+                    await minecartRails.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

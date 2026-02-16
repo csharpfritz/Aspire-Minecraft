@@ -19,11 +19,11 @@ internal sealed class ParticleEffectService(
     {
         if (changes.Count == 0) return;
 
-        var resourceNames = monitor.Resources.Keys.ToList();
+        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
 
         foreach (var change in changes)
         {
-            var index = resourceNames.IndexOf(change.Name);
+            var index = orderedNames.IndexOf(change.Name);
             if (index < 0) continue;
 
             var (x, y, z) = VillageLayout.GetAboveStructure(index);

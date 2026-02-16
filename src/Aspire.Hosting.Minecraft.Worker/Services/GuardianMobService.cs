@@ -19,16 +19,18 @@ internal sealed class GuardianMobService(
     /// </summary>
     public async Task UpdateGuardianMobsAsync(CancellationToken ct = default)
     {
-        var index = 0;
-        foreach (var (name, info) in monitor.Resources)
+        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
+        for (var index = 0; index < orderedNames.Count; index++)
         {
+            var name = orderedNames[index];
+            if (!monitor.Resources.TryGetValue(name, out var info)) continue;
+
             // Only respawn if status changed or first time
             if (!_lastKnownStatus.TryGetValue(name, out var lastStatus) || lastStatus != info.Status)
             {
                 await SpawnGuardianAsync(name, info.Status, index, ct);
                 _lastKnownStatus[name] = info.Status;
             }
-            index++;
         }
     }
 
