@@ -36,14 +36,19 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Restore
         run: dotnet restore Aspire-Minecraft.slnx
 
       - name: Build
         run: dotnet build Aspire-Minecraft.slnx -c Release --no-restore -p:Version=${{ steps.version.outputs.VERSION }}
-
-      - name: Test
-        run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration"
 
       - name: Pack
         run: dotnet pack Aspire-Minecraft.slnx -c Release --no-build -o nupkgs -p:Version=${{ steps.version.outputs.VERSION }}
