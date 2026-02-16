@@ -289,42 +289,54 @@ public static class MinecraftServerBuilderExtensions
         // Resolve endpoints for health checking.
         // GetEndpoint() never throws — it creates a dangling reference for missing endpoints.
         // We must iterate GetEndpoints() to find actually-existing endpoints.
-        workerBuilder.WithEnvironment(context =>
-        {
-            if (resource.Resource is IResourceWithEndpoints resourceWithEndpoints)
-            {
-                EndpointReference? httpRef = null;
-                EndpointReference? firstRef = null;
-                foreach (var ep in resourceWithEndpoints.GetEndpoints())
-                {
-                    firstRef ??= ep;
-                    if (string.Equals(ep.EndpointName, "http", StringComparison.OrdinalIgnoreCase))
-                    {
-                        httpRef = ep;
-                        break;
-                    }
-                    if (string.Equals(ep.EndpointName, "https", StringComparison.OrdinalIgnoreCase))
-                    {
-                        httpRef = ep;
-                    }
-                }
+        //
+        // IMPORTANT: Skip endpoint resolution for ExecutableResource subclasses (PythonApp, NodeApp, etc.)
+        // because their DCP-proxied endpoints are not reachable from the worker container's network context.
+        // Resources without endpoints are assumed healthy, matching Aspire dashboard behavior.
+        var isExecutable = resourceType.Contains("PythonApp", StringComparison.OrdinalIgnoreCase)
+            || resourceType.Contains("NodeApp", StringComparison.OrdinalIgnoreCase)
+            || resourceType.Contains("JavaScriptApp", StringComparison.OrdinalIgnoreCase)
+            || resourceType.Contains("Executable", StringComparison.OrdinalIgnoreCase);
 
-                if (httpRef is not null)
+        if (!isExecutable)
+        {
+            workerBuilder.WithEnvironment(context =>
+            {
+                if (resource.Resource is IResourceWithEndpoints resourceWithEndpoints)
                 {
-                    // HTTP/HTTPS endpoint — use URL for HTTP health check
-                    context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL"] =
-                        httpRef.Property(EndpointProperty.Url);
+                    EndpointReference? httpRef = null;
+                    EndpointReference? firstRef = null;
+                    foreach (var ep in resourceWithEndpoints.GetEndpoints())
+                    {
+                        firstRef ??= ep;
+                        if (string.Equals(ep.EndpointName, "http", StringComparison.OrdinalIgnoreCase))
+                        {
+                            httpRef = ep;
+                            break;
+                        }
+                        if (string.Equals(ep.EndpointName, "https", StringComparison.OrdinalIgnoreCase))
+                        {
+                            httpRef = ep;
+                        }
+                    }
+
+                    if (httpRef is not null)
+                    {
+                        // HTTP/HTTPS endpoint — use URL for HTTP health check
+                        context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL"] =
+                            httpRef.Property(EndpointProperty.Url);
+                    }
+                    else if (firstRef is not null)
+                    {
+                        // Non-HTTP endpoint (Redis, databases, etc.) — pass host:port for TCP check
+                        context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_HOST"] =
+                            firstRef.Property(EndpointProperty.Host);
+                        context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_PORT"] =
+                            firstRef.Property(EndpointProperty.Port);
+                    }
                 }
-                else if (firstRef is not null)
-                {
-                    // Non-HTTP endpoint (Redis, databases, etc.) — pass host:port for TCP check
-                    context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_HOST"] =
-                        firstRef.Property(EndpointProperty.Host);
-                    context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_PORT"] =
-                        firstRef.Property(EndpointProperty.Port);
-                }
-            }
-        });
+            });
+        }
 
         return builder;
     }

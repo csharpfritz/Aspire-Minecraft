@@ -1649,12 +1649,14 @@ internal sealed class StructureBuilder(
     /// Azure banners on all four roof corners.
     /// Interior: light blue carpet floor, blue stained glass internal windows,
     /// brewing stand and cauldron (cloud services aesthetic).
-    /// ~50-60 RCON commands.
+    /// Key Vault variant: vault-themed interior with iron doors, iron bars, locked chests, barrels.
+    /// ~50-60 RCON commands standard, ~75 commands for Key Vault variant.
     /// </summary>
     private async Task<DoorPosition> BuildGrandAzurePavilionAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var s = VillageLayout.StructureSize - 1; // 14
         var half = s / 2; // 7
+        var isKeyVault = info.Type.Contains("keyvault", StringComparison.OrdinalIgnoreCase);
 
         // === FOUNDATION: 15×15 light blue concrete floor ===
         await rcon.SendCommandAsync(
@@ -1736,27 +1738,108 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x + 9} {y + 3} {z + s} {x + 11} {y + 5} {z + s} minecraft:blue_stained_glass_pane", ct);
 
-        // === INTERIOR: light blue carpet floor ===
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 1} {z + 1} {x + s - 1} {y + 1} {z + s - 1} minecraft:light_blue_carpet", ct);
+        if (isKeyVault)
+        {
+            // === KEY VAULT INTERIOR: vault-themed with iron doors, bars, locked chests ===
+            
+            // Dark vault floor: polished deepslate with iron trapdoor accents
+            await rcon.SendCommandAsync(
+                $"fill {x + 1} {y + 1} {z + 1} {x + s - 1} {y + 1} {z + s - 1} minecraft:polished_deepslate", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 3} {y + 1} {z + 3} {x + 4} {y + 1} {z + 4} minecraft:iron_trapdoor[open=false]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 10} {y + 1} {z + 10} {x + 11} {y + 1} {z + 11} minecraft:iron_trapdoor[open=false]", ct);
 
-        // === INTERIOR: brewing stand and cauldron (cloud services aesthetic) ===
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 1} {z + s - 2} minecraft:brewing_stand", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + s - 2} minecraft:cauldron", ct);
+            // Vault door frame (iron blocks) just inside entrance
+            await rcon.SendCommandAsync(
+                $"fill {x + half - 2} {y + 1} {z + 2} {x + half - 2} {y + 3} {z + 2} minecraft:iron_block", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + half + 1} {y + 1} {z + 2} {x + half + 1} {y + 3} {z + 2} minecraft:iron_block", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + half - 1} {y + 3} {z + 2} {x + half} {y + 3} {z + 2} minecraft:iron_block", ct);
 
-        // === INTERIOR: lanterns for lighting ===
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
+            // Iron door entrance (replace air door with iron door)
+            await rcon.SendCommandAsync(
+                $"setblock {x + half - 1} {y + 1} {z} minecraft:iron_door[facing=south,half=lower]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + half - 1} {y + 2} {z} minecraft:iron_door[facing=south,half=upper]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + half} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=right]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + half} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=right]", ct);
 
-        logger.LogInformation("Grand Azure Pavilion built at ({X},{Y},{Z})", x, y, z);
+            // Left vault cage: iron bars with locked chests behind
+            await rcon.SendCommandAsync(
+                $"fill {x + 2} {y + 1} {z + 5} {x + 2} {y + 3} {z + 9} minecraft:iron_bars", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 3} {y + 1} {z + 5} {x + 5} {y + 1} {z + 5} minecraft:chest[facing=south]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 3} {y + 1} {z + 7} {x + 5} {y + 1} {z + 7} minecraft:chest[facing=south]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 3} {y + 1} {z + 9} {x + 5} {y + 1} {z + 9} minecraft:chest[facing=south]", ct);
+
+            // Right vault cage: iron bars with locked chests
+            await rcon.SendCommandAsync(
+                $"fill {x + s - 2} {y + 1} {z + 5} {x + s - 2} {y + 3} {z + 9} minecraft:iron_bars", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + s - 5} {y + 1} {z + 5} {x + s - 3} {y + 1} {z + 5} minecraft:chest[facing=south]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + s - 5} {y + 1} {z + 7} {x + s - 3} {y + 1} {z + 7} minecraft:chest[facing=south]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + s - 5} {y + 1} {z + 9} {x + s - 3} {y + 1} {z + 9} minecraft:chest[facing=south]", ct);
+
+            // Barrel storage along back wall
+            await rcon.SendCommandAsync(
+                $"fill {x + 3} {y + 1} {z + s - 2} {x + 5} {y + 1} {z + s - 2} minecraft:barrel[facing=north]", ct);
+            await rcon.SendCommandAsync(
+                $"fill {x + 9} {y + 1} {z + s - 2} {x + 11} {y + 1} {z + s - 2} minecraft:barrel[facing=north]", ct);
+
+            // Ender chest as master key centerpiece
+            await rcon.SendCommandAsync(
+                $"setblock {x + half} {y + 1} {z + half} minecraft:ender_chest[facing=south]", ct);
+
+            // Heavy pressure plates (gold accents)
+            await rcon.SendCommandAsync(
+                $"setblock {x + half - 2} {y + 1} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + half + 1} {y + 1} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
+
+            // Soul lanterns for moody vault lighting
+            await rcon.SendCommandAsync(
+                $"setblock {x + 4} {y + 7} {z + 4} minecraft:soul_lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 10} {y + 7} {z + 4} minecraft:soul_lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 4} {y + 7} {z + 10} minecraft:soul_lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 10} {y + 7} {z + 10} minecraft:soul_lantern[hanging=true]", ct);
+
+            logger.LogInformation("Grand Azure Key Vault built at ({X},{Y},{Z})", x, y, z);
+        }
+        else
+        {
+            // === STANDARD AZURE INTERIOR: light blue carpet floor ===
+            await rcon.SendCommandAsync(
+                $"fill {x + 1} {y + 1} {z + 1} {x + s - 1} {y + 1} {z + s - 1} minecraft:light_blue_carpet", ct);
+
+            // === INTERIOR: brewing stand and cauldron (cloud services aesthetic) ===
+            await rcon.SendCommandAsync(
+                $"setblock {x + 3} {y + 1} {z + s - 2} minecraft:brewing_stand", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 5} {y + 1} {z + s - 2} minecraft:cauldron", ct);
+
+            // === INTERIOR: lanterns for lighting ===
+            await rcon.SendCommandAsync(
+                $"setblock {x + 4} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 10} {y + 7} {z + 4} minecraft:lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 4} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + 10} {y + 7} {z + 10} minecraft:lantern[hanging=true]", ct);
+
+            logger.LogInformation("Grand Azure Pavilion built at ({X},{Y},{Z})", x, y, z);
+        }
 
         return new DoorPosition(x + half, y + 2, z);
     }
