@@ -264,6 +264,9 @@ public class StructureBuilderTests : IAsyncLifetime
     [InlineData("container", "Warehouse")]
     [InlineData("Executable", "Workshop")]
     [InlineData("executable", "Workshop")]
+    [InlineData("PythonApp", "Workshop")]
+    [InlineData("NodeApp", "Workshop")]
+    [InlineData("JavaScriptApp", "Workshop")]
     [InlineData("Unknown", "Cottage")]
     [InlineData("CustomType", "Cottage")]
     [InlineData("", "Cottage")]
@@ -596,9 +599,9 @@ public class StructureBuilderTests : IAsyncLifetime
         await _structureBuilder.UpdateStructuresAsync();
 
         var commands = _server.GetCommands();
-        // Grand Workshop at (10, -59, 0): lampX=17, lampY=-55, lampZ=0
+        // Grand Workshop at (10, -59, 0): lampX=17, lampY=-54, lampZ=0
         var healthCmd = commands.FirstOrDefault(c =>
-            c.Contains("setblock 17 -55 0 minecraft:glowstone"));
+            c.Contains("setblock 17 -54 0 minecraft:glowstone"));
 
         Assert.NotNull(healthCmd);
     }
@@ -666,9 +669,9 @@ public class StructureBuilderTests : IAsyncLifetime
         await _structureBuilder.UpdateStructuresAsync();
 
         var commands = _server.GetCommands();
-        // Grand Azure Pavilion at (10, -59, 0): lampX=17, lampY=-56, lampZ=0
+        // Grand Azure Pavilion at (10, -59, 0): lampX=17, lampY=-55, lampZ=0
         var healthCmd = commands.FirstOrDefault(c =>
-            c.Contains("setblock 17 -56 0 minecraft:glowstone"));
+            c.Contains("setblock 17 -55 0 minecraft:glowstone"));
 
         Assert.NotNull(healthCmd);
     }
@@ -995,9 +998,9 @@ public class StructureBuilderTests : IAsyncLifetime
 
         var commands = _server.GetCommands();
         
-        // Structure at (10, -59, 0), DoorPosition(17, -56, 0) → door x=16-18, y=-58 to -56, z=0
+        // Structure at (10, -59, 0), DoorPosition(17, -55, 0) → door x=16-18, y=-58 to -55, z=0
         var doorX = new[] { 16, 17, 18 };
-        var doorY = new[] { -58, -57, -56 };
+        var doorY = new[] { -58, -57, -56, -55 };
         var doorZ = 0;
 
         var overlappingBlocks = commands.Where(c =>
@@ -1061,8 +1064,8 @@ public class StructureBuilderTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Grand Cylinder doorway (3-wide, 2-tall iron door): verify NO blocks overlap the door opening.
-    /// Door opening: x+6 to x+8, y+1 to y+2, z=0.
+    /// Grand Cylinder doorway (1-wide, 2-tall spruce door): verify NO blocks overlap the door opening.
+    /// Door opening: x+7, y+1 to y+2, z=0.
     /// </summary>
     [Fact]
     public async Task GrandCylinder_DoorwayVisibility_NoBlocksOverlapDoorOpening()
@@ -1077,8 +1080,8 @@ public class StructureBuilderTests : IAsyncLifetime
 
         var commands = _server.GetCommands();
         
-        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=16-18, y=-58 to -57, z=0
-        var doorX = new[] { 16, 17, 18 };
+        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=17, y=-58 to -57, z=0
+        var doorX = new[] { 17 };
         var doorY = new[] { -58, -57 };
         var doorZ = 0;
 
@@ -1095,15 +1098,15 @@ public class StructureBuilderTests : IAsyncLifetime
             var block = parts[4];
             
             return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
-                   !block.Contains("air") && !block.Contains("iron_door");
+                   !block.Contains("air") && !block.Contains("_door");
         }).ToList();
 
         Assert.Empty(overlappingBlocks);
     }
 
     /// <summary>
-    /// Grand Azure Pavilion doorway (3-wide, 2-tall): verify NO blocks overlap the door opening.
-    /// Door opening: x+6 to x+8, y+1 to y+2, z=0.
+    /// Grand Azure Pavilion doorway (2-wide, 3-tall): verify NO blocks overlap the door opening.
+    /// Door opening: x+6 to x+7, y+1 to y+3, z=0.
     /// </summary>
     [Fact]
     public async Task GrandAzurePavilion_DoorwayVisibility_NoBlocksOverlapDoorOpening()
@@ -1118,9 +1121,9 @@ public class StructureBuilderTests : IAsyncLifetime
 
         var commands = _server.GetCommands();
         
-        // Structure at (10, -59, 0), DoorPosition(17, -57, 0) → door x=16-18, y=-58 to -57, z=0
-        var doorX = new[] { 16, 17, 18 };
-        var doorY = new[] { -58, -57 };
+        // Structure at (10, -59, 0), DoorPosition(17, -56, 0) → door x=16-17, y=-58 to -56, z=0
+        var doorX = new[] { 16, 17 };
+        var doorY = new[] { -58, -57, -56 };
         var doorZ = 0;
 
         var overlappingBlocks = commands.Where(c =>
@@ -1136,7 +1139,7 @@ public class StructureBuilderTests : IAsyncLifetime
             var block = parts[4];
             
             return doorX.Contains(x) && doorY.Contains(y) && z == doorZ && 
-                   !block.Contains("air") && !block.Contains("oak_door");
+                   !block.Contains("air") && !block.Contains("dark_oak_door");
         }).ToList();
 
         Assert.Empty(overlappingBlocks);
@@ -1496,7 +1499,7 @@ public class StructureBuilderTests : IAsyncLifetime
         
         var parts = healthCmd!.Split(' ');
         Assert.Equal("17", parts[1]);
-        Assert.Equal("-55", parts[2]); // TopY=y+3, so TopY+1=y+4=-55
+        Assert.Equal("-54", parts[2]); // TopY=y+4, so TopY+1=y+5=-54
         Assert.Equal("0", parts[3]);
     }
 
@@ -1558,7 +1561,7 @@ public class StructureBuilderTests : IAsyncLifetime
 
     /// <summary>
     /// Health indicator placement: Grand Azure Pavilion glow block must be at (CenterX, TopY+1, FaceZ).
-    /// DoorPosition(17, -57, 0) → GlowBlock at (17, -56, 0).
+    /// DoorPosition(17, -56, 0) → GlowBlock at (17, -55, 0).
     /// </summary>
     [Fact]
     public async Task GrandAzurePavilion_HealthIndicator_AtCorrectDoorPositionCoordinates()
@@ -1580,7 +1583,7 @@ public class StructureBuilderTests : IAsyncLifetime
         
         var parts = healthCmd!.Split(' ');
         Assert.Equal("17", parts[1]);
-        Assert.Equal("-56", parts[2]);
+        Assert.Equal("-55", parts[2]);
         Assert.Equal("0", parts[3]);
     }
 }

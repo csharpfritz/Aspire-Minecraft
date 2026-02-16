@@ -464,8 +464,8 @@ public class RconBlockVerificationTests : IAsyncLifetime
     public async Task Grand_Workshop_GlowBlock()
     {
         var commands = await BuildStructure("worker", "Executable", grand: true);
-        // DoorPosition(x+7, y+3, z) → GlowBlock(17, -55, 0)
-        AssertSetblock(commands, 17, -55, 0, "glowstone", "Health indicator");
+        // DoorPosition(x+7, y+4, z) → GlowBlock(17, -54, 0)
+        AssertSetblock(commands, 17, -54, 0, "glowstone", "Health indicator");
     }
 
     [Fact]
@@ -566,8 +566,8 @@ public class RconBlockVerificationTests : IAsyncLifetime
     public async Task Grand_AzurePavilion_GlowBlock()
     {
         var commands = await BuildStructure("storage", "azure.storage", grand: true);
-        // DoorPosition(x+half, y+2, z) → GlowBlock(17, -56, 0)
-        AssertSetblock(commands, 17, -56, 0, "glowstone", "Health indicator");
+        // DoorPosition(x+half, y+3, z) → GlowBlock(17, -55, 0)
+        AssertSetblock(commands, 17, -55, 0, "glowstone", "Health indicator");
     }
 
     [Fact]

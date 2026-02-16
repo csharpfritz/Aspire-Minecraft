@@ -359,8 +359,7 @@ public partial class StructuralGeometryTests : IAsyncLifetime
         var blockAtDoor = GetBlockAt(doorCenterX, groundY, result.Oz, commands);
         bool isPassable = blockAtDoor is null ||
                           IsAirBlock(blockAtDoor?.block) ||
-                          blockAtDoor?.block == "minecraft:iron_door" ||
-                          blockAtDoor?.block == "minecraft:oak_door";
+                          blockAtDoor?.block?.Contains("_door") == true;
 
         Assert.True(isPassable,
             $"Door opening at ({doorCenterX}, {groundY}, {result.Oz}) for {structureType} (grand={grand}) " +
@@ -400,19 +399,19 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GrandCylinder_IronDoorPlacedAtGroundLevel()
+    public async Task GrandCylinder_SpruceDoorPlacedAtGroundLevel()
     {
         VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("postgres", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
-        var ironDoors = setblocks.Where(s => s.Block == "minecraft:iron_door").ToList();
+        var doors = setblocks.Where(s => s.Block == "minecraft:spruce_door").ToList();
 
-        Assert.True(ironDoors.Count >= 2,
-            $"Expected at least 2 iron_door setblock commands (upper + lower half) but found {ironDoors.Count}");
+        Assert.True(doors.Count >= 2,
+            $"Expected at least 2 spruce_door setblock commands (upper + lower half) but found {doors.Count}");
 
-        var lowerDoor = ironDoors.FirstOrDefault(d => d.Properties.Contains("half=lower"));
-        var upperDoor = ironDoors.FirstOrDefault(d => d.Properties.Contains("half=upper"));
+        var lowerDoor = doors.FirstOrDefault(d => d.Properties.Contains("half=lower"));
+        var upperDoor = doors.FirstOrDefault(d => d.Properties.Contains("half=upper"));
 
         Assert.NotNull(lowerDoor);
         Assert.NotNull(upperDoor);

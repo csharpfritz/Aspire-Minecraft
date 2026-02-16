@@ -624,7 +624,7 @@ internal sealed class StructureBuilder(
         // === GROUND FLOOR FURNITURE (y+1 to y+6) ===
         // Crafting table
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + s - 1} minecraft:crafting_table", ct);
+            $"setblock {x + 2} {y + 2} {z + s - 1} minecraft:crafting_table", ct);
         // Resource name sign on back wall
         await rcon.SendCommandAsync(
             $"setblock {x + half} {y + 3} {z + s} minecraft:oak_wall_sign[facing=north]", ct);
@@ -703,13 +703,13 @@ internal sealed class StructureBuilder(
 
         // Interior: barrel storage
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 1} {z + 5} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 1} {y + 2} {z + 5} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + 5} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 5} {y + 2} {z + 5} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 1} {y + 2} {z + 3} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + 3} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 5} {y + 2} {z + 3} minecraft:barrel[facing=up]", ct);
 
         // Language-colored accent stripe at mid-height
         var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
@@ -795,39 +795,39 @@ internal sealed class StructureBuilder(
 
         // === INTERIOR: 8 barrels (4×2 grid) ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 2} {y + 2} {z + 12} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 3} {y + 2} {z + 12} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 4} {y + 2} {z + 12} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + 12} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 5} {y + 2} {z + 12} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 2} {y + 2} {z + 11} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 3} {y + 2} {z + 11} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 4} {y + 2} {z + 11} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + 11} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 5} {y + 2} {z + 11} minecraft:barrel[facing=up]", ct);
 
         // === INTERIOR: 2 chest rows ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 9} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 9} {y + 2} {z + 12} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 10} {y + 2} {z + 12} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 11} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 11} {y + 2} {z + 12} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 12} {y + 1} {z + 12} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 12} {y + 2} {z + 12} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 9} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 9} {y + 2} {z + 11} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 10} {y + 2} {z + 11} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 11} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 11} {y + 2} {z + 11} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 12} {y + 1} {z + 11} minecraft:chest[facing=south]", ct);
+            $"setblock {x + 12} {y + 2} {z + 11} minecraft:chest[facing=south]", ct);
 
         // === INTERIOR: hanging lanterns from ceiling ===
         await rcon.SendCommandAsync(
@@ -940,21 +940,22 @@ internal sealed class StructureBuilder(
 
         // Interior: crafting table + anvil
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + 5} minecraft:crafting_table", ct);
+            $"setblock {x + 2} {y + 2} {z + 5} minecraft:crafting_table", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 1} {z + 5} minecraft:anvil", ct);
+            $"setblock {x + 4} {y + 2} {z + 5} minecraft:anvil", ct);
 
         return new DoorPosition(x + 3, y + 2, z);
     }
 
     /// <summary>
     /// Grand Workshop — enlarged 15×15 executable building with loft and tool stations.
-    /// Oak plank walls with spruce log frame (corner posts + horizontal beams at y+5).
+    /// Oak plank walls with spruce log frame (corner posts + horizontal beams at y+6).
     /// A-frame peaked roof with spruce stair shingles. 2×2 cobblestone chimney with campfire.
-    /// Language-colored wool bands at y+4 and y+5. 4 standing banners on roof eave corners.
+    /// Language-colored wool bands at y+5 (primary) and y+4 (secondary).
+    /// 4 standing banners on roof eave corners.
     /// Cyan stained glass windows with flower boxes under front windows.
     /// Interior: crafting table, smithing table, stonecutter, anvil, grindstone, furnace, brewing stand.
-    /// Loft at y+6: half-floor accessible by ladder, storage barrels, bookshelf.
+    /// Loft at y+7: half-floor accessible by ladder, storage barrels, bookshelf.
     /// ~70 RCON commands.
     /// </summary>
     private async Task<DoorPosition> BuildGrandWorkshopAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
@@ -967,68 +968,68 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"fill {x} {y} {z} {x + s} {y} {z + s} minecraft:oak_planks", ct);
 
-        // === WALLS: hollow box, 5 blocks tall (y+1 to y+5) ===
+        // === WALLS: hollow box, 6 blocks tall (y+1 to y+6) — extra height for dual-stripe headroom ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + s} {y + 5} {z + s} minecraft:oak_planks hollow", ct);
+            $"fill {x} {y + 1} {z} {x + s} {y + 6} {z + s} minecraft:oak_planks hollow", ct);
 
         // === LANGUAGE-COLORED WOOL BANDS below beam level ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + s} {y + 4} {z + s} {wool} hollow", ct);
+            $"fill {x} {y + 5} {z} {x + s} {y + 5} {z + s} {wool} hollow", ct);
         if (secondary is not null)
         {
             await rcon.SendCommandAsync(
-                $"fill {x} {y + 3} {z} {x + s} {y + 3} {z + s} {secondary.Value.wool} hollow", ct);
+                $"fill {x} {y + 4} {z} {x + s} {y + 4} {z + s} {secondary.Value.wool} hollow", ct);
         }
 
-        // === SPRUCE LOG FRAME: corner posts (y+1 to y+5) ===
+        // === SPRUCE LOG FRAME: corner posts (y+1 to y+6) ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x} {y + 5} {z} minecraft:spruce_log", ct);
+            $"fill {x} {y + 1} {z} {x} {y + 6} {z} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 1} {z} {x + s} {y + 5} {z} minecraft:spruce_log", ct);
+            $"fill {x + s} {y + 1} {z} {x + s} {y + 6} {z} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z + s} {x} {y + 5} {z + s} minecraft:spruce_log", ct);
+            $"fill {x} {y + 1} {z + s} {x} {y + 6} {z + s} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 1} {z + s} {x + s} {y + 5} {z + s} minecraft:spruce_log", ct);
+            $"fill {x + s} {y + 1} {z + s} {x + s} {y + 6} {z + s} minecraft:spruce_log", ct);
 
-        // === SPRUCE LOG FRAME: horizontal beams at y+5 (top of walls) ===
+        // === SPRUCE LOG FRAME: horizontal beams at y+6 (top of walls) ===
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + s} {y + 5} {z} minecraft:spruce_log", ct);
+            $"fill {x} {y + 6} {z} {x + s} {y + 6} {z} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + s} {x + s} {y + 5} {z + s} minecraft:spruce_log", ct);
+            $"fill {x} {y + 6} {z + s} {x + s} {y + 6} {z + s} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 1} {x} {y + 5} {z + s - 1} minecraft:spruce_log", ct);
+            $"fill {x} {y + 6} {z + 1} {x} {y + 6} {z + s - 1} minecraft:spruce_log", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s} {y + 5} {z + 1} {x + s} {y + 5} {z + s - 1} minecraft:spruce_log", ct);
+            $"fill {x + s} {y + 6} {z + 1} {x + s} {y + 6} {z + s - 1} minecraft:spruce_log", ct);
 
         // === A-FRAME PEAKED ROOF: spruce stair shingles (along Z axis) ===
-        // Layer 1 (y+6): outer eaves
+        // Layer 1 (y+7): outer eaves
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z} {x + s} {y + 6} {z + 3} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+            $"fill {x} {y + 7} {z} {x + s} {y + 7} {z + 3} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + s - 3} {x + s} {y + 6} {z + s} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+            $"fill {x} {y + 7} {z + s - 3} {x + s} {y + 7} {z + s} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + 4} {x + s} {y + 6} {z + s - 4} minecraft:oak_planks", ct);
-        // Layer 2 (y+7): mid roof
+            $"fill {x} {y + 7} {z + 4} {x + s} {y + 7} {z + s - 4} minecraft:oak_planks", ct);
+        // Layer 2 (y+8): mid roof
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 7} {z + 2} {x + s} {y + 7} {z + 5} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+            $"fill {x} {y + 8} {z + 2} {x + s} {y + 8} {z + 5} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 7} {z + s - 5} {x + s} {y + 7} {z + s - 2} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+            $"fill {x} {y + 8} {z + s - 5} {x + s} {y + 8} {z + s - 2} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 7} {z + 6} {x + s} {y + 7} {z + s - 6} minecraft:oak_planks", ct);
-        // Layer 3 (y+8): upper roof
+            $"fill {x} {y + 8} {z + 6} {x + s} {y + 8} {z + s - 6} minecraft:oak_planks", ct);
+        // Layer 3 (y+9): upper roof
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 8} {z + 5} {x + s} {y + 8} {z + 6} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
+            $"fill {x} {y + 9} {z + 5} {x + s} {y + 9} {z + 6} minecraft:spruce_stairs[facing=south,half=bottom]", ct);
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 8} {z + s - 6} {x + s} {y + 8} {z + s - 5} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
-        // Layer 4 (y+9): ridge cap
+            $"fill {x} {y + 9} {z + s - 6} {x + s} {y + 9} {z + s - 5} minecraft:spruce_stairs[facing=north,half=bottom]", ct);
+        // Layer 4 (y+10): ridge cap
         await rcon.SendCommandAsync(
-            $"fill {x} {y + 9} {z + 7} {x + s} {y + 9} {z + 7} minecraft:spruce_slab", ct);
+            $"fill {x} {y + 10} {z + 7} {x + s} {y + 10} {z + 7} minecraft:spruce_slab", ct);
 
         // === CHIMNEY: 2×2 cobblestone at back-right corner ===
         await rcon.SendCommandAsync(
-            $"fill {x + s - 1} {y + 6} {z + s - 1} {x + s} {y + 10} {z + s} minecraft:cobblestone", ct);
+            $"fill {x + s - 1} {y + 7} {z + s - 1} {x + s} {y + 11} {z + s} minecraft:cobblestone", ct);
         await rcon.SendCommandAsync(
-            $"fill {x + s - 1} {y + 10} {z + s - 1} {x + s} {y + 10} {z + s} minecraft:campfire", ct);
+            $"fill {x + s - 1} {y + 11} {z + s - 1} {x + s} {y + 11} {z + s} minecraft:campfire", ct);
 
         // === CYAN STAINED GLASS WINDOWS ===
         // Front wall (z): 2 windows flanking the door
@@ -1053,81 +1054,81 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 3} {y + 2} {z} minecraft:flower_pot", ct);
 
-        // === DOOR: 3 blocks wide, 3 tall, centered on front wall ===
+        // === DOOR: 3 blocks wide, 4 tall, centered on front wall ===
         await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 1} {z} {x + 8} {y + 3} {z} minecraft:air", ct);
+            $"fill {x + 6} {y + 1} {z} {x + 8} {y + 4} {z} minecraft:air", ct);
 
         // === INTERIOR: tool stations along back wall ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + s - 1} minecraft:crafting_table", ct);
+            $"setblock {x + 2} {y + 2} {z + s - 1} minecraft:crafting_table", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 1} {z + s - 1} minecraft:smithing_table", ct);
+            $"setblock {x + 4} {y + 2} {z + s - 1} minecraft:smithing_table", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 1} {z + s - 1} minecraft:stonecutter", ct);
+            $"setblock {x + 6} {y + 2} {z + s - 1} minecraft:stonecutter", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 8} {y + 1} {z + s - 1} minecraft:anvil", ct);
+            $"setblock {x + 8} {y + 2} {z + s - 1} minecraft:anvil", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 10} {y + 1} {z + s - 1} minecraft:grindstone", ct);
+            $"setblock {x + 10} {y + 2} {z + s - 1} minecraft:grindstone", ct);
         // Furnace against back wall
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 1} {z + s - 1} minecraft:furnace[facing=south]", ct);
+            $"setblock {x + 1} {y + 2} {z + s - 1} minecraft:furnace[facing=south]", ct);
         // Brewing stand in opposite back corner
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 1} {y + 1} {z + s - 1} minecraft:brewing_stand", ct);
+            $"setblock {x + s - 1} {y + 2} {z + s - 1} minecraft:brewing_stand", ct);
 
-        // === LOFT at y+6: half-floor (back half) ===
+        // === LOFT at y+7: half-floor (back half) ===
         await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 6} {z + 7} {x + s - 1} {y + 6} {z + s - 1} minecraft:oak_planks", ct);
+            $"fill {x + 1} {y + 7} {z + 7} {x + s - 1} {y + 7} {z + s - 1} minecraft:oak_planks", ct);
 
         // Loft railing (fence along the loft edge)
         await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 7} {z + 7} {x + s - 1} {y + 7} {z + 7} minecraft:oak_fence", ct);
+            $"fill {x + 1} {y + 8} {z + 7} {x + s - 1} {y + 8} {z + 7} minecraft:oak_fence", ct);
 
         // Ladder access to loft (inside, against side wall)
         await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 1} {z + 7} {x + 1} {y + 6} {z + 7} minecraft:ladder[facing=east]", ct);
+            $"fill {x + 1} {y + 1} {z + 7} {x + 1} {y + 7} {z + 7} minecraft:ladder[facing=east]", ct);
 
         // Loft furnishing: storage barrels and bookshelf
         await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 3} {y + 8} {z + s - 1} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 5} {y + 8} {z + s - 1} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 7} {z + s - 1} minecraft:barrel[facing=up]", ct);
+            $"setblock {x + 7} {y + 8} {z + s - 1} minecraft:barrel[facing=up]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 2} {y + 7} {z + s - 1} minecraft:bookshelf", ct);
+            $"setblock {x + s - 2} {y + 8} {z + s - 1} minecraft:bookshelf", ct);
 
         // === INTERIOR LIGHTING: lanterns ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
+            $"setblock {x + 4} {y + 6} {z + 4} minecraft:lantern[hanging=true]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
+            $"setblock {x + s - 4} {y + 6} {z + 4} minecraft:lantern[hanging=true]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 5} {z + s - 4} minecraft:lantern[hanging=true]", ct);
+            $"setblock {x + 7} {y + 6} {z + s - 4} minecraft:lantern[hanging=true]", ct);
 
         // === 4 STANDING BANNERS on roof eave corners ===
         // Front corners: primary color
         await rcon.SendCommandAsync(
-            $"setblock {x} {y + 7} {z} {banner}[rotation=0]", ct);
+            $"setblock {x} {y + 8} {z} {banner}[rotation=0]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + s} {y + 7} {z} {banner}[rotation=0]", ct);
+            $"setblock {x + s} {y + 8} {z} {banner}[rotation=0]", ct);
         // Back corners: offset from chimney at back-right (x+s-1..x+s, z+s-1..z+s)
         if (secondary is not null)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x} {y + 7} {z + s} {secondary.Value.banner}[rotation=8]", ct);
+                $"setblock {x} {y + 8} {z + s} {secondary.Value.banner}[rotation=8]", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + s - 3} {y + 7} {z + s} {secondary.Value.banner}[rotation=8]", ct);
+                $"setblock {x + s - 3} {y + 8} {z + s} {secondary.Value.banner}[rotation=8]", ct);
         }
         else
         {
             await rcon.SendCommandAsync(
-                $"setblock {x} {y + 7} {z + s} {banner}[rotation=8]", ct);
+                $"setblock {x} {y + 8} {z + s} {banner}[rotation=8]", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + s - 3} {y + 7} {z + s} {banner}[rotation=8]", ct);
+                $"setblock {x + s - 3} {y + 8} {z + s} {banner}[rotation=8]", ct);
         }
 
-        return new DoorPosition(x + 7, y + 3, z);
+        return new DoorPosition(x + 7, y + 4, z);
     }
 
     /// <summary>
@@ -1260,33 +1261,33 @@ internal sealed class StructureBuilder(
 
         // === INTERIOR: bed ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + s - 2} minecraft:red_bed[facing=south,part=head]", ct);
+            $"setblock {x + 2} {y + 2} {z + s - 2} minecraft:red_bed[facing=south,part=head]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 1} {z + s - 1} minecraft:red_bed[facing=south,part=foot]", ct);
+            $"setblock {x + 2} {y + 2} {z + s - 1} minecraft:red_bed[facing=south,part=foot]", ct);
 
         // === INTERIOR: crafting table ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 1} {z + s - 2} minecraft:crafting_table", ct);
+            $"setblock {x + 4} {y + 2} {z + s - 2} minecraft:crafting_table", ct);
 
         // === INTERIOR: bookshelf ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 1} {z + s - 1} minecraft:bookshelf", ct);
+            $"setblock {x + 6} {y + 2} {z + s - 1} minecraft:bookshelf", ct);
 
         // === INTERIOR: furnace ===
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 2} {y + 1} {z + s - 1} minecraft:furnace[facing=north]", ct);
+            $"setblock {x + s - 2} {y + 2} {z + s - 1} minecraft:furnace[facing=north]", ct);
 
         // === INTERIOR: 2 chests ===
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 2} {y + 1} {z + 2} minecraft:chest[facing=south]", ct);
+            $"setblock {x + s - 2} {y + 2} {z + 2} minecraft:chest[facing=south]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 3} {y + 1} {z + 2} minecraft:chest[facing=south]", ct);
+            $"setblock {x + s - 3} {y + 2} {z + 2} minecraft:chest[facing=south]", ct);
 
         // === INTERIOR: potted flowers ===
         await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 1} {z + 1} minecraft:potted_poppy", ct);
+            $"setblock {x + 1} {y + 2} {z + 1} minecraft:potted_poppy", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + s - 1} {y + 1} {z + 1} minecraft:potted_dandelion", ct);
+            $"setblock {x + s - 1} {y + 2} {z + 1} minecraft:potted_dandelion", ct);
 
         // === INTERIOR: 4 torches for lighting ===
         await rcon.SendCommandAsync(
@@ -1579,15 +1580,15 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync($"setblock {x + 11} {y + 1} {z + 7} minecraft:redstone_lamp[lit=true]", ct);
         await rcon.SendCommandAsync($"setblock {x + 7} {y + 1} {z + 4} minecraft:redstone_lamp[lit=true]", ct);
 
-        // === IRON DOOR ENTRANCE (placed last so nothing overwrites it) ===
+        // === SPRUCE DOOR ENTRANCE (placed last so nothing overwrites it) ===
         // Clear only a 1-wide passage through the circular wall (z+0 to z+1), 3 tall
         await rcon.SendCommandAsync(
             $"fill {x + 7} {y + 1} {z} {x + 7} {y + 3} {z + 1} minecraft:air", ct);
         // Place door at z+0 (outer wall face)
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=left]", ct);
+            $"setblock {x + 7} {y + 1} {z} minecraft:spruce_door[facing=south,half=lower,hinge=left]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {x + 7} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=left]", ct);
+            $"setblock {x + 7} {y + 2} {z} minecraft:spruce_door[facing=south,half=upper,hinge=left]", ct);
 
         // === LADDER ACCESS to upper floor: along the central pillar ===
         for (int ly = 1; ly <= 6; ly++)
@@ -1749,9 +1750,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 1} {y + 9} {z + s - 1} minecraft:light_blue_banner[rotation=0]", ct);
 
-        // === DOOR: 2 blocks wide, 2 tall on front face (z-min) ===
+        // === DOOR: 2 blocks wide, 3 tall on front face (z-min) ===
         await rcon.SendCommandAsync(
-            $"fill {x + half - 1} {y + 1} {z} {x + half} {y + 2} {z} minecraft:air", ct);
+            $"fill {x + half - 1} {y + 1} {z} {x + half} {y + 3} {z} minecraft:air", ct);
 
         // === BLUE STAINED GLASS INTERNAL WINDOWS on side walls (y+3 to y+5) ===
         await rcon.SendCommandAsync(
@@ -1793,51 +1794,51 @@ internal sealed class StructureBuilder(
             await rcon.SendCommandAsync(
                 $"fill {x + half - 1} {y + 3} {z + 2} {x + half} {y + 3} {z + 2} minecraft:iron_block", ct);
 
-            // Iron door entrance (replace air door with iron door)
+            // Heavy oak door entrance — dark oak for vault aesthetic (right-click to open)
             await rcon.SendCommandAsync(
-                $"setblock {x + half - 1} {y + 1} {z} minecraft:iron_door[facing=south,half=lower]", ct);
+                $"setblock {x + half - 1} {y + 1} {z} minecraft:dark_oak_door[facing=south,half=lower]", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + half - 1} {y + 2} {z} minecraft:iron_door[facing=south,half=upper]", ct);
+                $"setblock {x + half - 1} {y + 2} {z} minecraft:dark_oak_door[facing=south,half=upper]", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + half} {y + 1} {z} minecraft:iron_door[facing=south,half=lower,hinge=right]", ct);
+                $"setblock {x + half} {y + 1} {z} minecraft:dark_oak_door[facing=south,half=lower,hinge=right]", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + half} {y + 2} {z} minecraft:iron_door[facing=south,half=upper,hinge=right]", ct);
+                $"setblock {x + half} {y + 2} {z} minecraft:dark_oak_door[facing=south,half=upper,hinge=right]", ct);
 
             // Left vault cage: iron bars with locked chests behind
             await rcon.SendCommandAsync(
-                $"fill {x + 2} {y + 1} {z + 5} {x + 2} {y + 3} {z + 9} minecraft:iron_bars", ct);
+                $"fill {x + 2} {y + 2} {z + 5} {x + 2} {y + 4} {z + 9} minecraft:iron_bars", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + 3} {y + 1} {z + 5} {x + 5} {y + 1} {z + 5} minecraft:chest[facing=south]", ct);
+                $"fill {x + 3} {y + 2} {z + 5} {x + 5} {y + 2} {z + 5} minecraft:chest[facing=south]", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + 3} {y + 1} {z + 7} {x + 5} {y + 1} {z + 7} minecraft:chest[facing=south]", ct);
+                $"fill {x + 3} {y + 2} {z + 7} {x + 5} {y + 2} {z + 7} minecraft:chest[facing=south]", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + 3} {y + 1} {z + 9} {x + 5} {y + 1} {z + 9} minecraft:chest[facing=south]", ct);
+                $"fill {x + 3} {y + 2} {z + 9} {x + 5} {y + 2} {z + 9} minecraft:chest[facing=south]", ct);
 
             // Right vault cage: iron bars with locked chests
             await rcon.SendCommandAsync(
-                $"fill {x + s - 2} {y + 1} {z + 5} {x + s - 2} {y + 3} {z + 9} minecraft:iron_bars", ct);
+                $"fill {x + s - 2} {y + 2} {z + 5} {x + s - 2} {y + 4} {z + 9} minecraft:iron_bars", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + s - 5} {y + 1} {z + 5} {x + s - 3} {y + 1} {z + 5} minecraft:chest[facing=south]", ct);
+                $"fill {x + s - 5} {y + 2} {z + 5} {x + s - 3} {y + 2} {z + 5} minecraft:chest[facing=south]", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + s - 5} {y + 1} {z + 7} {x + s - 3} {y + 1} {z + 7} minecraft:chest[facing=south]", ct);
+                $"fill {x + s - 5} {y + 2} {z + 7} {x + s - 3} {y + 2} {z + 7} minecraft:chest[facing=south]", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + s - 5} {y + 1} {z + 9} {x + s - 3} {y + 1} {z + 9} minecraft:chest[facing=south]", ct);
+                $"fill {x + s - 5} {y + 2} {z + 9} {x + s - 3} {y + 2} {z + 9} minecraft:chest[facing=south]", ct);
 
             // Barrel storage along back wall
             await rcon.SendCommandAsync(
-                $"fill {x + 3} {y + 1} {z + s - 2} {x + 5} {y + 1} {z + s - 2} minecraft:barrel[facing=north]", ct);
+                $"fill {x + 3} {y + 2} {z + s - 2} {x + 5} {y + 2} {z + s - 2} minecraft:barrel[facing=north]", ct);
             await rcon.SendCommandAsync(
-                $"fill {x + 9} {y + 1} {z + s - 2} {x + 11} {y + 1} {z + s - 2} minecraft:barrel[facing=north]", ct);
+                $"fill {x + 9} {y + 2} {z + s - 2} {x + 11} {y + 2} {z + s - 2} minecraft:barrel[facing=north]", ct);
 
             // Ender chest as master key centerpiece
             await rcon.SendCommandAsync(
-                $"setblock {x + half} {y + 1} {z + half} minecraft:ender_chest[facing=south]", ct);
+                $"setblock {x + half} {y + 2} {z + half} minecraft:ender_chest[facing=south]", ct);
 
             // Heavy pressure plates (gold accents)
             await rcon.SendCommandAsync(
-                $"setblock {x + half - 2} {y + 1} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
+                $"setblock {x + half - 2} {y + 2} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + half + 1} {y + 1} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
+                $"setblock {x + half + 1} {y + 2} {z + half} minecraft:heavy_weighted_pressure_plate", ct);
 
             // Soul lanterns for moody vault lighting
             await rcon.SendCommandAsync(
@@ -1859,9 +1860,9 @@ internal sealed class StructureBuilder(
 
             // === INTERIOR: brewing stand and cauldron (cloud services aesthetic) ===
             await rcon.SendCommandAsync(
-                $"setblock {x + 3} {y + 1} {z + s - 2} minecraft:brewing_stand", ct);
+                $"setblock {x + 3} {y + 2} {z + s - 2} minecraft:brewing_stand", ct);
             await rcon.SendCommandAsync(
-                $"setblock {x + 5} {y + 1} {z + s - 2} minecraft:cauldron", ct);
+                $"setblock {x + 5} {y + 2} {z + s - 2} minecraft:cauldron", ct);
 
             // === INTERIOR: lanterns for lighting ===
             await rcon.SendCommandAsync(
@@ -1876,7 +1877,7 @@ internal sealed class StructureBuilder(
             logger.LogInformation("Grand Azure Pavilion built at ({X},{Y},{Z})", x, y, z);
         }
 
-        return new DoorPosition(x + half, y + 2, z);
+        return new DoorPosition(x + half, y + 3, z);
     }
 
     /// <summary>
@@ -1897,7 +1898,7 @@ internal sealed class StructureBuilder(
             "Watchtower" => y + 9,
             "Warehouse" when isGrand => y + 9,
             "Warehouse" => y + 6,
-            "Workshop" when isGrand => y + 10,
+            "Workshop" when isGrand => y + 11,
             "Workshop" => y + 8,
             "Cylinder" => isGrand ? y + 13 : y + 7,
             "Cottage" => isGrand ? y + 9 : y + 6,
