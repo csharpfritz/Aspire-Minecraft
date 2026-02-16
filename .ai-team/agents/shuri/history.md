@@ -191,3 +191,13 @@
 - Fence/Paths/Forceload (#84) were already correctly implemented in the prior sprint — verified no hardcoded values remain. Gate uses `BaseX + StructureSize`, fence uses `FenceClearance`, forceload uses `GetFencePerimeter(10)` dynamically, `MAX_WORLD_SIZE` is 512.
 
 📌 Team update (2026-02-15): JAR files (e.g., opentelemetry-javaagent.jar) OK to keep in repo under lib/ folder; no need for build-time downloads — decided by Jeffrey T. Fritz
+
+### ExecutableResource Subclass Detection Fix (2026-02-15)
+
+- **Root cause:** `WithMonitoredResource()` sends the concrete class name via `GetType().Name.Replace("Resource", "")` — e.g., `PythonAppResource` → `"PythonApp"`, `NodeAppResource` → `"NodeApp"`. But `GetStructureType()` only matched the exact string `"executable"` in its switch statement.
+- **Fix:** Added `IsExecutableResource()` predicate (same pattern as `IsDatabaseResource`/`IsAzureResource`) that matches `"executable"`, `"pythonapp"`, `"nodeapp"`, and `"javascriptapp"` via `contains`-based string matching. Hooked it into `GetStructureType()` before the switch, returning `"Workshop"`.
+- **Pattern:** When Aspire resource types use inheritance (e.g., `PythonAppResource extends ExecutableResource`), the env var carries the concrete type name, not the base. The worker must use contains-matching to catch all subclasses, same as database and Azure resources already do.
+- **Key file:** `src/Aspire.Hosting.Minecraft.Worker/Services/StructureBuilder.cs`
+- **Tests added:** 5 new tests in `StructureBuilderTypeTests.cs` + 3 new `InlineData` entries in `StructureBuilderTests.cs`. All pass.
+
+ Team update (2026-02-16): Grid ordering unificationall services placing elements on village grid must use VillageLayout.ReorderByDependency(). Affects StructureBuilder, BeaconTowerService, GuardianMobService, ParticleEffectService, ServiceSwitchService, RedstoneDependencyService, MinecartRailService  decided by Rocket

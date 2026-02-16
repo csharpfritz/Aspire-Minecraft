@@ -100,6 +100,25 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 
 **RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.
 
+## Learnings
+
+### Village Grid Ordering Convention
+- ALL services that place elements on the village grid MUST use `VillageLayout.ReorderByDependency(monitor.Resources)` for index-to-position mapping, not raw `monitor.Resources` dictionary order.
+- Dictionary iteration order is non-deterministic with respect to dependency relationships. Services that used different orderings would place features (beacons, guardians, particles, levers, wires, rails) at wrong buildings.
+- Services affected: `StructureBuilder`, `BeaconTowerService`, `GuardianMobService`, `ParticleEffectService`, `ServiceSwitchService`, `RedstoneDependencyService`, `MinecartRailService`.
+- Services NOT affected (don't use grid indices): `HologramManager`, `ScoreboardManager`, `BossBarService`, `WeatherService`, `FireworksService`, `DeploymentFanfareService`, `ActionBarTickerService`, `WorldBorderService`, `HeartbeatService`.
+
+### Minecraft Wall-Mounted Block Placement
+- `facing=X` means the item extends in X direction; support block is in the OPPOSITE direction.
+- For a lever on a building's front wall (Z-min side): place lever at `FaceZ - 1` (one block in front of wall), use `facing=north` so support is to the south at `FaceZ` (the wall).
+- Never place a wall-mounted block AT the wall's Z coordinate — that replaces the wall block and the support direction points to interior air.
+- Lamp companions for levers go IN the wall at `(leverX, leverY + 1, leverZ + 1)` = `(leverX, leverY + 1, FaceZ)`.
+
+### Worker Loop Feature Gating
+- Transition-only features (`particles`, `titleAlerts`, `sounds`, `fireworks`, `deploymentFanfare`, `achievements`) run inside `changes.Count > 0` guard — correct, they only fire on health changes.
+- Continuous features (`weather`, `bossBar`, `beaconTowers`, etc.) run every cycle — they have internal transition tracking and only send RCON commands when state actually changes.
+- `redstoneGraph` and `minecartRails` were moved to the continuous section because they have their own `_lastKnownStatus` tracking and need to run every cycle to reconcile state.
+
 ### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment (2026-02-11)
 
 **Bug 1 — Buildings 1 block below ground:** `TerrainProbeService` detects `SurfaceY` as the Y of the highest solid block (the grass block). Structures placed their floor AT `SurfaceY`, replacing the grass and burying the bottom wall row underground. Fix: `VillageLayout.GetStructureOrigin()` now returns `SurfaceY + 1`. Also adjusted `StructureBuilder.BuildFencePerimeterAsync` (`fenceY = SurfaceY + 1`) and `BuildPathsAsync` (air clearing at `SurfaceY + 1`, cobblestone at `SurfaceY`).
@@ -325,6 +344,8 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 
 📌 Team update (2026-02-15): MCA Inspector milestone launched — read-only Minecraft Anvil format (NBT) library for bulk structural verification. Phase 1 (library) and Phase 2 (test infrastructure) are parallel-safe. Timeline: ~1.5 weeks. — decided by Rhodey
 
+📌 Team update (2026-02-16): Feature monitoring services moved to continuous loop and lever placement fixed (facing direction and wall attachment) — decided by Coordinator
+
 ### Grand Watchtower (Milestone 5, Issue #78) — IMPLEMENTED
 
 **Implementation:** `BuildGrandWatchtowerAsync` — 15×15 footprint, 20 blocks tall, 3 interior floors connected by spiral staircase. Activated when `VillageLayout.StructureSize >= 15` (same check as all other grand builders); standard 7×7 watchtower remains the fallback.
@@ -432,3 +453,5 @@ Key findings from researching automated acceptance testing against a live Minecr
 - Recommended approach: tiered strategy with RCON block verification as primary (P0), world file inspection as secondary (P1), and BlueMap visual regression as tertiary (P2).
 📌 Team update (2026-02-15): Minecraft automated acceptance testing strategy — gap analysis and solution roadmap consolidated. Current state: 372 tests but zero world-state verification. Root cause: tests verify RCON command strings are correct but not what actually exists in the Minecraft world (command-ordering and fill-overlap bugs escape). P0 recommendations: fix integration test CI, add fill-overlap detection (unit test), expand RCON block verification (integration test). With CI optimizations, integration tests will run in ~2 minutes. — decided by Nebula, Rocket
 
+
+ Team update (2026-02-16): Minecart lifecycle finalizedspawn on HTTP request, 3s timeout-based despawn at destination, max 5 carts/rail. NBT Age tracking with 5s polling cycle. ~1-2 RCON cmd/sec sustainable. Affects MinecartRailService implementation  decided by Rhodey

@@ -1,8 +1,5 @@
 ### 2026-02-10: NuGet hardening completed — floating deps pinned, SourceLink and deterministic builds added
 
-
-
-
 ### 2026-02-10: Proposed feature ideas for Aspire-Minecraft
 
 **By:** Rocket
@@ -18,11 +15,6 @@
 **Stretch Goals (Size M–L, Sprint 3):** Resource Village with Themed Architecture, Redstone Heartbeat Circuit, Nether Portal Frames, Live Log Wall, Player /trigger Commands, Advancement Achievements, Resource Dependency Rail Network.
 
 **Backlog (not in 3-sprint arc):** Nether Portal Frames, Live Log Wall, /trigger Commands.
-
-
-
-
-
 
 ### 2026-02-10: 3-Sprint Plan for Aspire-Minecraft
 
@@ -56,32 +48,17 @@
 
 **Cut line:** Rail Network drops first; Resource Village + Achievements are conference must-haves.
 
-
-
-
-
-
 ### 2026-02-10: CI/CD pipeline — build.yml + release.yml created
 
 **By:** Wong
 **What:** Created two GitHub Actions workflows: `build.yml` (CI on push/PR to main, ubuntu+windows matrix, restore→build→test→pack→upload) and `release.yml` (NuGet publish on `v*` tag, GitHub Release creation). Also added `.github/PULL_REQUEST_TEMPLATE.md`. No separate PR-validation workflow — `build.yml` covers PR triggers.
 **Why:** Sprint 1 blocker — no CI/CD existed. Packages can't ship to nuget.org without an automated publish pipeline. The matrix build ensures cross-platform correctness. Tag-triggered release keeps publishing intentional. `NUGET_API_KEY` secret must be configured in repo settings before first release.
 
-
-
-
-
-
 ### 2026-02-10: Test project structure and InternalsVisibleTo pattern established
 
 **By:** Nebula
 **What:** Created tests/Aspire.Hosting.Minecraft.Rcon.Tests and tests/Aspire.Hosting.Minecraft.Tests with xUnit and Microsoft.NET.Test.Sdk. Added InternalsVisibleTo to both source projects. Changed MinecraftHealthCheck.ParseConnectionString from private to internal for testability. 62 tests (45 RCON + 17 hosting), 0 failures.
 **Why:** CI/CD pipeline requires test projects to exist and pass. The InternalsVisibleTo pattern enables testing of internal types (RconPacket, endpoint constants, ParseConnectionString) without exposing them publicly.
-
-
-
-
-
 
 ### 2026-02-10: FluentAssertions removal and assertion library decision (consolidated)
 
@@ -90,21 +67,11 @@
 **Why:** Nebula flagged the licensing concern; Jeff confirmed no FluentAssertions. xUnit `Assert` was chosen over Shouldly/TUnit because all existing patterns (equality, boolean, null, empty, contains, throws) mapped 1:1 to `Assert.*` — no new package needed.
 **Status:** ✅ Resolved. FluentAssertions fully removed from both .csproj files and all test code.
 
-
-
-
-
-
 ### 2026-02-10: Track all work as GitHub issues with team member labels
 
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** All sprint plan items opened as GitHub issues. Labels created for each team member (rhodey, shuri, rocket, nebula, wong, mantis) and sprint (sprint-1, sprint-2, sprint-3). 34 issues created across 3 sprints. Labels should have distinct, visually meaningful colors for easy identification.
 **Why:** User directive — ensures visibility and accountability for all planned work.
-
-
-
-
-
 
 ### 2026-02-10: Single NuGet package consolidation (consolidated)
 
@@ -113,11 +80,6 @@
 **Why:** Simplifies the consumer experience — one package to install. The Rcon library is a pure implementation detail. The Worker is referenced via the `WithAspireWorldDisplay<TWorkerProject>()` generic type parameter, not as a library dependency.
 **Verified:** `dotnet restore` ✅, `dotnet build -c Release` ✅, `dotnet pack -c Release -o nupkgs` ✅ (single package: 39.6 MB), `dotnet test` ✅ (62 tests pass).
 **Status:** ✅ Resolved.
-
-
-
-
-
 
 ### 2026-02-10: Redstone Dependency Graph — Design & Implementation (consolidated)
 
@@ -140,10 +102,6 @@
 
 **Status:** ✅ Implemented (lifecycle updated).
 
-
-
-
-
 ### 2026-02-10: NuGet PackageId renamed to Fritz.Aspire.Hosting.Minecraft
 
 **By:** Shuri (requested by Jeffrey T. Fritz)
@@ -152,22 +110,12 @@
 **Verified:** restore ✅, build ✅ (0 errors), pack ✅ (`Fritz.Aspire.Hosting.Minecraft.0.1.0.nupkg`), test ✅ (207 tests pass).
 **Status:** ✅ Resolved.
 
-
-
-
-
-
 ### 2026-02-10: Blog outline structure and media plan for v0.1.0
 
 **By:** Mantis
 **What:** Created three deliverables in `docs/blog/`: `v0.1.0-release-outline.md` (full blog post outline with 7 sections, placeholder code snippets, social media copy), `v0.1.0-media-plan.md` (18 visual assets with capture instructions), and `v0.1.0-demo-script.md` (10-minute 4-act demo script).
 **Why:** First public release — the blog post is the primary announcement channel. .NET devs using Aspire are the audience. Demo climax is the "break" moment (stopping a service and watching 6 feedback channels react). 18 media assets cover blog, social media, and conference slides. Media captures require Sprint 1 features from Rocket.
 **Dependencies:** Rocket's Sprint 1 features (boss bar, weather, title alerts, sounds, particles) must be complete before media capture. Blog references actual sample `Program.cs`.
-
-
-
-
-
 
 ### 2026-02-10: Sprint 1 proactive test coverage for Rocket's features
 
@@ -178,11 +126,6 @@
 **Testability concern:** `RconService` is sealed with no interface — consider adding `IRconCommandSender` in Sprint 2.
 **Status:** ✅ Complete.
 
-
-
-
-
-
 ### 2026-02-10: Sprint 1 feature decisions — opt-in architecture, state tracking, health thresholds
 
 **By:** Rocket
@@ -192,11 +135,6 @@
 **Why:** Follows existing env var pattern. Opt-in ensures backward compatibility and zero additional RCON traffic for unused features. State tracking conserves server tick budget.
 **Status:** ✅ Implemented.
 
-
-
-
-
-
 ### 2026-02-10: Public API surface contract established
 
 **By:** Shuri
@@ -204,11 +142,6 @@
 **What:** Audited all public types and established intentional API surface. Made `MinecraftHealthCheck` internal (hosting). Made all Worker types internal (15 classes). Kept public: `MinecraftServerBuilderExtensions` (consumer entry point with 11 methods), `MinecraftServerResource`, and 5 RCON types (`RconClient`, `RconConnection`, `RconResponseParser`, `TpsResult`, `MsptResult`, `PlayerListResult`, `WorldListResult`).
 **Why:** Worker is a standalone service (`IsPackable=false`) — all its types are implementation details. RCON types kept public for consumers who want custom RCON commands. `EnablePackageValidation` catches accidental API surface changes.
 **Status:** ✅ Resolved.
-
-
-
-
-
 
 ### 2026-02-10: Sprint 2 API review — consistent, no breaking changes
 
@@ -232,11 +165,6 @@
 
 **Status:** ✅ Approved for v0.1.0 release cut.
 
-
-
-
-
-
 ### 2026-02-10: Beacon tower glass colors match Aspire dashboard resource type palette
 
 **By:** Rocket (requested by Jeffrey T. Fritz)
@@ -244,22 +172,12 @@
 **Why:** Green/red scheme gave no visual distinction between resource types. Dashboard uses blue for projects, purple for containers, teal for executables — beacon beams reinforce the same color language in-world. Health state overrides type color for at-a-glance alerting.
 **Status:** ✅ Resolved. Build passes, 248 tests pass.
 
-
-
-
-
-
 ### 2026-02-10: Hologram line-add commands must use unique text to avoid RCON throttle
 
 **By:** Rocket
 **What:** Fixed `HologramManager` using identical placeholder text (`&7...`) for all `dh line add` commands. The `RconService` 250ms throttle silently dropped duplicate commands in rapid succession, causing fewer hologram lines than expected. Changed to `&7line{n}` for unique commands.
 **Why:** The RCON throttle is intentional for preventing server flood. The fix works with the throttle rather than disabling it. Any future service issuing identical RCON commands in a tight loop must use unique command strings.
 **Status:** ✅ Resolved. Build passes, 248 tests pass.
-
-
-
-
-
 
 ### 2026-02-10: Sprint 2 feature decisions — action bar ticker, beacon towers, boss bar app name
 
@@ -276,22 +194,12 @@
 
 **Status:** ✅ Implemented. 248 tests pass.
 
-
-
-
-
-
 ### 2026-02-10: NuGet package version defaults to `0.1.0-dev`, overridden by CI
 
 **By:** Shuri
 **What:** Changed `<Version>` in csproj from `0.1.0` to `0.1.0-dev`. Local builds produce pre-release packages. The release workflow passes `-p:Version=X.Y.Z` (from git tag) which overrides the csproj default.
 **Why:** Previously every NuGet publish produced version `0.1.0` regardless of the git tag. The `-dev` suffix distinguishes local from release builds. MSBuild CLI properties always win over csproj values.
 **Status:** ✅ Resolved. Wong's release workflow update is the companion change.
-
-
-
-
-
 
 ### 2026-02-10: Server Properties API — WithServerProperty + Enums + File Loading (consolidated)
 
@@ -306,10 +214,6 @@
 **Design choices:** PascalCase→UPPER_SNAKE_CASE conversion. `WithServerPropertiesFile` reads at build/configuration time. Last-write-wins semantics.
 **Status:** ✅ Resolved.
 
-
-
-
-
 ### 2026-02-10: Sprint 2 — XML documentation, RCON throttle, config builder pattern review
 
 **By:** Shuri
@@ -321,11 +225,6 @@
 
 **Status:** ✅ Complete.
 
-
-
-
-
-
 ### 2026-02-10: Release workflow now extracts version from git tag
 
 **By:** Wong
@@ -333,20 +232,10 @@
 **Why:** Previously every tag-triggered release produced `0.1.0` packages regardless of the actual tag. The tag is now the single source of truth for release versions.
 **Status:** ✅ Resolved.
 
-
-
-
-
-
 ### 2026-02-10: User directive — sprint branches with PRs
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Each sprint's work should be done in a dedicated branch named after that sprint, then pushed and merged via PR to main on GitHub.
 **Why:** User request — captured for team memory
-
-
-
-
-
 
 ### 2026-02-10: E2E cascade failure scenario + 25-resource performance tests
 
@@ -364,11 +253,6 @@
 **Verified:** 303 tests across 3 projects, 0 failures.
 **Status:** ✅ Complete.
 
-
-
-
-
-
 ### 2026-02-10: API Surface Freeze for v0.2.0
 
 **By:** Rhodey
@@ -383,11 +267,6 @@
 - `WithWorldBorderPulse` was incorrectly grouped under Sprint 2 in the demo — moved to Sprint 3.
 
 **Status:** ✅ Resolved. Any API additions beyond this point require explicit review before release.
-
-
-
-
-
 
 ### 2026-02-10: Azure Resource Group Integration — Epic Design & SDK Research (consolidated)
 
@@ -415,10 +294,6 @@
 - Rocket: Owns Phase 2 (Azure type → Minecraft structure mapping)
 - Nebula: Owns Phase 4 (mocked ARM client tests, options validation)
 
-
-
-
-
 ### 2026-02-10: Advancement Achievements use RCON titles instead of datapacks
 
 **By:** Rocket
@@ -426,11 +301,6 @@
 **What:** `AdvancementService` grants four infrastructure achievements using RCON `title @a title/subtitle` with JSON text components and `playsound`. No Minecraft datapack advancements are used.
 **Why:** Mounting custom advancement JSON datapacks into the Minecraft container is complex and fragile. Title + subtitle + sound gives equivalent player feedback without container filesystem changes. Achievements tracked per-session via `HashSet<string>`.
 **Status:** ✅ Implemented. Follows opt-in pattern (`ASPIRE_FEATURE_ACHIEVEMENTS`, `WithAchievements()`).
-
-
-
-
-
 
 ### 2026-02-10: Azure Resource Visualization Design
 
@@ -449,11 +319,6 @@
 
 **Status:** 📐 Design complete — no implementation yet.
 
-
-
-
-
-
 ### 2026-02-10: Heartbeat service timing
 
 **By:** Rocket
@@ -465,22 +330,12 @@
 
 **Status:** ✅ Implemented (lifecycle updated).
 
-
-
-
-
-
 ### 2026-02-10: Resource Village Layout & Themed Structures
 
 **By:** Rocket
 **Issue:** #25
 
 **What:** Themed mini-buildings per Aspire resource type in a 2×N grid with 10-block spacing. Project=Watchtower, Container=Warehouse, Executable=Workshop, Unknown=Cottage. `VillageLayout` static class centralizes position calculations. Health indicator via redstone lamp in front wall.
-
-
-
-
-
 
 ### 2026-02-10: Service Switches — visual-only levers representing resource status (consolidated)
 
@@ -493,20 +348,11 @@
 
 **Status:** ✅ Implemented (lifecycle updated).
 
-
-
-
-
 ### 2026-02-10: Village fence perimeter and pathway coordinate conventions
 
 **By:** Rocket
 **What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence at ground level (`BaseY`), 4-block gap from buildings. Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
 **Status:** ✅ Implemented (updated: fence moved to ground level, gap increased to 4 blocks).
-
-
-
-
-
 
 ### 2026-02-10: Resource Dependency Placement + RCON Rate-Limiting
 
@@ -520,22 +366,12 @@
 
 **Status:** ✅ Resolved. Build passes, 303 tests pass.
 
-
-
-
-
-
 ### 2026-02-10: Ephemeral Minecraft world by default, WithPersistentWorld() opt-in
 
 **By:** Shuri (requested by Jeffrey T. Fritz)
 **What:** Removed the default named Docker volume from `AddMinecraftServer()`. World data is now ephemeral. Added `WithPersistentWorld()` for opt-in persistence.
 **Why:** Persistent worlds cause confusion during development — old structures remain from previous sessions.
 **Status:** ✅ Resolved.
-
-
-
-
-
 
 ### 2026-02-10: World Border Pulse on Critical Failure
 
@@ -544,11 +380,6 @@
 **What:** `WorldBorderService` and `WithWorldBorderPulse()`. World border shrinks from 200→100 blocks over 10s when >50% of resources are unhealthy, restores to 200 over 5s on recovery. Red warning tint at 5 blocks from border edge.
 **Why:** Dramatic visual/physical feedback for critical failures. Follows opt-in pattern (`ASPIRE_FEATURE_WORLDBORDER`).
 **Status:** ✅ Implemented.
-
-
-
-
-
 
 ### 2026-02-10: Changelog, Symbol Packages, CodeQL Scanning
 
@@ -561,11 +392,6 @@
 3. CodeQL security scanning added as `.github/workflows/codeql.yml` — C# only, default query suite, weekly + push/PR triggers.
 4. GitHub Pages/docfx deferred to a future sprint.
 
-
-
-
-
-
 ### Sprint 3 service lifecycle: no independent BackgroundServices for RCON-dependent features
 
 **By:** Rocket
@@ -573,10 +399,6 @@
 **Why:** Independent BackgroundServices start before RCON is connected and before resources are discovered, causing all Sprint 3 features to silently fail. The established pattern (used by WorldBorderService, AdvancementService, BeaconTowerService, etc.) is singleton + nullable constructor injection + calls from the main worker loop. Beacon positions used a hardcoded BaseZ=14 that overlapped with row-1 structures (z=10–16), blocking beacon sky access for 2 of 4 resources.
 **Rule:** Any feature service that uses RCON or depends on discovered resources MUST be registered as `AddSingleton<>()` and called from MinecraftWorldWorker — never as an independent `AddHostedService<>()`.
 **Status:** ✅ Resolved. All 303 tests pass. Build clean (0 errors, 0 warnings).
-
-
-
-
 
 ### 2026-02-11: Minecraft building rules and constraints
 
@@ -602,30 +424,15 @@
 
 These rules were established after fixing Sprint 3 bugs where fences floated and beacons were blocked by structure overlap.
 
-
-
-
-
-
 ### 2026-02-11: Use GitHub issues and milestones for planning
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Going forward, record all plans as issues and milestones in GitHub. Each sprint is a milestone.
 **Why:** User directive — centralizes planning in GitHub for visibility and tracking. Replaces ad-hoc SQL/plan.md tracking.
 
-
-
-
-
-
 ### 2026-02-11: Sprint completion definition includes documentation
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Going forward, all sprints must include updates to README and user documentation to be considered complete.
 **Why:** User directive — documentation is a first-class deliverable, not an afterthought. Ensures features are always properly documented when shipped.
-
-
-
-
-
 
 ### 2026-02-11: Boss Bar Title Configuration
 
@@ -667,11 +474,6 @@ The boss bar previously displayed "Aspire Fleet Health: 100 percent" which looke
 - Breaking change: `ASPIRE_APP_NAME` no longer affects boss bar (only title parameter does)
 - API surface updated to show optional title parameter
 - No change required for users who don't pass a title (default behavior preserved)
-
-
-
-
-
 
 ### 2026-02-10: Peaceful Mode Implementation
 
@@ -730,11 +532,6 @@ Implemented `WithPeacefulMode()` extension method using `/difficulty peaceful` M
 - Opt-in feature, no effect on existing deployments
 - All existing tests pass
 - Consistent with team's feature opt-in architecture
-
-
-
-
-
 
 ### 2026-02-11: Village Structure Idempotent Building Pattern
 
@@ -815,11 +612,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 - Paths use `_pathsBuilt` flag (similar pattern)
 - Service switches already placed once then only update state on transitions
 
-
-
-
-
-
 ### 2026-02-10: Structure Build Validation with Graceful Degradation
 
 **By:** Shuri  
@@ -831,11 +623,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 - Each structure type has a corresponding `Validate*Async()` method called after building
 - Validates door air blocks and window blocks (glass_pane, stained_glass variants) at expected coordinates
 - Returns false on any exception to handle RCON failures gracefully
-
-
-
-
-
 
 ### 2026-02-11: User Documentation Structure in user-docs/
 
@@ -859,11 +646,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 **Impact:** Users can now understand and use all features without reading source code or technical architecture documents. Documentation is ready for external users (NuGet package consumers).
 
-
-
-
-
-
 ### 2026-02-10: Documentation path filters added to GitHub Actions workflows
 
 **By:** Wong
@@ -874,31 +656,16 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 **Impact:** PRs and commits that only touch markdown files or documentation directories will not trigger builds, tests, or CodeQL scans. The scheduled CodeQL run (Mondays) is unaffected and always runs regardless of path filters.
 
-
-
-
-
-
 ### 2026-02-11: Dynamic terrain detection replaces hardcoded superflat Y=-60
 
 **By:** Rocket
 **What:** Added `TerrainProbeService` that uses RCON binary search (`setblock ... keep`) to detect surface height at startup. All village services now use `VillageLayout.SurfaceY` instead of hardcoded `BaseY`. Path building made terrain-agnostic (clears all blocks, not just grass_block). Falls back to BaseY=-60 if detection fails, preserving backward compatibility.
 **Why:** The village was hardcoded to Y=-60 (superflat grass layer). This broke on any other world type (normal, amplified, custom). Dynamic detection makes the village work on ANY world type while keeping superflat as the safe fallback. Binary search keeps RCON usage minimal (~8 commands) and the probe is non-destructive (cleans up placed blocks immediately).
 
-
-
-
-
-
 ### 2026-02-12: User directive
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** SourceLink is not needed for this project. Remove it from Directory.Build.props.
 **Why:** User request  captured for team memory
-
-
-
-
-
 
 ### 2026-02-12: User directive — Label issues by squad member
 **By:** Jeffrey T. Fritz (via Copilot)
@@ -914,10 +681,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
-
-
-
 ### Decision: Redstone Dashboard Wall placement west of village at X=-5
 
 **What:** The Redstone Dashboard Wall is placed at `DashboardX = -5`, facing east toward the village. This is 11 blocks west of the fence perimeter — visible from the village gate but not overshadowing any buildings.
@@ -927,10 +690,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Trade-offs:** Could have placed it north (behind village) but that competes with village growth direction. Could have placed it further away but then it's outside view distance for players at the village.
 
 ---
-
-
-
-
 
 ### Decision: /clone shift-register for dashboard scrolling, not per-lamp updates
 
@@ -942,10 +701,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
-
-
-
 ### Decision: Database resources get cylindrical buildings using circular geometry in 7×7 grid
 
 **What:** Resources detected as databases via `IsDatabaseResource()` are built as cylindrical structures using polished deepslate, fitting within the existing 7×7 structure footprint. The circular footprint uses a 3-block radius approximation.
@@ -955,10 +710,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Trade-off:** Cylinder construction requires ~88 RCON commands vs ~15 for a watchtower. Acceptable because it's a one-time build, and database resources are typically <30% of total resources.
 
 ---
-
-
-
-
 
 ### Decision: Azure detection via resource type string matching, not SDK dependency
 
@@ -970,10 +721,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
-
-
-
 ### Decision: Azure banner on ALL Azure resources regardless of structure type
 
 **What:** The light_blue_banner is placed on the rooftop of any structure when `IsAzureResource()` returns true. This applies even to database cylinders (Azure SQL gets a cylinder + azure banner). The banner is additive — it doesn't change the building shape, just adds the flag.
@@ -981,10 +728,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Why:** Jeff asked for "Azure-related resources should have a bright azure blue flag/banner on top." Making it additive means a resource's building shape communicates its function (database, project, container) while the banner communicates its origin (Azure). Players can spot Azure resources at a glance across the village.
 
 ---
-
-
-
-
 
 ### Decision: Sprint 4 scope is 14 issues — dashboard, buildings, Dragon Egg, DX polish, docs
 
@@ -995,10 +738,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Cut line:** If sprint runs long, drop welcome teleport first (M, nice-to-have), then Dragon Egg (L, can slip to Sprint 5 without blocking anything).
 
 ---
-
-
-
-
 
 ### Decision: HealthHistoryTracker as a separate class, not embedded in AspireResourceMonitor
 
@@ -1666,10 +1405,6 @@ A **Dragon Egg** sits atop a custom obsidian pedestal at the village center — 
 **Backlog:**
 - Enchanting Tower, Minecart Rails, Villager Hall, Trace Explorer — all great but need the OTLP infrastructure first and have higher RCON budgets.
 
-
-
-
-
 ### Critical Architectural Decision Needed
 
 All ideas numbered 1-4, 6-7, and 9 require **consuming OTLP data** (traces, metrics, logs) in the worker service. Today the worker only polls health endpoints. Adding OTLP ingestion is a **cross-cutting architectural change** that should be designed once and implemented as shared infrastructure before any individual feature. This is likely a Sprint 5 epic in itself.
@@ -1692,10 +1427,6 @@ This decision should be made before committing to any OTLP-dependent feature.
 
 Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
-
-
-
-
 ### 1. Database Cylinder Building
 - Radius-3 circle (7-block diameter) fits perfectly in the existing 7×7 grid cell
 - Smooth stone walls + polished deepslate cap = "data center" aesthetic
@@ -1706,10 +1437,6 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 - ~60 RCON commands to build (3x more than rectangular buildings due to per-row geometry)
 - New structure type "Cylinder" in `GetStructureType` for database/postgres/mysql/sqlserver/redis/mongodb resource types
 
-
-
-
-
 ### 2. Azure Flag/Banner
 - `light_blue_banner` base with white stripe (`str`) and base (`bs`) patterns
 - NBT: `{Patterns:[{Color:0,Pattern:"str"},{Color:0,Pattern:"bs"}]}`
@@ -1717,19 +1444,11 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 - Azure detection via `info.Type.Contains("azure")` or name match
 - Roof Y varies by structure type (documented per-type)
 
-
-
-
-
 ### 3. Enhanced Building Palettes
 - **Watchtower:** Chiseled stone floor, deepslate pillars, polished andesite band, battlements, bookshelves + lantern interior
 - **Warehouse:** Orange concrete accent stripe (shipping container look), gray glass, iron trapdoor corrugated roof, chains + soul lanterns
 - **Workshop:** Spruce timber frame, dark oak peaked roof, blast furnace + smithing table, redstone torches
 - **Cottage:** Mossy cobblestone accents, stripped oak timber frame band, peaked oak stair roof, flower pots + awning
-
-
-
-
 
 ### 4. Dashboard Wall
 - 20×10 block frame (polished blackstone) with 18×8 usable redstone lamp grid
@@ -1751,11 +1470,6 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 - Cylinder building is the most RCON-expensive structure (~60 commands vs ~20 for rectangular)
 - Dashboard `/clone` is 1 command per scroll tick — very efficient
 
-
-
-
-
-
 ### Cylinder & Azure resource detection precedence
 
 **By:** Rocket
@@ -1767,22 +1481,12 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 
 **Impact:** `IsDatabaseResource` and `IsAzureResource` are both `internal static` methods on `StructureBuilder`, available for other services (e.g., Nebula's tests). The detection lists are intentionally broad — `Contains()` matching catches compound types like `azure.postgres` or `sql-server-2022`.
 
-
-
-
-
-
 ### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment
 
 **By:** Rocket
 **What:** Fixed two visual bugs: (1) structures placed 1 block below ground — `GetStructureOrigin()` now returns `SurfaceY + 1`; (2) Warehouse health lamp overlapping cargo door — lamp moved to `y+4` for structures with 3-tall doors.
 **Why:** SurfaceY is the topmost solid block. Placing floors there replaces the grass and buries walls. Health lamps at `y+3` overlap 3-tall doors (y+1 to y+3). Both fixes are surgical (VillageLayout.cs, StructureBuilder.cs) with updated tests.
 **Status:** ✅ Resolved
-
-
-
-
-
 
 ### Feature env var checks now require exact `"true"` value
 
@@ -1791,11 +1495,6 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 **Why:** Prevents accidental feature activation from empty strings, whitespace, or junk values in environment variables. Only an explicit `"true"` value activates a feature now.
 **Impact:** Any code that sets `ASPIRE_FEATURE_*` env vars must use the exact string `"true"` (lowercase). Other truthy values like `"1"`, `"yes"`, or `"True"` will NOT activate features.
 **Status:** ✅ Implemented on sprint-4 branch.
-
-
-
-
-
 
 ### Village Spacing increased from 10 to 12
 
@@ -1839,20 +1538,12 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 - `MinecraftServerBuilderExtensions.cs`: 1 line added to builder chain.
 - No breaking changes. No new dependencies.
 
-
-
-
-
-
 ### 2026-02-12: Dashboard lamps use self-luminous blocks instead of redstone power
 
 **By:** Rocket
 **What:** Replaced the redstone power layer (`redstone_block` at `x-1` behind `redstone_lamp` at `x`) with direct self-luminous block placement. Healthy = `glowstone`, Unhealthy = `redstone_lamp` (unlit), Unknown = `sea_lantern`. The `/clone` scroll now operates on the lamp layer directly.
 **Why:** RCON-issued `setblock redstone_block` does not reliably trigger block updates on Paper servers, causing lamps to light briefly then go dark. Self-luminous blocks require no power propagation — their lit/unlit state is intrinsic to the block type, making the display 100% reliable regardless of server tick timing.
 **Status:** ✅ Resolved. Build passes, all 382 tests pass. RCON command count per update cycle halved.
-
-
-
 
 ### Language-Based Color Coding for Village Buildings
 
@@ -1876,9 +1567,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 **Status:** ✅ Implemented. All 382 tests pass.
 
-
-
-
 ### 2026-02-12: Integration testing strategy — Hybrid RCON + BlueMap approach
 
 **By:** Rhodey
@@ -1898,8 +1586,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 **Full design:** `docs/designs/bluemap-integration-tests.md`
 
 **Status:** ✅ Design complete. Ready for implementation.
-
-
 
 ### 2026-02-12: User directive — Famous Building API
 **By:** Jeffrey T. Fritz (via Copilot)
@@ -1946,7 +1632,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 1: VillageLayout constants become mutable properties
 
 **What:** `Spacing`, `StructureSize`, and `FenceClearance` change from `const int` to `static int { get; private set; }` with default values matching Sprint 4. A `ConfigureGrandLayout()` method sets them to Grand Village values.
@@ -1957,7 +1642,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 2: Structure size is 15×15, not 11×11 or 21×21
 
 **What:** All buildings expand to 15×15 footprint (13×13 usable interior).
@@ -1965,7 +1649,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 **Why:** 11×11 (9×9 interior) is too small for meaningful multi-floor buildings with staircases — the spiral staircase alone needs 3×3, leaving only 6×6 per floor. 21×21 would be impressive but the RCON cost balloons (>200 commands for a watchtower), spacing goes to 32+ blocks, and the village exceeds world border with just 4 resources. 15×15 is the sweet spot — room for 3 floors with furniture, staircases fit, RCON stays under ~100 commands per building.
 
 ---
-
 
 ### Decision 3: Spacing is 24 blocks (15 + 9 gap)
 
@@ -1977,7 +1660,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 4: MAX_WORLD_SIZE bumps from 256 to 512
 
 **What:** Default world border diameter doubles.
@@ -1985,7 +1667,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 **Why:** At 24-block spacing, 8 resources need Z ~110 blocks. With fence clearance and margin, 256 blocks is too tight. 512 gives comfortable room for 20 resources. Memory impact is minimal (~10 MB additional for chunk data in a superflat world).
 
 ---
-
 
 ### Decision 5: Minecart rails coexist with redstone wires, not replace them
 
@@ -1995,7 +1676,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 6: RCON burst mode for initial construction
 
 **What:** `RconService` gets an `EnterBurstMode()` method that temporarily increases `MaxCommandsPerSecond` from 10 to 40 during initial village build.
@@ -2003,7 +1683,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 **Why:** A 6-resource Grand Village with rails sends ~600 commands. At 10 cmd/sec = 60 seconds. At 40 cmd/sec = 15 seconds. The Minecraft server can handle 40 RCON commands/sec for short bursts — the tick budget is 50ms per tick, and simple `/setblock` + `/fill` commands typically complete in <1ms each. Steady-state (health updates) stays at 10 cmd/sec.
 
 ---
-
 
 ### Decision 7: Grand Village is opt-in via `WithGrandVillage()`
 
@@ -2022,7 +1701,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 ## What
 
 Design specifications for four Sprint 4 building enhancements requested by Jeff:
-
 
 ### 2026-02-12: Fritz's horses are always-on, not feature-gated
 **By:** Rocket
@@ -2050,8 +1728,6 @@ The original 12-block spacing with 7×7 structures left only a 5-block gap — c
 ## Impact
 
 All layout-dependent services automatically inherit the new positions via `VillageLayout.GetStructureOrigin()`. Test expectations updated in 4 test files. All 382 tests pass.
-
-
 
 ### 2026-02-12: VillageLayout constants converted to configurable properties
 
@@ -2256,7 +1932,6 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 - No behavioral change until `MinecartRailService` is implemented.
 - `WithAllFeatures()` will set the flag even though the service isn't registered yet — this is harmless since the flag alone does nothing without the service.
 
-
 ### 2026-02-13: v0.5.0 release readiness — APPROVED
 **By:** Rhodey
 **What:** API surface reviewed, build clean, all tests pass, package verified
@@ -2306,8 +1981,6 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ### Verdict: 🚀 SHIP IT
 
-
-
 ### 2026-02-15: Grand Watchtower exterior redesigned for ornate medieval look
 
 **By:** Rocket
@@ -2332,7 +2005,6 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 **Why:** The existing sample only showed .NET projects, Redis, and Postgres. Adding Python and Node.js demonstrates that Aspire can orchestrate polyglot stacks and that the Workshop building type works for executable resources. The separate Grand Village demo gives a clean, focused showcase of the milestone-5 feature without cluttering the main sample's toggle pattern.
 
-
 ### 2026-02-15: Grand Watchtower Entrance Redesign — decided by Rocket
 
 **Context:** Jeff reported the Grand Watchtower entrance was "an ugly mess" with a visible "strange lower level."
@@ -2347,21 +2019,15 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 - All 7 Grand Watchtower tests pass
 - Any code referencing Grand Watchtower DoorPosition should expect TopY = y+4
 
-
 ### 2026-02-15: User directive — Improve acceptance testing
 **By:** Jeff (via Copilot)
 **What:** Team must document learnings and improve acceptance testing on tasks before presenting them as completed. Too many iterations on the watchtower entrance (floating torch, cluttered entrance, stair skirt) were presented as "done" without catching visual/functional issues.
 **Why:** User request — captured for team memory. Quality gate: agents should validate their work against known constraints (geometry, visibility, placement) before reporting completion.
 
-
 ### 2026-02-15: Geometric validation tests for Grand buildings
 **By:** Nebula
 **What:** Added 26 comprehensive acceptance tests to StructureBuilderTests.cs that validate geometric relationships in Grand building generation. Tests catch three categories of bugs that escaped previous review cycles: (1) doorway visibility — ensures no decorative blocks (torches, lanterns) overlap door openings, (2) ground-level continuity — prevents stairs/decorations at y+1 on front faces outside door regions, (3) health indicator placement — validates glow blocks at exact DoorPosition-derived coordinates.
 **Why:** Jeff rejected Grand Watchtower work 3 times due to geometric bugs (lower-level stair skirt visible at z-plane, entrance cluttered with decorations, floating torch in doorway). Existing tests only verified RCON command format, not spatial geometry. New tests parse setblock commands to extract x/y/z coordinates and assert geometric constraints: doorway region boundaries, front-face material restrictions, health indicator position validation. Pattern is reusable for any future Minecraft structure tests requiring spatial validation beyond string matching.
-
-
-
-
 
 ### 2026-02-15: Minecraft automated acceptance testing — gap analysis and solution roadmap (consolidated)
 
@@ -2516,3 +2182,472 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 3. Parse Anvil region file (chunk offset + zlib decompress + NBT)
 4. Query block at (x, y, z) from block palette + block states
 5. ~200 lines of code or wrap Unmined.Minecraft.Nbt
+
+# Minecart Brainstorm: Representing Aspire Concepts in the Village
+
+**Requested by:** Jeffrey T. Fritz  
+**Context:** MinecartRailService exists with L-shaped paths, powered rails, and health-reactive behavior. Question: what real Aspire concept should minecarts visually model?  
+**Constraint:** "See something inside the village that reflects something really going on inside of Aspire."
+
+---
+
+## Six Concrete Ideas
+
+### 1. **HTTP Request Flows Between Services** ⭐ (RECOMMENDED)
+
+**What it models:** Request/response cycles between dependent services. When ServiceA calls ServiceB, a minecart spawns, travels the rail, and arrives at the destination service. When ServiceB is healthy, minecarts move freely. When ServiceB degrades, minecarts slow down or stall at stations.
+
+**How it looks in-game:**
+- Each rail connection is an active "request lane" between two buildings.
+- Minecarts spawn at parent service, travel L-shaped tracks to child service.
+- Multiple minecarts on the same rail = concurrent requests.
+- Powered rails pulse or deactivate when child is unhealthy → minecart stops mid-journey.
+- Chest minecarts (already in code) carry "cargo" = request payload.
+- Glow item frames at stations show request count/latency.
+
+**Technical feasibility:** **Medium** (doable now)
+- Minecart spawning already works (`summon minecraft:chest_minecart`).
+- Powered rail disable/enable (existing code) simulates slowdown.
+- Loop spawning minecarts every N seconds per connection is trivial addition.
+- Hitbox tracking to count minecarts on a rail requires `execute as @e[type=minecart]` queries (~50ms each per rail).
+- **Gotcha:** Paper server limits entity spawning (~10 minecarts per second across all rails). Manages ~3–5 concurrent requests per lane before visual saturation.
+
+**Why it's cool:** This maps the **literal runtime behavior** of your distributed system. Conference audience watches traffic flow and congestion appear on-screen as they hammer the API endpoint. When one service goes down, they see minecarts stack up at its station. It's not metaphorical—it's diagnostic.
+
+---
+
+### 2. **Health Check Polling Cycles** 
+
+**What it models:** Health check requests polling each resource on a fixed interval (e.g., every 30 seconds). A minecart completes a round-trip to the resource and back to the polling station.
+
+**How it looks in-game:**
+- Single "health check" minecart spawns from a central health station every 30 seconds.
+- It travels to each resource building in sequence (visiting all buildings = one health cycle).
+- If a resource is unhealthy, the minecart triggers redstone at that station (existing redstone system lights up).
+- Return to health station = cycle complete.
+- Visual speed of the minecart correlates with check latency (slow = slow checks).
+
+**Technical feasibility:** **Hard**
+- Requires pathfinding logic to visit multiple stations in order, not just A→B.
+- Would need `execute if block` to detect when minecart reaches station, trigger next waypoint.
+- Entity following/waypoint system doesn't exist in Minecraft RCON natively.
+- **Blocker:** Minecarts follow rails automatically; forcing them to visit stations in a specific order requires custom rail layouts or command chains per waypoint.
+
+**Why it's cool:** Shows the **overhead of observability**—the polling cycle becomes visible. Conference demos can highlight: "This minecart is your health check traffic. Every 30 seconds, it runs the same loop. It's the cost of knowing your system is alive."
+
+---
+
+### 3. **OpenTelemetry Trace Propagation (Trace Spans)**
+
+**What it models:** A distributed trace as a sequence of minecarts, each representing a span. Parent span spawns a minecart at ServiceA; when it reaches ServiceB, a child span minecart is spawned, and so on. The complete trace is a chain of minecarts moving through the rail network.
+
+**How it looks in-game:**
+- Parent request minecart (e.g., blue color via armor stand dye) spawns at the entry service.
+- When it reaches the next service, a child minecart (different color) spawns and travels the next leg.
+- Multiple child spans can spawn in parallel (child minecarts on parallel tracks).
+- Color = span service; brightness = span duration (minecart moves slower for long spans).
+- Redstone at the end of each span shows success/failure (green = OK, red = error).
+
+**Technical feasibility:** **Hard**
+- Requires **new data source:** Worker must ingest OTLP traces from Aspire dashboard or local collector.
+- Today, Worker only polls health endpoints; it has no visibility into trace data.
+- Mapping trace IDs to minecarts and sequencing their spawns adds complexity.
+- **Blocker:** Worker architecture must change first (OTLP receiver task from Sprint 5 plans).
+
+**Why it's cool:** This is the **most Aspire-native visualization**. OTLP is the foundation of Aspire observability. Seeing traces flow through the village in real-time is the dream demo.
+
+---
+
+### 4. **Log Message Flow** 
+
+**What it models:** Log messages from one service appearing at (or passing through) another service's building. High-frequency logs = minecarts shuttling quickly.
+
+**How it looks in-game:**
+- Minecarts spawn from a logging service and travel to the resource that emitted the log.
+- Log level determines minecart color: INFO (white), WARN (orange/yellow), ERROR (red).
+- Log payload displayed via hologram or item frame at the destination building.
+- Rapid logging = frequent minecarts; silent service = no minecarts.
+
+**Technical feasibility:** **Hard**
+- Requires **new data source:** Worker must tap into log aggregation (Aspire dashboard, OpenTelemetry logs, or sidecar listener).
+- Minecart spawning per log would be excessive (thousands/sec in a busy system). Need sampling or batching (e.g., one minecart per 10 logs).
+- **Blocker:** Worker has no log ingestion pipeline today.
+
+**Why it's cool:** Logging is invisible in most demos. This makes it **tangible and real-time**. Seeing logs flow visually is compelling for observability education.
+
+---
+
+### 5. **Resource Startup/Shutdown Sequence**
+
+**What it models:** The dependency chain during system startup. Minecarts represent the startup propagation: base resources spawn minecarts → minecarts trigger dependent resources → those spawn minecarts to their dependents, etc.
+
+**How it looks in-game:**
+- When the Minecraft world initializes, minecarts begin spawning from independent resources (no parents).
+- Each minecart travels to a dependent resource, "activating" it (glow effect, sound, particles).
+- As each resource activates, its own minecarts spawn to its dependents.
+- The wave of minecarts propagates through the entire village in dependency order.
+- Full startup complete = all minecarts have arrived and settled.
+
+**Technical feasibility:** **Easy**
+- Reuses existing rail system and resource order (already computed in `VillageLayout.ReorderByDependency`).
+- One-time event at worker startup.
+- Minecart spawn timing can follow the computed dependency order.
+- **Advantage:** Zero ongoing computational cost (runs once).
+
+**Why it's cool:** It's a **memorable visual moment**. Conference demos love a good "startup sequence" shot. Shows system architecture in motion without real-time overhead.
+
+---
+
+### 6. **Message Queue Depth & Flow**
+
+**What it models:** Async work queues (e.g., Rabbit MQ, Azure Service Bus). Minecarts in a queue represent pending messages. Spawning rate (minecarts) = enqueue rate. Consumption rate = minecarts leaving.
+
+**How it looks in-game:**
+- A message queue resource (e.g., Service Bus, RabbitMQ) is a "station" with holding tracks.
+- Minecarts spawn onto the queue tracks at the enqueue rate.
+- Consumer minecarts are pulled from the station at the consumption rate.
+- If enqueue > consumption, minecarts visibly back up on the rails (growing queue).
+- If consumption > enqueue, minecarts move freely (low latency).
+
+**Technical feasibility:** **Medium**
+- Requires **new data source:** Queue depth metrics (e.g., from Aspire dashboard metrics endpoint or queue REST API).
+- Spawning logic: `queue_depth` = number of minecarts that should exist on queue rails.
+- Each worker cycle, compare current count to target, spawn or despawn accordingly.
+- **Limitation:** Queue depth is an aggregate; minecarts are discrete. Visual "jitter" if depth oscillates ±1.
+
+**Why it's cool:** Makes async architectures **tangible**. "Look, your queue is building up because consumers are slower than producers" is immediately obvious when you see minecarts stacking on the rails.
+
+---
+
+## Comparison Matrix
+
+| Idea | Data Source | RCON Cost | Visual Impact | Implementation Risk |
+|------|-------------|-----------|---------------|---------------------|
+| 1. HTTP Requests | Health endpoints (exists) | Moderate (~3–5 minecarts/lane max) | **High** — live request flow | Low |
+| 2. Health Checks | Health endpoints (exists) | Low (1 minecart/cycle) | Medium — cyclic polling | High (pathfinding) |
+| 3. OTLP Traces | Aspire dashboard or collector | Moderate | **Very High** — distributed trace viz | Very High (new arch) |
+| 4. Log Flow | Log aggregation (new) | High if unsampled | **High** — tangible logging | Very High (new arch) |
+| 5. Startup Sequence | Resource order (exists) | Low (one-time) | **High** — dramatic moment | **Very Low** |
+| 6. Queue Depth | Queue metrics (new) | Low-Moderate | **High** — async bottlenecks visible | Medium |
+
+---
+
+## My Recommendation: **Idea #1 — HTTP Request Flows**
+
+**Why:**
+
+1. **Immediate feasibility.** MinecartRailService already does 90% of the work. Add minecart spawning every N seconds per connection + hitbox counting = done in a sprint.
+
+2. **Real runtime visibility.** You're not modeling infrastructure (polling, logging, startup). You're visualizing **actual request traffic**. This is diagnostic data the team can use to understand bottlenecks.
+
+3. **Conference demo magic.** Audience hammers the API → minecarts move → ServiceA goes unhealthy → minecarts stop → ServiceA recovers → minecarts flow again. That's a *story* with cause and effect visible on-screen.
+
+4. **Scalable complexity.** Works for 2 resources (1 rail), scales to 20 resources (100+ rails). The village handles it.
+
+5. **Doesn't require new architecture.** Doesn't need OTLP ingestion, log pipelines, or entity pathfinding. Fits in the existing Worker polling loop.
+
+6. **Future-proof.** Once this lands, Idea #3 (OTLP Traces) becomes the natural v1.0 upgrade. Same minecart visual language, richer data source.
+
+**Next steps:**
+- Add `RequestCountTracker` service (lightweight wrapper around health checks, counts outstanding requests per dependency).
+- Extend `MinecartRailService.UpdateAsync()` to spawn/despawn minecarts based on request count.
+- Cap spawning at 5 concurrent minecarts per rail (visual clarity + RCON safety).
+- Add hitbox-based counting: `execute as @e[type=chest_minecart,distance=..5]` at connection endpoints.
+
+---
+
+## Secondary Pick: **Idea #5 — Startup Sequence** (if request flow is too ambitious)
+
+It's low-risk, visually satisfying, and educational without breaking new ground on data sources. Could ship as a "phase 2" after request flows stabilize.
+
+---
+
+## Reject: **Idea #3 (OTLP Traces)** for now
+
+It's the dream feature, but it requires the entire "OTLP ingestion architecture" decision from Sprint 5 to land first. Don't start trace visualization until that's designed. Put it on the roadmap for v1.0.
+
+### 2026-02-15: ExecutableResource subclasses detected via contains-matching in GetStructureType
+**By:** Shuri
+**What:** Added `IsExecutableResource()` predicate to `StructureBuilder` that recognizes `PythonApp`, `NodeApp`, `JavaScriptApp`, and `Executable` type strings. `GetStructureType()` now checks this predicate before the switch statement, mapping all executable-family resources to the "Workshop" building type.
+**Why:** `WithMonitoredResource()` sends the concrete class name (e.g., "PythonApp") via environment variables, not the base class "Executable". The switch statement only matched the exact string "executable", so Python and Node.js apps fell through to the default "Cottage" type. The fix follows the same contains-based pattern already used by `IsDatabaseResource()` and `IsAzureResource()`, making it extensible for future ExecutableResource subclasses.
+
+### 2026-02-16: Feature monitoring services moved to continuous loop
+**By:** Coordinator (fixing Bug #2 reported by Jeff)
+**What:** Moved `redstoneGraph.UpdateAsync()` and `minecartRails.UpdateAsync()` from inside the `if (changes.Count > 0)` block to the continuous fleet-health section in `MinecraftWorldWorker.ExecuteAsync()`. These services now run every worker cycle alongside `serviceSwitches`, `redstoneDashboard`, and other continuous features.
+**Why:** Both services' `UpdateAsync()` methods update visual state (wire colors, rail power) based on current health. When trapped inside `changes.Count > 0`, they only fired on health transitions — so the visual state went stale between transitions. Their docstrings say "Called each worker cycle" confirming they were designed to run continuously.
+
+### 2026-02-16: Lever placement fixed — facing direction and wall attachment
+**By:** Coordinator (fixing Bug #3 reported by Jeff)
+**What:** Fixed floating levers in ServiceSwitchService:
+1. Changed lever facing from `north` to `south` and moved lever position to `FaceZ - 1` (one block in front of the wall). With `face=wall,facing=south`, the lever attaches to the wall block behind it at `FaceZ`.
+2. Wired up the previously-dead `PlaceLampAsync()` method — lamps are now placed on the wall face (`FaceZ`, one block above the lever), toggling between glowstone (healthy) and redstone_lamp (unhealthy).
+**Why:** Buildings face south (front wall at Z-min). A lever at the wall plane with `facing=north` needed a support block at Z+1 (interior), which is air in hollow-fill buildings. Moving the lever one block forward and flipping to `facing=south` attaches it to the actual wall. The lamp was documented in the class docstring but never called — now both levers and lamps work together as intended.
+
+
+### # Minecart Lifecycle Design
+
+**Context:** Jeff approved HTTP Request Flow as the minecart model. Now the question: **What happens when minecarts arrive at their destination? Do they pile up?**
+
+**Decision Date:** 2026-02-13  
+**Decided by:** Rhodey (Lead)  
+**Status:** ✅ Ready for implementation
+
+---
+
+## The Lifecycle Flow
+
+```
+Spawn → Travel → Arrival → Despawn
+```
+
+1. **Spawn** — When parent service makes a request to a child service, `MinecartRailService.SpawnRequestCartAsync()` summons a chest minecart at the parent's station (powered rail).
+
+2. **Travel** — Powered rails accelerate the minecart along the L-shaped path. Rails deactivate if the child service goes unhealthy (cart stops mid-rail).
+
+3. **Arrival** — Cart reaches the destination station (detector rail).
+
+4. **Despawn** — Cart is killed after a timeout, preventing pileups. This is the critical mechanism.
+
+---
+
+## Arrival Behavior: Timeout-Based Despawn
+
+**Recommendation:** Kill minecarts after they sit at the destination for **3 seconds** (60 ticks).
+
+**Why this approach:**
+
+| Option | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| **Kill on arrival** | Clean, instant despawn | Too abrupt; loses the visual "arrival" moment | ❌ |
+| **Absorb into hopper** | Thematic (cargo delivery) | Hoppers require continuous monitoring; complex RCON orchestration | ❌ |
+| **Return trip** | Shows request/response symmetry | Doubles rail complexity; carts clutter parent station; high RCON cost | ❌ |
+| **Timeout at destination** (3s) | Visible arrival, then cleanup; simple RCON; natural pacing | Requires NBT aging mechanism | ✅ |
+
+**Timeout strategy:**
+- Cart spawned with NBT tag: `{Age: -600}` (negative age delays the vanilla Age counter). When Age ≥ 0, it increments naturally.
+- OR: Track spawned carts in a `Dictionary<Guid, DateTime>` with spawn time; periodically query carts at destination and kill if spawn time > 3 seconds.
+- Better: Use **NBT Age approach** — it requires no polling, no tracking, and is deterministic.
+
+**RCON command:**
+```
+summon minecraft:chest_minecart X Y Z {Age: -600}
+```
+
+After 3 seconds (60 ticks), the Age reaches -600 + 60 = -540, which triggers auto-despawn at Age 0... Actually, let me correct: **Minecarts in vanilla Minecraft despawn naturally after ~5 min (6000 ticks) of Age**. We can override this with a shorter timeout by:
+
+1. **Option A** — Use `Age` NBT to set a negative offset, then periodically kill carts at destination with `execute as @e[type=chest_minecart, ...] if score @s age >= 180 run kill @s` (180 ticks = 9s).
+2. **Option B** — Simpler: **Every minecart gets a global UUID tag on spawn.** Track in a queue: `Queue<(uuid, spawnTime, destinationPos)>`. Every 5 seconds, check queue; if `now - spawnTime > 3s AND cart at destination`, kill it. This requires 1 RCON query per destination per cycle.
+
+**I recommend Option B** for simplicity. The polling cost is negligible (1 query per connection per 5-second cycle = ~0.2 RCON commands/sec).
+
+---
+
+## Population Cap
+
+**Recommendation:** Maximum **5 minecarts per rail at once**.
+
+**Rationale:**
+- Paper server max entity spawning: ~10 minecarts/sec server-wide.
+- Visual saturation: 6+ carts on the same rail look like gridlock, not traffic.
+- RCON efficiency: 5 carts × multiple connections still fits comfortably under the 10 cmd/sec rate.
+- Aspire constraint: Most demo setups have 3–5 dependent services, so 5 carts/rail accommodates concurrent requests well.
+
+**Implementation:**
+```csharp
+if (_cartsOnRail.TryGetValue(connectionKey, out var count) && count >= 5)
+{
+    // Skip spawn; request is "dropped" visually
+    logger.LogDebug("Minecart rail {Connection} at capacity", connectionKey);
+    return; // Don't spawn
+}
+```
+
+When a cart despawns (timeout), decrement the counter.
+
+---
+
+## Cleanup Mechanism
+
+**Primary cleanup: Timeout-based despawn at destination.**
+
+**Backup cleanup: Periodic sweep for orphaned carts.**
+
+### Primary: Timeout at Destination
+
+Every 5 seconds, for each rail connection:
+```csharp
+private async Task CleanupExpiredCartsAsync(CancellationToken ct)
+{
+    var now = DateTime.UtcNow;
+    var expired = _spawnedCarts
+        .Where(kvp => (now - kvp.Value.SpawnTime).TotalSeconds > 3)
+        .ToList();
+    
+    foreach (var (cartUuid, _) in expired)
+    {
+        // Kill the cart by UUID (requires tracking carts with scoreboard or NBT tag)
+        await rcon.SendCommandAsync(
+            $"kill @e[type=chest_minecart, nbt={{UUID: [{cartUuid}]}}]",
+            CommandPriority.Low, ct);
+        
+        _spawnedCarts.Remove(cartUuid);
+        _cartsOnRail[connectionKey]--;
+    }
+}
+```
+
+### Backup: Periodic Sweep for Orphaned Carts
+
+On worker restart or if tracking gets out of sync, a **server-side cleanup** command ensures no stale carts remain:
+
+```
+execute at @e[type=chest_minecart] unless entity @s[nbt={...}] run kill @s
+```
+
+Better: **Kill all chest minecarts that are not in motion (stalled for 5+ ticks):**
+```
+execute as @e[type=chest_minecart] if score @s motion_ticks >= 300 run kill @s
+```
+
+Actually, simpler approach using **motion** NBT:
+```
+kill @e[type=chest_minecart, nbt={Motion: [0.0, 0.0, 0.0]}]
+```
+
+This kills stationary carts (at a station or stalled on rails) every 30 seconds as a safety valve.
+
+---
+
+## Edge Cases & Recovery
+
+### 1. Service Goes Unhealthy Mid-Transit
+
+**What happens:**
+- `MinecartRailService.UpdateRailHealthAsync()` detects unhealthy child.
+- Calls `DisableRailsAsync()` → replaces powered rails with air.
+- Minecart **stops mid-rail**. ✓ Desired behavior.
+
+**Cleanup:**
+- Cart is still being tracked in `_spawnedCarts`.
+- When it times out (3s at station, but now it's stalled), the cleanup code doesn't match the destination check.
+- **FIX:** Update cleanup to also kill carts on disabled rails:
+  ```csharp
+  // Kill stalled carts (not moving for 30+ seconds)
+  foreach (var connection in _disabledConnections)
+  {
+      await rcon.SendCommandAsync(
+          $"kill @e[type=chest_minecart, distance=..3, nbt={{Motion: [0.0, 0.0, 0.0]}}]",
+          CommandPriority.Low, ct);
+  }
+  ```
+
+### 2. Stalled Carts (Rails Powered Back On)
+
+If a service recovers from unhealthy → healthy:
+- `RestoreRailsAsync()` re-enables powered rails.
+- Stalled cart resumes movement. ✓ Great for demos ("service recovered, traffic flows again").
+- If it's been stalled >3s already, it will be cleaned up by the stalled-cart sweep.
+
+### 3. Server Restart / Orphaned Entities
+
+On server restart:
+- All minecarts despawn naturally (server shutdown kills all entities).
+- `MinecartRailService._spawnedCarts` is an in-memory dict → cleared on restart.
+- On restart, `_cartsOnRail` counters reset to 0. ✓ No phantom counts.
+
+**Orphaned carts from unexpected crashes:** Unlikely with the timeout mechanism, but if one appears:
+- The **periodic backup sweep** (`kill @e[type=chest_minecart, nbt={Motion: [0.0, 0.0, 0.0]}}]`) eliminates it.
+- No data loss or corruption.
+
+---
+
+## RCON Budget Per Cycle
+
+**Assumptions:**
+- 5 rail connections (typical demo: database, cache, message queue, third service, fourth service).
+- 2 minecarts per rail, spawning 1 new cart every 2 seconds.
+- Cleanup every 5 seconds.
+
+**Per 5-second cycle:**
+
+| Operation | Cost | Frequency | Total |
+|-----------|------|-----------|-------|
+| Spawn new minecarts | 1 cmd/cart | 2–3 carts/5s across all rails | 2–3 |
+| Cleanup expired carts at destination | 1 cmd/cart | ~2–3 carts/5s | 2–3 |
+| Sweep stalled carts | 1 cmd | 1/5s | 1 |
+| Restore/disable rails (health changes) | N cmd/rail | 0–2 transitions/minute | 0–2 (amortized) |
+| **Total/5s cycle** | — | — | **5–9 commands/5s = ~1–2 cmd/sec** |
+
+**Verdict:** **Highly sustainable.** Default rate limit is 10 cmd/sec. Minecart lifecycle uses ~1–2 cmd/sec, leaving 8 cmd/sec for other features (redstone graph, particles, etc.).
+
+---
+
+## Implementation Checklist
+
+- [ ] Add `SpawnRequestCartAsync(fromResource, toResource)` to `MinecartRailService`.
+  - Summon cart with UUID/NBT tracking.
+  - Increment `_cartsOnRail[connectionKey]`.
+  - Cap at 5 minecarts per rail.
+
+- [ ] Add `CleanupExpiredCartsAsync()` called from `UpdateAsync()` every 5 seconds.
+  - Check cart age.
+  - Kill carts at destination >3s old.
+  - Decrement counter.
+
+- [ ] Add backup cleanup for stalled carts.
+  - Runs every 30 seconds.
+  - Kills immobile carts on disabled rails.
+
+- [ ] Update `UpdateRailHealthAsync()` to trigger cleanup when disabling.
+  - Optional: kill existing carts on the connection immediately.
+  - Or: let timeout handle it (simpler).
+
+- [ ] Track cart count per connection (`Dictionary<string, int>_cartsOnRail`).
+
+- [ ] Document the spawn rate (HTTP request frequency) integration point.
+  - Will be called from a new `MinecraftWorldWorker.OnHttpRequest()` integration.
+  - (That's a separate task; this design just defines the lifecycle.)
+
+---
+
+## Summary for Jeff
+
+**The minecart lifecycle is simple and clean:**
+
+1. **Spawn on request** — Every HTTP call from parent to child spawns a minecart at the parent's station.
+2. **Travel freely** (if child is healthy) or **stall** (if child is unhealthy) → Shows dependency health in motion.
+3. **Arrive at destination** → Visible for 3 seconds (confirms delivery).
+4. **Auto-despawn** → No pileups. Max 5 carts per rail.
+
+**Visual experience:**
+- Busy API → many minecarts flowing, stacked at stations waiting to move.
+- Healthy service → smooth traffic; carts arrive, pause 3s, vanish.
+- Unhealthy service → carts stall mid-rail; traffic backs up at parent station.
+- Recovering service → carts resume moving; queued traffic flows again.
+
+**RCON cost:** ~1–2 commands/second. Very sustainable.
+
+**Risk:** None. Timeout mechanism is bulletproof. No pileups possible.
+
+---
+
+## Rationale for Timeout (vs. Other Options)
+
+**Why not kill on arrival?** Instant despawn feels wrong—like the minecart never "arrived." A 3-second pause lets players see the cart at the destination station, confirming the delivery.
+
+**Why not return trip?** Return trips double complexity (need to reverse the path, handle power direction changes, track return state). It also means minecarts end up back at the parent station, creating pileups there instead of the destination. Not diagnostic.
+
+**Why not absorb into hopper?** Hoppers are hard to orchestrate via RCON. You'd need to track hopper fullness, extract items, and manage inventory state—all non-deterministic. Minecart physics are easier to control.
+
+**Why timeout instead of NBT Age flag?** Timeout via tracking is explicit, debuggable, and doesn't rely on vanilla Age semantics (which can vary by server version). The polling cost is negligible.
+
+
+### ### 2026-02-12: All grid-positioned services must use dependency ordering
+
+**By:** Rocket
+
+**What:** Unified all services that place elements on the village grid to use `VillageLayout.ReorderByDependency()` for consistent index-to-position mapping. Previously, StructureBuilder, BeaconTowerService, GuardianMobService, and ParticleEffectService used raw dictionary iteration order while ServiceSwitchService, RedstoneDependencyService, and MinecartRailService used dependency ordering. This mismatch caused features to target wrong buildings when resources had dependencies.
+
+**Why:** When dependency ordering differs from dictionary ordering (which happens whenever resources declare dependencies), services using different orderings would place features at the wrong physical grid positions. This caused redstone wires, minecart rails, and service switches to connect to or appear at buildings belonging to different resources than intended. The dependency ordering is preferred because it places parent resources before children in the grid, making the visual layout semantically meaningful.
+
+

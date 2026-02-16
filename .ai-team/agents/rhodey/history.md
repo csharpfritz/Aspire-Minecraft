@@ -164,7 +164,29 @@
 - **Why not NBT parsing in Worker?** Worker is for gameplay. Parsing is a test concern. Separation keeps logic clean.
 - **GitHub issues created:** #92 (NBT library spike), #93 (AnvilRegionReader), #94 (MinecraftAppFixture integration).
 
+### 2026-02-16: Minecart Representation Brainstorm
+
+- **MinecartRailService foundation:** Places L-shaped powered rail networks between dependent resources, spawns chest minecarts at start, health-reactive disable/restore of powered rails. Already handles station placement (detector+powered+detector sequence), rail positioning math, and connection state tracking.
+- **Six minecart concept ideas evaluated:** (1) HTTP Request Flows (spawn minecarts per request), (2) Health Check Polling (round-trip cycle), (3) OTLP Trace Propagation (trace as minecart chain), (4) Log Message Flow (log level + color), (5) Startup Sequence (dependency propagation at boot), (6) Queue Depth Visualization (consumer/enqueue rate mismatch).
+- **Recommendation: HTTP Request Flows (#1).** Immediate feasibility (service spawns minecarts per active request, ~5 max per rail for visual clarity), real diagnostic value (visualizes actual runtime request traffic, not just infrastructure), conference demo narrative (visible cause/effect: API call → minecart move → service degradation → minecart stall), no new data source required (leverages existing health checks), scales cleanly to 20+ resources.
+- **Secondary pick: Startup Sequence (#5).** Low RCON cost (one-time event), visually memorable, fits existing dependency ordering logic, could ship as phase 2 if request flows is ambitious.
+- **Reject OTLP Traces (#3) for now.** Dream feature but requires Sprint 5 OTLP ingestion architecture to land first. Put on v1.0 roadmap.
+- **Feasibility analysis:** Request flow = Medium risk (minecart spawning + hitbox counting). Health checks = Hard (pathfinding). Queue depth = Medium (metric polling + spawn/despawn logic). All others = Hard or Very Hard (new data sources or complex routing).
+- **Key MinecartRailService files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs` (L-shaped path calculation, station placement, health-reactive rail disable). `VillageLayout.cs` (structure positioning, dependency ordering). `AspireResourceMonitor.cs` (health polling source). Extension method: `WithMinecartRails()` in main package.
+
 ## Learnings
+
+### MinecartRailService Architecture Insights
+
+1. **Minecart rails are health-reactive but static.** Current design builds rails once, then toggles powered rails on/off based on parent health. Minecarts (if spawned) would inherit this reactive behavior automatically — they stop when powered rails are disabled, resume when restored. This is the hook for request flow visualization: spawn minecarts per request, let the health-reactive rail system do the "stalling on degradation" part naturally.
+
+2. **L-shaped path geometry is optimal for the village grid.** Rails travel X-axis first, then Z-axis. This avoids corners that would require sloped rail blocks (not implemented) and keeps minecarts aligned to grid. Powered rails every 8 blocks is the refresh rate (minecart speed in Minecraft).
+
+3. **Station design (detector + powered + detector) is the integration point.** Detector rails trigger redstone at endpoints. If we want to count minecarts arriving at a station or measure request completion, we hook into the detector rail's redstone output. This is the path to "request latency visualization" later.
+
+4. **RCON cost scales with rail length, not minecart count.** Building a 50-block rail = ~50 setblock commands (one-time cost). Spawning 5 minecarts = 5 summon commands. The visual density problem isn't RCON; it's entity performance. Paper can handle ~50 minecarts server-wide before TPS drops, so limiting to 5 per rail and ~20 total active is safe.
+
+5. **Minecart respawning logic is trivial but needs debounce.** Spawn on demand (when request count increases), despawn when not needed (request count decreases). Use a `RequestCountTracker` polling the health endpoints every 5s, comparing desired count to actual minecarts via `execute as @e[type=chest_minecart]` count query. Avoid rapid spawn/despawn thrashing with 10s hysteresis.
 
 ### MCA Inspector Architecture Decisions
 
