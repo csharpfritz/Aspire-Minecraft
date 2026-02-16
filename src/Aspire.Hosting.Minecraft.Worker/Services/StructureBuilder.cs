@@ -147,7 +147,7 @@ internal sealed class StructureBuilder(
         if (combined.Contains("node") || combined.Contains("javascript") || combined.Contains("js"))
             return ("minecraft:yellow_wool", "minecraft:yellow_banner", "minecraft:yellow_wall_banner");
         if (combined.Contains("python") || combined.Contains("flask") || combined.Contains("django"))
-            return ("minecraft:blue_wool", "minecraft:blue_banner", "minecraft:blue_wall_banner");
+            return ("minecraft:yellow_wool", "minecraft:yellow_banner", "minecraft:yellow_wall_banner");
         if (combined.Contains("go") || combined.Contains("golang"))
             return ("minecraft:cyan_wool", "minecraft:cyan_banner", "minecraft:cyan_wall_banner");
         if (combined.Contains("java") || combined.Contains("spring"))
@@ -156,6 +156,20 @@ internal sealed class StructureBuilder(
             return ("minecraft:brown_wool", "minecraft:brown_banner", "minecraft:brown_wall_banner");
 
         return ("minecraft:white_wool", "minecraft:white_banner", "minecraft:white_wall_banner");
+    }
+
+    /// <summary>
+    /// Returns an optional secondary color for dual-branded technologies.
+    /// Python gets blue as a secondary accent alongside its yellow primary.
+    /// Returns null for single-color technologies.
+    /// </summary>
+    internal static (string wool, string banner, string wallBanner)? GetSecondaryLanguageColor(string resourceType, string resourceName)
+    {
+        var combined = (resourceType + " " + resourceName).ToLowerInvariant();
+        if (combined.Contains("python") || combined.Contains("flask") || combined.Contains("django"))
+            return ("minecraft:blue_wool", "minecraft:blue_banner", "minecraft:blue_wall_banner");
+
+        return null;
     }
 
     /// <summary>
@@ -314,7 +328,7 @@ internal sealed class StructureBuilder(
             {
                 "Watchtower" => await BuildWatchtowerAsync(x, y, z, info, ct),
                 "Warehouse" => await BuildWarehouseAsync(x, y, z, info, ct),
-                "Workshop" => await BuildWorkshopAsync(x, y, z, ct),
+                "Workshop" => await BuildWorkshopAsync(x, y, z, info, ct),
                 "Cylinder" => await BuildCylinderAsync(x, y, z, ct),
                 "AzureThemed" => await BuildAzureThemedAsync(x, y, z, info, ct),
                 _ => await BuildCottageAsync(x, y, z, info, ct),
@@ -824,15 +838,18 @@ internal sealed class StructureBuilder(
 
     /// <summary>
     /// Workshop — building with chimney and workbench vibe. Executable resources.
-    /// Standard (7×7): Oak planks walls, cyan stained glass accents, 6 blocks tall.
+    /// Standard (7×7): Oak planks walls, language-colored wool stripe + banner, cyan stained glass, 6 blocks tall.
     /// Grand (15×15): Spruce log frame, A-frame peaked roof, loft, full tool stations, 10 blocks tall.
     /// </summary>
-    private async Task<DoorPosition> BuildWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildWorkshopAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         if (VillageLayout.StructureSize >= 15)
         {
-            return await BuildGrandWorkshopAsync(x, y, z, ct);
+            return await BuildGrandWorkshopAsync(x, y, z, info, ct);
         }
+
+        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
+        var secondary = GetSecondaryLanguageColor(info.Type, info.Name);
 
         // Foundation: 7×7 oak planks floor
         await rcon.SendCommandAsync(
@@ -841,6 +858,16 @@ internal sealed class StructureBuilder(
         // Walls: hollow box, 4 blocks tall
         await rcon.SendCommandAsync(
             $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:oak_planks hollow", ct);
+
+        // Language-colored wool stripe at top of walls (hollow = outer ring only)
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z + 6} {wool} hollow", ct);
+        if (secondary is not null)
+        {
+            // Secondary color stripe one row below for dual-branded languages (e.g., Python)
+            await rcon.SendCommandAsync(
+                $"fill {x} {y + 3} {z} {x + 6} {y + 3} {z + 6} {secondary.Value.wool} hollow", ct);
+        }
 
         // Peaked roof (oak stairs forming an A-frame along X axis)
         await rcon.SendCommandAsync(
@@ -851,6 +878,10 @@ internal sealed class StructureBuilder(
             $"fill {x} {y + 5} {z + 2} {x + 6} {y + 5} {z + 4} minecraft:oak_planks", ct);
         await rcon.SendCommandAsync(
             $"fill {x} {y + 6} {z + 3} {x + 6} {y + 6} {z + 3} minecraft:oak_slab", ct);
+
+        // Standing banner on roof ridge
+        await rcon.SendCommandAsync(
+            $"setblock {x + 3} {y + 7} {z + 3} {banner}[rotation=0]", ct);
 
         // Door - 2 blocks wide
         await rcon.SendCommandAsync(
@@ -885,14 +916,17 @@ internal sealed class StructureBuilder(
     /// Grand Workshop — enlarged 15×15 executable building with loft and tool stations.
     /// Oak plank walls with spruce log frame (corner posts + horizontal beams at y+5).
     /// A-frame peaked roof with spruce stair shingles. 2×2 cobblestone chimney with campfire.
+    /// Language-colored wool bands at y+4 and y+5. 4 standing banners on roof eave corners.
     /// Cyan stained glass windows with flower boxes under front windows.
     /// Interior: crafting table, smithing table, stonecutter, anvil, grindstone, furnace, brewing stand.
     /// Loft at y+6: half-floor accessible by ladder, storage barrels, bookshelf.
-    /// ~60 RCON commands.
+    /// ~70 RCON commands.
     /// </summary>
-    private async Task<DoorPosition> BuildGrandWorkshopAsync(int x, int y, int z, CancellationToken ct)
+    private async Task<DoorPosition> BuildGrandWorkshopAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
         var s = VillageLayout.StructureSize - 1; // 14
+        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
+        var secondary = GetSecondaryLanguageColor(info.Type, info.Name);
 
         // === FOUNDATION: 15×15 oak planks floor ===
         await rcon.SendCommandAsync(
@@ -901,6 +935,15 @@ internal sealed class StructureBuilder(
         // === WALLS: hollow box, 5 blocks tall (y+1 to y+5) ===
         await rcon.SendCommandAsync(
             $"fill {x} {y + 1} {z} {x + s} {y + 5} {z + s} minecraft:oak_planks hollow", ct);
+
+        // === LANGUAGE-COLORED WOOL BANDS below beam level ===
+        await rcon.SendCommandAsync(
+            $"fill {x} {y + 4} {z} {x + s} {y + 4} {z + s} {wool} hollow", ct);
+        if (secondary is not null)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {x} {y + 3} {z} {x + s} {y + 3} {z + s} {secondary.Value.wool} hollow", ct);
+        }
 
         // === SPRUCE LOG FRAME: corner posts (y+1 to y+5) ===
         await rcon.SendCommandAsync(
@@ -1026,6 +1069,28 @@ internal sealed class StructureBuilder(
             $"setblock {x + s - 4} {y + 5} {z + 4} minecraft:lantern[hanging=true]", ct);
         await rcon.SendCommandAsync(
             $"setblock {x + 7} {y + 5} {z + s - 4} minecraft:lantern[hanging=true]", ct);
+
+        // === 4 STANDING BANNERS on roof eave corners ===
+        // Front corners: primary color
+        await rcon.SendCommandAsync(
+            $"setblock {x} {y + 7} {z} {banner}[rotation=0]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {x + s} {y + 7} {z} {banner}[rotation=0]", ct);
+        // Back corners: offset from chimney at back-right (x+s-1..x+s, z+s-1..z+s)
+        if (secondary is not null)
+        {
+            await rcon.SendCommandAsync(
+                $"setblock {x} {y + 7} {z + s} {secondary.Value.banner}[rotation=8]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + s - 3} {y + 7} {z + s} {secondary.Value.banner}[rotation=8]", ct);
+        }
+        else
+        {
+            await rcon.SendCommandAsync(
+                $"setblock {x} {y + 7} {z + s} {banner}[rotation=8]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x + s - 3} {y + 7} {z + s} {banner}[rotation=8]", ct);
+        }
 
         return new DoorPosition(x + 7, y + 3, z);
     }
