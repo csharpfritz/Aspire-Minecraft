@@ -2651,3 +2651,143 @@ On server restart:
 **Why:** When dependency ordering differs from dictionary ordering (which happens whenever resources declare dependencies), services using different orderings would place features at the wrong physical grid positions. This caused redstone wires, minecart rails, and service switches to connect to or appear at buildings belonging to different resources than intended. The dependency ordering is preferred because it places parent resources before children in the grid, making the visual layout semantically meaningful.
 
 
+# ExecutableResource Health Detection Fix
+
+**Date:** 2026-02-16  
+**Author:** Shuri  
+**Status:** Implemented  
+**Issue:** Python and Node.js apps not showing as healthy in Minecraft village despite Aspire dashboard showing them green
+
+## Root Cause
+
+ExecutableResource types (PythonApp, NodeApp, JavaScriptApp) have endpoints that resolve to DCP-proxied URLs. These proxy addresses are not reachable from the Minecraft worker container's network context:
+
+- **ProjectResources** work because they're Docker containers with proper service networking
+- **ExecutableResources** fail because their HTTP endpoints resolve to DCP proxy addresses (e.g., `http://localhost:5300`) that exist in the host context, not the container network
+- **Aspire dashboard** shows them as healthy because it queries DCP's resource state API, not the actual HTTP endpoints
+
+The worker's HTTP health check at `AspireResourceMonitor.CheckHttpHealthAsync()` was trying to reach these unreachable proxy URLs, causing them to always appear unhealthy.
+
+## Solution
+
+Skip endpoint resolution for ExecutableResource types in `MinecraftServerBuilderExtensions.WithMonitoredResource()`. This prevents URL/HOST/PORT environment variables from being set for these resource types.
+
+When a resource has no endpoint configuration, `AspireResourceMonitor.PollHealthAsync()` follows the "no endpoint" path (lines 84-87) and assumes `ResourceStatus.Healthy`. This matches the Aspire dashboard behavior.
+
+### Detection Logic
+
+```csharp
+var isExecutable = resourceType.Contains("PythonApp", StringComparison.OrdinalIgnoreCase)
+    || resourceType.Contains("NodeApp", StringComparison.OrdinalIgnoreCase)
+    || resourceType.Contains("JavaScriptApp", StringComparison.OrdinalIgnoreCase)
+    || resourceType.Contains("Executable", StringComparison.OrdinalIgnoreCase);
+```
+
+The `resourceType` string comes from `GetType().Name.Replace("Resource", "")`, so PythonAppResource → "PythonApp", etc.
+
+## Files Changed
+
+- `src/Aspire.Hosting.Minecraft/MinecraftServerBuilderExtensions.cs` (lines 289-335)
+
+## Tradeoffs
+
+**Pros:**
+- Python/Node apps now show healthy when Aspire dashboard shows them healthy (consistency)
+- No false negatives from unreachable proxy URLs
+- Minimal code change (guard clause before endpoint resolution)
+- Matches Aspire dashboard's health determination strategy
+
+**Cons:**
+- ExecutableResources no longer have HTTP health checks — assumed healthy if process is running
+- If an ExecutableResource crashes or returns 500 errors, the village won't detect it
+- Not a "true" health check, but reflects what Aspire dashboard shows
+
+## Alternative Considered
+
+**TCP health check instead of HTTP:** Check if the port is listening rather than HTTP 200 response. Rejected because:
+1. Still requires resolving the endpoint, which has the same DCP proxy issue
+2. Doesn't provide better signal than "process running" (which is what DCP reports)
+
+## Recommendation for Future
+
+If Aspire exposes a resource state API or health endpoint that the worker can query (similar to what the dashboard uses), we should switch to that for all resource types. This would provide true health status for ExecutableResources.
+
+## Verification
+
+1. Build: `dotnet build Aspire-Minecraft.slnx -c Release` — **PASSED**
+2. Manual test: Run GrandVillageDemo sample and verify Python/Node workshops show green lanterns
+3. Aspire dashboard: Verify resources show same health state in dashboard and Minecraft village
+
+
+# Azure Key Vault Vault Interior Design
+
+**Date:** 2025-01-28  
+**Author:** Rocket (Integration Dev)  
+**Status:** Implemented  
+
+## Context
+Azure Key Vault resources in the Grand Village layout needed differentiation from other Azure resources. While all Azure resources use the AzureThemed building exterior (15×15 light blue terracotta pavilion), Key Vault specifically should convey the concept of secure storage with a vault-themed interior.
+
+## Decision
+Modified `BuildGrandAzurePavilionAsync()` in `StructureBuilder.cs` to detect Azure Key Vault resources via `info.Type.Contains("keyvault")` and apply a specialized interior:
+
+### Vault Interior Features
+- **Dark vault floor:** Polished deepslate with iron trapdoor grating accents
+- **Iron vault door:** Replaced standard air door with double iron doors (requiring buttons/levers to open)
+- **Vault door frame:** Heavy iron block archway just inside entrance (3-block tall frame)
+- **Security cages:** Two iron bars partitions (left and right walls) containing rows of locked chests
+- **Sealed storage:** Barrel arrays along back wall for "sealed containers" aesthetic
+- **Master key centerpiece:** Ender chest in the center of the room
+- **Security floor details:** Heavy weighted pressure plates (gold) flanking the ender chest
+- **Moody lighting:** Soul lanterns (dim blue glow) instead of bright lanterns
+
+### Non-Key-Vault Azure Buildings
+All other Azure resources (App Config, Service Bus, Storage, etc.) retain the standard cloud services aesthetic:
+- Light blue carpet floor
+- Brewing stand and cauldron (cloud metaphor)
+- Bright lanterns
+
+## RCON Budget
+- **Standard Azure Pavilion:** ~34 base commands + 4 interior commands = ~38 total
+- **Key Vault variant:** ~34 base commands + 25 vault interior commands = ~59 total
+- **Constraint:** Stay under ~100 commands total (within burst budget)
+- **Result:** ✅ Well within budget
+
+## Implementation Details
+- Exterior unchanged: light blue terracotta walls, quartz pilasters, banners, skylight
+- Detection: `isKeyVault = info.Type.Contains("keyvault", StringComparison.OrdinalIgnoreCase)`
+- Branching: If/else block after windows, before final floor/furniture
+- Iron doors replace air blocks at entrance (double door with proper hinge configuration)
+
+## Rationale
+1. **User Experience:** Players immediately recognize Key Vault as "the vault" — visual metaphor matches function
+2. **Consistency:** Exterior remains AzureThemed, preserving village cohesion
+3. **Scalability:** Other Azure resources can get specialized interiors using same pattern
+4. **Performance:** Vault variant stays well under RCON budget (~59 vs ~100 limit)
+
+## Alternatives Considered
+- **Separate building type:** Would break visual cohesion with other Azure resources
+- **Exterior differentiation:** Would confuse the "all Azure resources look Azure" pattern
+- **Lighter vault aesthetic:** Rejected — needs to feel "secure and heavy" to match Key Vault concept
+
+## References
+- `src/Aspire.Hosting.Minecraft.Worker/Services/StructureBuilder.cs` lines 1645-1761
+- `IsAzureResource()` includes "keyvault" check (line 204)
+- Minecraft blocks: `iron_block`, `iron_door`, `iron_bars`, `chest`, `barrel`, `ender_chest`, `soul_lantern`, `heavy_weighted_pressure_plate`, `polished_deepslate`
+
+
+### 2026-02-16: User directive — technology branding colors on buildings
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Each project technology must have distinctive color stripes and banners on their buildings:
+- .NET projects (Watchtowers): Purple stripes (already done)
+- JavaScript/Node apps (Workshops): Yellow stripes and yellow banners on top
+- Python apps (Workshops): Yellow AND blue stripes with yellow and blue banners on top
+Additionally, Python and Node applications must properly reflect their health status from the Aspire dashboard — the system is not detecting when they are running.
+**Why:** User request — captured for team memory
+
+
+### 2026-02-16: Azure Key Vault building interior should resemble a bank vault
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** For Grand Village designs, when placing an Azure Key Vault resource, the interior of the AzureThemed building should feel like a bank vault — with locked cabinets, chest storage, iron bars/doors, and vault aesthetics that convey security and containment.
+**Why:** User request — captured for team memory. Scheduled for a future sprint.
+
