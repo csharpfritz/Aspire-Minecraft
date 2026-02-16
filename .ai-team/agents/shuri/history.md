@@ -160,6 +160,9 @@
 
 - **BuildGrandCylinderAsync** added to `StructureBuilder.cs`: 15×15 footprint (radius 7), 12 blocks tall, dispatched when `VillageLayout.StructureSize >= 15`.
 - Pre-calculated circle coordinates in `(dz, x1, x2)[]` tuples — one `/fill` per row per layer. Avoids individual `/setblock` for circular geometry.
+
+📌 Team update (2026-02-16): Feature monitoring services moved to continuous loop (affects Program.cs) — decided by Coordinator
+
 - **Wall materials:** Smooth stone (y+1 to y+4), cut copper accent band (y+5 to y+6), polished deepslate (y+7 to y+9), cut copper top band (y+10).
 - **Dome roof:** 3-layer dome — deepslate tile slab (y+11, full circle), polished deepslate slab (y+12, smaller cap), polished deepslate slab (y+13, peak).
 - **Central copper pillar:** Single `/fill` from y+0 to y+12 at (x+7, z+7) — the "data spindle" aesthetic.
