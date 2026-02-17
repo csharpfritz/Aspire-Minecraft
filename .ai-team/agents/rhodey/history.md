@@ -240,3 +240,17 @@
 3. **Complementary, not competitive.** The milestone plan explicitly frames MCA as a complement to RCON, not a replacement. This is important for adoption: teams will use both methods in the same test suite, each for what it's best at.
 
 4. **Risk mitigation table is underrated.** The milestone includes a risk table; this forces us to think about what could go wrong (unmaintained library, parsing errors, format changes) and what we'll do about each. Makes sprint planning more realistic.
+
+### Town Square & Ornate Building Architecture
+
+1. **Resource-type grouping and dependency ordering are fundamentally in tension.** The current `ReorderByDependency` topological sort places related services together, but type grouping puts same-type services together — splitting dependency relationships apart. The solution is zone-based layout: group by type into neighborhoods, apply dependency ordering within each zone, and rely on minecart rails for cross-zone visual dependency representation.
+
+2. **Multi-directional door placement is the highest-risk change.** Six services (health indicators, signs, service switches, rails, canals, holograms) derive positions from `DoorPosition`, which assumes south-facing doors. Town squares require N/S/E/W facing. A `Facing` enum on `DoorPosition` is the cleanest single-point fix, but all downstream services must be updated.
+
+3. **Town square footprint is substantial.** A single 4-building town square is ~75×75 blocks (15 building + 4 gap + 21 plaza + 4 gap + 15 building per axis). Two town squares plus a boulevard and support area fits within current MAX_WORLD_SIZE (768) at ~216 blocks per axis, but it's worth monitoring.
+
+4. **Ornate building upgrades are orthogonal to layout changes.** Each building type gets 16-22 additional RCON commands for decorative enhancements. These can ship independently of the neighborhood/town-square work, enabling parallel development tracks.
+
+5. **Honey blocks for the beer fountain create a gameplay easter egg.** Players who step into the fountain experience reduced movement speed and can't jump — simulating "getting tipsy." This is a fun discovery moment, but needs Jeff's sign-off in case it annoys players.
+
+6. **Phase 1 (neighborhoods without town squares) is the minimum viable change.** Type-grouping alone creates distinct neighborhoods — Azure buildings clustered together, .NET projects clustered together. Town squares and fountains are Phase 2, ornate upgrades Phase 3. This lets us ship incrementally and validate the zone-aware positioning before adding rotational complexity.

@@ -54,14 +54,14 @@ internal sealed class CanalService(
         // Build branch canals from each building to the trunk
         for (var i = 0; i < resourceCount; i++)
         {
-            var (entranceX, _, entranceZ) = VillageLayout.GetCanalEntrance(i);
+            var (entranceX, _, entranceZ) = VillageLayout.GetCanalEntrance(orderedNames[i], i);
             await BuildBranchCanalAsync(entranceX, entranceZ, trunkX, ct);
         }
 
         // Build trunk canal running north–south
         var (lakeX, _, lakeZ) = VillageLayout.GetLakePosition(resourceCount);
-        var firstEntrance = VillageLayout.GetCanalEntrance(0);
-        var lastEntrance = VillageLayout.GetCanalEntrance(resourceCount - 1);
+        var firstEntrance = VillageLayout.GetCanalEntrance(orderedNames[0], 0);
+        var lastEntrance = VillageLayout.GetCanalEntrance(orderedNames[resourceCount - 1], resourceCount - 1);
         var trunkMinZ = Math.Min(firstEntrance.z, lastEntrance.z) - 1;
         var trunkMaxZ = lakeZ;
 

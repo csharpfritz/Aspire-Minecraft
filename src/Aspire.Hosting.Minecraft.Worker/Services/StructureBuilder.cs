@@ -227,7 +227,9 @@ internal sealed class StructureBuilder(
         return lower.Contains("executable")
             || lower.Contains("pythonapp")
             || lower.Contains("nodeapp")
-            || lower.Contains("javascriptapp");
+            || lower.Contains("javascriptapp")
+            || lower.Contains("javaapp")
+            || lower.Contains("springapp");
     }
 
     /// <summary>
@@ -328,7 +330,7 @@ internal sealed class StructureBuilder(
     {
         try
         {
-            var (x, y, z) = VillageLayout.GetStructureOrigin(index);
+            var (x, y, z) = VillageLayout.GetStructureOrigin(info.Name, index);
 
             var structureType = GetStructureType(info.Type);
 

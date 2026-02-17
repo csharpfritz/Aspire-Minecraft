@@ -2343,4 +2343,31 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 **What:** Remove `.WithRedstoneDependencyGraph()` from the default sample app and from `WithAllFeatures()`. The redstone wiring between buildings is not desired. The extension method and service remain available for manual opt-in.
 **Why:** User request — the visible redstone between buildings clutters the village and is replaced by minecart tracks and canals for dependency visualization.
 
+### 2026-02-17: Canal/rail commands use Normal priority with burst mode; queue capacity 100→500
+**By:** Shuri
+**What:** Changed all canal and minecart rail build commands from `CommandPriority.Low` to `CommandPriority.Normal`. Added burst mode to MinecartRailService initialization. Increased RCON bounded queue capacity from 100 to 500. Added forceload commands for canal/lake areas after DiscoverResources.
+**Why:** Low-priority commands are queued in a bounded Channel with DropOldest policy, which silently dropped commands when the queue filled during initialization. Normal priority waits briefly for rate tokens instead of queuing, and burst mode (40 cmd/s) ensures throughput. The forceload fix ensures Minecraft loads the chunks where canal/lake `/fill` commands operate — without loaded chunks, `/fill` silently fails.
+
+### 2026-02-17: User directive — Town squares and ornate buildings
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:**
+1. Buildings for resources should be huge, ornate, and very interesting structures.
+2. Azure resources grouped together. When 4+ Azure resources exist, form an "Azure town square" with a water fountain.
+3. .NET project resources grouped together. When 4+ .NET projects exist, form a town square with a "beer fountain" (honey blocks).
+**Why:** User wants the village to feel like a real town with distinct neighborhoods and landmarks.
+
+### 2026-02-17: Town squares architecture — zone-based neighborhoods with U-shape layout
+**By:** Rhodey
+**What:** Architecture proposal for resource-type grouping, town squares with fountains, and ornate building upgrades. Key decisions: zone-based neighborhoods (Azure NE, .NET NW, Containers SW, Executables SE), 21×21 plaza with 9×9 fountain, U-shape building arrangement (all doors face south, south side open), feature flag `ASPIRE_FEATURE_NEIGHBORHOODS`. 3-phase plan: Phase 1 (Neighborhood Layout Engine), Phase 2 (Town Squares + Fountains), Phase 3 (Ornate Buildings).
+**Why:** Comprehensive architecture to implement Jeff's town square vision with minimal disruption to existing systems.
+
+### 2026-02-17: User decisions on town square architecture
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:**
+1. Town square threshold stays at 4 — add more resources to Grand Village demo to hit threshold.
+2. U-shape layout preferred (all doors face south, buildings in U around plaza with south side open).
+3. Performance hit of 160-220 extra RCON commands for ornate buildings is acceptable.
+4. Honey blocks for beer fountain — keep the "tipsy" easter egg.
+**Why:** User answers to Rhodey's architecture proposal open questions.
+
 

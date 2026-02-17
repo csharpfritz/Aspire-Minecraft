@@ -74,6 +74,9 @@ public class MinecraftServerBuilderExtensionTests
             "ASPIRE_FEATURE_REDSTONE_DASHBOARD",
             "ASPIRE_FEATURE_GRAND_VILLAGE",
             "ASPIRE_FEATURE_MINECART_RAILS",
+            "ASPIRE_FEATURE_ERROR_BOATS",
+            "ASPIRE_FEATURE_CANALS",
+            "ASPIRE_FEATURE_NEIGHBORHOODS",
         };
 
         foreach (var envVar in expectedFeatureVars)
@@ -83,9 +86,9 @@ public class MinecraftServerBuilderExtensionTests
             Assert.Equal("true", envVars[envVar]);
         }
 
-        // 20 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 21 total from WithAllFeatures
+        // 21 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 22 total from WithAllFeatures
         var featureVars = envVars.Keys.Where(k => k.StartsWith("ASPIRE_FEATURE_")).ToList();
-        Assert.Equal(20, featureVars.Count);
+        Assert.Equal(21, featureVars.Count);
     }
 
     [Fact]

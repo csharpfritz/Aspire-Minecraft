@@ -26,7 +26,7 @@ internal sealed class ParticleEffectService(
             var index = orderedNames.IndexOf(change.Name);
             if (index < 0) continue;
 
-            var (x, y, z) = VillageLayout.GetAboveStructure(index);
+            var (x, y, z) = VillageLayout.GetAboveStructure(change.Name, index);
 
             if (change.NewStatus == ResourceStatus.Unhealthy)
             {

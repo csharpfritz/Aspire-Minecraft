@@ -59,7 +59,7 @@ internal sealed class ErrorBoatService(
             // Global cap
             if (_totalBoats >= MaxTotalBoats) continue;
 
-            var (cx, _, cz) = VillageLayout.GetCanalEntrance(index);
+            var (cx, _, cz) = VillageLayout.GetCanalEntrance(change.Name, index);
             var spawnY = VillageLayout.SurfaceY;
 
             await rcon.SendCommandAsync(

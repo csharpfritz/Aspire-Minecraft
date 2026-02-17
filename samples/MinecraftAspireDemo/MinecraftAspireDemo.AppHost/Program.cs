@@ -1,4 +1,5 @@
 using Aspire.Hosting.Minecraft;
+using Aspire.Hosting.ApplicationModel;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -39,6 +40,16 @@ var pythonApi = builder.AddPythonApp("python-api", "../MinecraftAspireDemo.Pytho
 // Add sample Node.js API — Executable resource → Workshop building
 var nodeApi = builder.AddNodeApp("node-api", "../MinecraftAspireDemo.NodeApi", "app.js")
     .WithHttpEndpoint(port: 5200);
+
+// Add Java Spring container — Executable resource → Workshop building (orange)
+// Note: AddSpringApp auto-registers an HTTP endpoint via JavaAppContainerResourceOptions.
+// Set Port there instead of chaining .WithHttpEndpoint() to avoid a duplicate endpoint conflict.
+var javaApi = builder.AddSpringApp("java-api",
+    new JavaAppContainerResourceOptions
+    {
+        ContainerImageName = "aliencube/aspire-spring-maven-sample",
+        Port = 5500,
+    });
 
 // Add Minecraft server with all integrations — the worker is created internally.
 // World data is ephemeral by default (fresh world each run).
@@ -89,9 +100,10 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     // Azure resources → AzureThemed buildings
     .WithMonitoredResource(blobs, "AzureStorage")
     .WithMonitoredResource(keyVault, "AzureKeyVault")
-    // Executable resources (Python, Node.js) → Workshop buildings
+    // Executable resources (Python, Node.js, Java) → Workshop buildings
     .WithMonitoredResource(pythonApi)
-    .WithMonitoredResource(nodeApi);
+    .WithMonitoredResource(nodeApi)
+    .WithMonitoredResource(javaApi);
 
 // Grand Village: enlarged 15×15 buildings, minecart rail network
 if (useGrandVillage)

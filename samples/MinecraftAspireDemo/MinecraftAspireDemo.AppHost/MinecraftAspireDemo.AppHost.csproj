@@ -12,6 +12,7 @@
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Python" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Java" Version="13.1.1" />
   </ItemGroup>
 
   <ItemGroup>

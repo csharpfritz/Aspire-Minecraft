@@ -231,3 +231,20 @@
 - Build: 0 errors, pre-existing warnings only (CS8604 nullable, xUnit1026 unused param).
 
 📌 Team update (2026-02-17): Redstone Dependency Graph removed from defaults — decided by Shuri
+
+### Fix: Canal/Rail Forceload and Command Priority (2026-02-17)
+
+- **BUG 1 — Forceload coverage:** Village forceload at line 197 only covered `GetFencePerimeter(10)`, but canals extend east (trunk canal at `maxX + CanalTotalWidth + 2`) and the lake extends south (`maxZ + LakeGap`). Added two additional `forceload add` commands after `DiscoverResources()` that cover: (1) the canal corridor from village edge to trunk canal + width, and (2) the lake area with 5-block margin. Only runs when `canals is not null` and resources exist.
+- **BUG 2 — CommandPriority.Low drop:** The RCON queue (bounded Channel<T>, DropOldest) was silently dropping canal/rail commands. Changed all build commands in `CanalService.BuildBranchCanalAsync`, `BuildTrunkCanalAsync`, `BuildLakeAsync` from `CommandPriority.Low` to `CommandPriority.Normal`. Same fix in `MinecartRailService.PlaceRailConnectionAsync` and `PlaceStationAsync`. Added `rcon.EnterBurstMode(40)` to `MinecartRailService.InitializeAsync` (CanalService already had it).
+- **Queue capacity:** Increased `BoundedChannelOptions` capacity from 100 to 500 in `RconService.cs` constructor to provide headroom for legitimate Low-priority commands from other features.
+- **Key insight:** Normal-priority commands wait briefly (100ms) for a rate token instead of being queued; combined with burst mode (40 cmd/s during init), this ensures all commands execute. Low priority is only appropriate for fire-and-forget commands where dropping is acceptable.
+- **Files changed:** `Program.cs`, `CanalService.cs`, `MinecraftRailService.cs`, `RconService.cs`
+- Build: 0 errors. All 134 relevant tests pass (45 Rcon + 19 Hosting + 70 Worker). One pre-existing failure in StructureBuilderTests is unrelated.
+
+### Fix: Duplicate HTTP Endpoint on Java Spring Container Resources (2026-02-17)
+
+- **Root cause:** `AddSpringApp()` (from CommunityToolkit.Aspire.Hosting.Java) internally calls `AddJavaApp()`, which chains `.WithHttpEndpoint(port: options.Port, targetPort: options.TargetPort, name: JavaAppContainerResource.HttpEndpointName)`. Both demo AppHost `Program.cs` files then called `.WithHttpEndpoint(targetPort: 8080, port: 5500)` on the result, creating a **second** unnamed HTTP endpoint — causing a duplicate endpoint allocation error at runtime.
+- **Fix:** Removed the explicit `.WithHttpEndpoint()` call from both `GrandVillageDemo.AppHost/Program.cs` and `MinecraftAspireDemo.AppHost/Program.cs`. Instead, set `Port = 5500` directly in the `JavaAppContainerResourceOptions` object passed to `AddSpringApp()`. The `TargetPort` defaults to 8080 (matching the Spring Boot container), so only `Port` needs to be overridden.
+- **Port audit:** Verified no within-app port conflicts exist. MinecraftAspireDemo uses Python=5100, Node=5200, Java=5500. GrandVillageDemo uses Python=5300, Node=5400, Java=5500. Both share Java port 5500 but are separate Aspire apps.
+- **Key insight:** `AddSpringApp`/`AddJavaApp` always auto-registers a named HTTP endpoint (`JavaAppContainerResource.HttpEndpointName`). Never chain `.WithHttpEndpoint()` after `AddSpringApp()` for port configuration — use `JavaAppContainerResourceOptions.Port` and `.TargetPort` instead.
+- Build: 0 errors, 0 warnings.

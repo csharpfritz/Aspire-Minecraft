@@ -36,6 +36,12 @@ internal sealed class BeaconTowerService(
         return (sx, sy, sz + VillageLayout.StructureSize + 1);
     }
 
+    internal static (int x, int y, int z) GetBeaconOrigin(string resourceName, int fallbackIndex)
+    {
+        var (sx, sy, sz) = VillageLayout.GetStructureOrigin(resourceName, fallbackIndex);
+        return (sx, sy, sz + VillageLayout.StructureSize + 1);
+    }
+
     /// <summary>
     /// Builds or updates beacon towers for all monitored resources.
     /// </summary>
@@ -65,7 +71,7 @@ internal sealed class BeaconTowerService(
 
     private async Task BuildBeaconTowerAsync(ResourceInfo info, int index, CancellationToken ct)
     {
-        var (x, y, z) = GetBeaconOrigin(index);
+        var (x, y, z) = GetBeaconOrigin(info.Name, index);
 
         // 3x3 iron block base (single layer)
         await rcon.SendCommandAsync(

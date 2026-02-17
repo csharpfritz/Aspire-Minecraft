@@ -320,9 +320,10 @@ public class StructureBuilderTests : IAsyncLifetime
             c.Contains("glowstone") || c.Contains("redstone_lamp") || c.Contains("sea_lantern"));
         Assert.Equal(10, healthIndicators);
         
-        // Verify all 10 signs have data
+        // Verify all 10 signs have data (grand structures may place extra info signs)
         var signDataCommands = commands.Count(c => c.Contains("data merge block"));
-        Assert.Equal(10, signDataCommands);
+        Assert.True(signDataCommands >= 10,
+            $"Expected at least 10 sign data commands but got {signDataCommands}");
     }
 
     /// <summary>

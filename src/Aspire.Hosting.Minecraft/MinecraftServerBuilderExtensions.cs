@@ -296,6 +296,7 @@ public static class MinecraftServerBuilderExtensions
         var isExecutable = resourceType.Contains("PythonApp", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("NodeApp", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("JavaScriptApp", StringComparison.OrdinalIgnoreCase)
+            || resourceType.Contains("JavaAppExecutable", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("Executable", StringComparison.OrdinalIgnoreCase);
 
         if (!isExecutable)
@@ -823,6 +824,27 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables neighborhood-based layout grouping. Resources of the same type (Azure, .NET, containers,
+    /// executables) are grouped into distinct zones within the village, creating neighborhood clusters.
+    /// When combined with <see cref="WithGrandVillage"/>, groups of 4+ resources of the same type
+    /// will eventually form town squares with fountains (Phase 2).
+    /// Requires <see cref="WithAspireWorldDisplay{TWorker}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithNeighborhoods(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithNeighborhoods() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_NEIGHBORHOODS", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
@@ -865,7 +887,8 @@ public static class MinecraftServerBuilderExtensions
             .WithGrandVillage()
             .WithMinecartRails()
             .WithErrorBoats()
-            .WithCanals();
+            .WithCanals()
+            .WithNeighborhoods();
     }
 
     /// <summary>

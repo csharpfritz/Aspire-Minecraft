@@ -71,6 +71,8 @@ if (builder.Configuration["ASPIRE_FEATURE_ERROR_BOATS"] == "true")
     builder.Services.AddSingleton<ErrorBoatService>();
 }
 
+// Neighborhood mode flag — checked in worker after resource discovery
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
@@ -204,6 +206,16 @@ file sealed class MinecraftWorldWorker(
         // Discover Aspire resources
         resourceMonitor.DiscoverResources();
 
+        // Plan neighborhoods when enabled — must happen after resource discovery
+        if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_NEIGHBORHOODS") == "true"
+            && resourceMonitor.Resources.Count > 0)
+        {
+            VillageLayout.PlanNeighborhoods(resourceMonitor.Resources);
+            logger.LogInformation("Neighborhood layout planned: {ZoneCount} zones for {ResourceCount} resources",
+                VillageLayout.ActiveNeighborhoodPlan?.Neighborhoods.Count ?? 0,
+                resourceMonitor.Resources.Count);
+        }
+
         // Force-load canal and lake chunks when canals feature is enabled.
         // These areas extend beyond the village fence perimeter and must be loaded
         // for /fill commands to succeed.
@@ -234,16 +246,14 @@ file sealed class MinecraftWorldWorker(
         }
 
         // Initialize opt-in features that need startup commands
+        // NOTE: Rails and canals are initialized AFTER structures are built (see main loop)
+        // to avoid being paved over by building foundations and paths.
         if (worldBorder is not null)
             await worldBorder.InitializeAsync(stoppingToken);
         if (redstoneGraph is not null)
             await redstoneGraph.InitializeAsync(stoppingToken);
         if (redstoneDashboard is not null)
             await redstoneDashboard.InitializeAsync(stoppingToken);
-        if (minecartRails is not null)
-            await minecartRails.InitializeAsync(stoppingToken);
-        if (canals is not null)
-            await canals.InitializeAsync(stoppingToken);
         if (errorBoats is not null)
             await errorBoats.InitializeAsync(stoppingToken);
 
@@ -297,6 +307,12 @@ file sealed class MinecraftWorldWorker(
                 await scoreboard.UpdateScoreboardAsync(stoppingToken);
                 await structures.UpdateStructuresAsync(stoppingToken);
                 await horseSpawn.SpawnHorsesAsync(stoppingToken);
+
+                // Build rails and canals AFTER structures so they aren't paved over
+                if (minecartRails is not null)
+                    await minecartRails.InitializeAsync(stoppingToken);
+                if (canals is not null)
+                    await canals.InitializeAsync(stoppingToken);
 
                 // Continuous fleet-health features(update every cycle, but only change on transitions)
                 if (weather is not null)

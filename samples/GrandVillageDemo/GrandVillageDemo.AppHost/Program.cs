@@ -1,4 +1,5 @@
 using Aspire.Hosting.Minecraft;
+using Aspire.Hosting.ApplicationModel;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Grand Village Demo
@@ -15,6 +16,7 @@ using Aspire.Hosting.Minecraft;
 //   Azure resource       │ AzureThemed      │ 15×15
 //   Executable (Python)  │ Workshop         │ 15×15
 //   Executable (Node.js) │ Workshop         │ 15×15
+//   Executable (Java)    │ Workshop         │ 15×15
 //   Other / unknown      │ Cottage          │ 15×15
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,9 @@ var storage = builder.AddAzureStorage("storage")
     .RunAsEmulator();
 var blobs = storage.AddBlobs("blobs");
 var keyVault = builder.AddAzureKeyVault("keyvault");
+var serviceBus = builder.AddAzureServiceBus("servicebus");
+var cosmosDb = builder.AddAzureCosmosDB("cosmos")
+    .RunAsEmulator();
 
 // --- .NET projects (Watchtower grand buildings) ---
 var api = builder.AddProject<Projects.GrandVillageDemo_ApiService>("api")
@@ -40,6 +45,13 @@ var web = builder.AddProject<Projects.GrandVillageDemo_Web>("web")
     .WithReference(api)
     .WithExternalHttpEndpoints();
 
+var worker = builder.AddProject<Projects.GrandVillageDemo_WorkerService>("worker")
+    .WithReference(redis);
+
+var gateway = builder.AddProject<Projects.GrandVillageDemo_Gateway>("gateway")
+    .WithReference(api)
+    .WithReference(web);
+
 // --- Python executable (Workshop grand building) ---
 var pythonApi = builder.AddPythonApp("python-api", "../GrandVillageDemo.PythonApi", "main.py")
     .WithHttpEndpoint(port: 5300);
@@ -47,6 +59,16 @@ var pythonApi = builder.AddPythonApp("python-api", "../GrandVillageDemo.PythonAp
 // --- Node.js executable (Workshop grand building) ---
 var nodeApi = builder.AddNodeApp("node-api", "../GrandVillageDemo.NodeApi", "app.js")
     .WithHttpEndpoint(port: 5400);
+
+// --- Java Spring container (Workshop grand building — orange branding) ---
+// Note: AddSpringApp auto-registers an HTTP endpoint via JavaAppContainerResourceOptions.
+// Set Port there instead of chaining .WithHttpEndpoint() to avoid a duplicate endpoint conflict.
+var javaApi = builder.AddSpringApp("java-api",
+    new JavaAppContainerResourceOptions
+    {
+        ContainerImageName = "aliencube/aspire-spring-maven-sample",
+        Port = 5500,
+    });
 
 // --- Minecraft server with ALL features + Grand Village ---
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
@@ -63,14 +85,19 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     // Projects → grand Watchtower (15×15)
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
+    .WithMonitoredResource(worker)
+    .WithMonitoredResource(gateway)
     // Containers → grand Warehouse / Cylinder (15×15)
     .WithMonitoredResource(redis)
     .WithMonitoredResource(pg)
     // Azure → grand AzureThemed (15×15)
     .WithMonitoredResource(blobs, "AzureStorage")
     .WithMonitoredResource(keyVault, "AzureKeyVault")
+    .WithMonitoredResource(serviceBus, "AzureServiceBus")
+    .WithMonitoredResource(cosmosDb, "AzureCosmosDB")
     // Executables → grand Workshop (15×15)
     .WithMonitoredResource(pythonApi)
-    .WithMonitoredResource(nodeApi);
+    .WithMonitoredResource(nodeApi)
+    .WithMonitoredResource(javaApi);
 
 builder.Build().Run();

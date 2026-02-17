@@ -6,12 +6,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure.CosmosDB" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Azure.KeyVault" Version="13.1.1" />
+    <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Python" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Java" Version="13.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +22,8 @@
     <ProjectReference Include="..\..\..\src\Aspire.Hosting.Minecraft.Worker\Aspire.Hosting.Minecraft.Worker.csproj" />
     <ProjectReference Include="..\GrandVillageDemo.ApiService\GrandVillageDemo.ApiService.csproj" />
     <ProjectReference Include="..\GrandVillageDemo.Web\GrandVillageDemo.Web.csproj" />
+    <ProjectReference Include="..\GrandVillageDemo.WorkerService\GrandVillageDemo.WorkerService.csproj" />
+    <ProjectReference Include="..\GrandVillageDemo.Gateway\GrandVillageDemo.Gateway.csproj" />
   </ItemGroup>
 
 </Project>

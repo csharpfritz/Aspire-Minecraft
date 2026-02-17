@@ -93,8 +93,8 @@ internal sealed class MinecartRailService(
 
     private static RailConnection CalculateRailConnection(string childName, string parentName, int childIndex, int parentIndex)
     {
-        var (px, _, pz) = VillageLayout.GetStructureOrigin(parentIndex);
-        var (cx, _, cz) = VillageLayout.GetStructureOrigin(childIndex);
+        var (px, _, pz) = VillageLayout.GetStructureOrigin(parentName, parentIndex);
+        var (cx, _, cz) = VillageLayout.GetStructureOrigin(childName, childIndex);
 
         var railY = VillageLayout.SurfaceY + 1;
         var entranceOffset = VillageLayout.StructureSize / 2;
