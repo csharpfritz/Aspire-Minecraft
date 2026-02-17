@@ -2315,3 +2315,32 @@ This is especially useful for the base `itzg/minecraft-server:latest` layer, whi
 ## Co-authored-by
 Wong (GitHub Ops)
 
+
+
+# Decision: Redstone Dependency Graph removed from defaults
+
+**Author:** Shuri  
+**Date:** 2026-02-17  
+**Status:** Implemented
+
+## Context
+Jeff requested removal of the redstone wiring between buildings. The redstone dependency graph was cluttering the village and wasn't adding value to the demo experience.
+
+## Decision
+- Removed `.WithRedstoneDependencyGraph()` from `WithAllFeatures()` method chain and from the sample app.
+- The `RedstoneDependencyService.cs` file and the `WithRedstoneDependencyGraph()` extension method are **preserved** for manual opt-in — anyone who wants redstone wiring can still call it explicitly.
+- Test count updated from 21 → 20 feature env vars.
+
+## Impact
+- `WithAllFeatures()` no longer enables redstone wiring by default.
+- Existing code that explicitly calls `.WithRedstoneDependencyGraph()` is unaffected.
+- The `GrandVillageDemo` sample (if it uses `WithAllFeatures()`) will also lose redstone wiring automatically.
+
+
+
+### 2026-02-17: User directive — Remove redstone dependency graph from default village
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Remove `.WithRedstoneDependencyGraph()` from the default sample app and from `WithAllFeatures()`. The redstone wiring between buildings is not desired. The extension method and service remain available for manual opt-in.
+**Why:** User request — the visible redstone between buildings clutters the village and is replaced by minecart tracks and canals for dependency visualization.
+
+

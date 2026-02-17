@@ -229,3 +229,5 @@
 - **WithAllFeatures()**: Removed `.WithRedstoneDependencyGraph()` from the chained method list. Updated XML doc `<see cref>` list. The extension method and `RedstoneDependencyService.cs` are preserved for manual opt-in.
 - **Test update**: `WithAllFeatures_SetsAllFeatureEnvVars` count adjusted from 21→20 ASPIRE_FEATURE_ env vars. Removed `ASPIRE_FEATURE_REDSTONE_GRAPH` from expected list.
 - Build: 0 errors, pre-existing warnings only (CS8604 nullable, xUnit1026 unused param).
+
+📌 Team update (2026-02-17): Redstone Dependency Graph removed from defaults — decided by Shuri
