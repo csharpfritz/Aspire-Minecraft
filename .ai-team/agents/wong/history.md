@@ -171,3 +171,19 @@
 - The hosting extension (MinecraftServerBuilderExtensions.cs) will be updated separately by Shuri to detect `ASPIRE_MINECRAFT_PREBAKED=true` and skip the bind-mount setup for BlueMap `core.conf` when using a prebaked image. This optimization reduces startup overhead for Aspire deployments.
 
 📌 Team update (2026-02-17): Docker image with BlueMap plugin created and published to GHCR (ghcr.io/csharpfritz/aspire-minecraft-server), workflow and docs added, hosting extension integration pending — decided by Wong
+
+### Dependabot PR Review & Merge (2026-02-17)
+
+**Status:**
+- **Merged (2):** PR #100 (codeql-action 3→4), PR #99 (github-script 7→8), PR #98 (upload-pages-artifact 3→4)
+- **Blocked (2):** PR #97 (setup-node 4→6), PR #96 (checkout 4→6) — token lacks `workflow` scope to merge PRs modifying GitHub Actions workflows
+
+**Details:**
+- All 5 Dependabot PRs were GitHub Actions dependency updates created on 2026-02-17.
+- CI checks were pending (no failures detected).
+- All PRs had clean mergeable status.
+- PRs touching workflow files require `workflow` scope on GitHub token; personal access tokens typically lack this scope.
+- 3 PRs successfully merged via squash merge strategy to maintain clean commit history.
+
+**Recommendation:** 
+- Remaining 2 PRs (#97, #96) require either (a) token with `workflow` scope, or (b) manual merge via GitHub web UI by a repository admin with sufficient permissions.
