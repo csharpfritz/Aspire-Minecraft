@@ -141,3 +141,31 @@
 **Notes:**
 - `enhancement` and `documentation` labels already existed; `sprint-4` was created new (color: #5319e7).
 - Issue #49 and #62 were created via MCP tool; #63–#74 via REST API due to rate limiting on parallel MCP calls.
+
+### Phase 2 — Docker Image & Prebaked Plugins (2026-02-17)
+
+**Changes:**
+- **Created `docker/Dockerfile`** — Extends `itzg/minecraft-server:latest` with `ASPIRE_MINECRAFT_PREBAKED=true` marker env var and pre-installs BlueMap via `MODRINTH_PROJECTS="bluemap"`. Minimal footprint — designed for incremental plugin additions.
+- **Created `.github/workflows/docker.yml`** — Triggers on push to main when `docker/**` files change, plus manual dispatch. Builds and pushes to `ghcr.io/csharpfritz/aspire-minecraft-server` with tags: `latest`, git SHA, and version number (for `v*` release tags). Uses `docker/buildx-action@v3`, `docker/login-action@v3`, `docker/build-push-action@v5`. Registry cache enabled for faster builds. Permissions: `packages: write`, `contents: read`.
+- **Created `docker/README.md`** — Documents the prebaked image, usage in Aspire and standalone Docker, local build instructions, relationship to `itzg/minecraft-server`, and future plugin expansion points.
+
+**Key decisions:**
+- **Prebaked marker env var (`ASPIRE_MINECRAFT_PREBAKED=true`)** — Allows the hosting extension (MinecraftServerBuilderExtensions) to detect a prebaked image and skip redundant plugin setup. This is a contract between the Dockerfile and the hosting code — the extension will be updated separately by Shuri to detect and respect this flag.
+- **BlueMap only for now** — DecentHolograms and OTEL agent can be added in future iterations. The Dockerfile structure supports incremental additions via `MODRINTH_PROJECTS`.
+- **Workflow triggers on `docker/**` changes** — Keeps CI focused on actual image changes, avoiding redundant builds when only other files change.
+- **Version tagging strategy** — Matches the existing release.yml pattern: extract version from git tag (`v*` → strip `v` prefix), apply to image tag. This ensures image and NuGet package versions stay in sync.
+- **Cache strategy** — Registry cache (`buildcache` tag) persists build layers between runs, speeding up subsequent builds.
+
+**Action versions used:**
+- `actions/checkout@v4` — Latest stable, matches build.yml
+- `docker/setup-buildx-action@v3` — Current stable for buildx setup
+- `docker/login-action@v3` — Current stable for GHCR authentication
+- `docker/build-push-action@v5` — Current stable for build and push
+
+**Verified:**
+- YAML syntax validated with Python yaml module — passes successfully
+- Dockerfile extends `itzg/minecraft-server:latest` and sets required env vars
+- Workflow logic handles all trigger scenarios (push, dispatch, release tags)
+
+**Integration note:**
+- The hosting extension (MinecraftServerBuilderExtensions.cs) will be updated separately by Shuri to detect `ASPIRE_MINECRAFT_PREBAKED=true` and skip the bind-mount setup for BlueMap `core.conf` when using a prebaked image. This optimization reduces startup overhead for Aspire deployments.
