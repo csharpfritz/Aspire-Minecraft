@@ -59,6 +59,12 @@ if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
     builder.Services.AddSingleton<MinecartRailService>();
 }
 
+// Water canal network — register service when enabled
+if (builder.Configuration["ASPIRE_FEATURE_CANALS"] == "true")
+{
+    builder.Services.AddSingleton<CanalService>();
+}
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
@@ -161,7 +167,8 @@ file sealed class MinecraftWorldWorker(
     RedstoneDependencyService? redstoneGraph = null,
     ServiceSwitchService? serviceSwitches = null,
     RedstoneDashboardService? redstoneDashboard = null,
-    MinecartRailService? minecartRails = null) : BackgroundService
+    MinecartRailService? minecartRails = null,
+    CanalService? canals = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -199,6 +206,8 @@ file sealed class MinecraftWorldWorker(
             await redstoneDashboard.InitializeAsync(stoppingToken);
         if (minecartRails is not null)
             await minecartRails.InitializeAsync(stoppingToken);
+        if (canals is not null)
+            await canals.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
@@ -272,6 +281,8 @@ file sealed class MinecraftWorldWorker(
                     await redstoneDashboard.UpdateAsync(stoppingToken);
                 if (minecartRails is not null)
                     await minecartRails.UpdateAsync(stoppingToken);
+                if (canals is not null)
+                    await canals.UpdateAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

@@ -785,6 +785,44 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables the error boat visualization system.
+    /// When a resource becomes unhealthy, a boat carrying a creeper spawns at its canal entrance
+    /// and floats toward the shared lake, providing a visual error indicator.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithErrorBoats(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithErrorBoats() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_ERROR_BOATS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables water canal network connecting buildings to a shared lake.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithCanals(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithCanals() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_CANALS", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
@@ -793,7 +831,7 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
     /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
     /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
-    /// <see cref="WithGrandVillage"/>, and <see cref="WithMinecartRails"/>.
+    /// <see cref="WithGrandVillage"/>, <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, and <see cref="WithCanals"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -826,7 +864,9 @@ public static class MinecraftServerBuilderExtensions
             .WithRedstoneDashboard()
             .WithRconDebugLogging()
             .WithGrandVillage()
-            .WithMinecartRails();
+            .WithMinecartRails()
+            .WithErrorBoats()
+            .WithCanals();
     }
 
     /// <summary>
