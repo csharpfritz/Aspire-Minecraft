@@ -34,7 +34,7 @@ jobs:
         run: node docs/build.js --out _site --base /squad
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: _site
 
