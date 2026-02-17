@@ -204,6 +204,35 @@ file sealed class MinecraftWorldWorker(
         // Discover Aspire resources
         resourceMonitor.DiscoverResources();
 
+        // Force-load canal and lake chunks when canals feature is enabled.
+        // These areas extend beyond the village fence perimeter and must be loaded
+        // for /fill commands to succeed.
+        if (canals is not null)
+        {
+            var canalResourceCount = resourceMonitor.Resources.Count;
+            if (canalResourceCount > 0)
+            {
+                // Canal area: east of village grid to trunk canal
+                var (_, _, canalMaxX, _) = VillageLayout.GetVillageBounds(canalResourceCount);
+                var trunkX = canalMaxX + VillageLayout.CanalTotalWidth + 2;
+                var firstEntrance = VillageLayout.GetCanalEntrance(0);
+                var lastEntrance = VillageLayout.GetCanalEntrance(canalResourceCount - 1);
+                var canalMinZ = Math.Min(firstEntrance.z, lastEntrance.z) - VillageLayout.CanalTotalWidth;
+                var canalMaxZ = VillageLayout.GetLakePosition(canalResourceCount).z;
+                await rcon.SendCommandAsync(
+                    $"forceload add {canalMaxX} {canalMinZ} {trunkX + VillageLayout.CanalTotalWidth} {canalMaxZ + VillageLayout.LakeLength}",
+                    stoppingToken);
+
+                // Lake area: south of village
+                var (lakeX, _, lakeZ) = VillageLayout.GetLakePosition(canalResourceCount);
+                await rcon.SendCommandAsync(
+                    $"forceload add {lakeX - 5} {lakeZ - 5} {lakeX + VillageLayout.LakeWidth + 5} {lakeZ + VillageLayout.LakeLength + 5}",
+                    stoppingToken);
+
+                logger.LogInformation("Canal and lake chunks force-loaded");
+            }
+        }
+
         // Initialize opt-in features that need startup commands
         if (worldBorder is not null)
             await worldBorder.InitializeAsync(stoppingToken);

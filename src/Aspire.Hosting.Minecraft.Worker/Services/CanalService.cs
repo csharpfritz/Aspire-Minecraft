@@ -90,25 +90,25 @@ internal sealed class CanalService(
         // Excavate the canal trench
         await rcon.SendCommandAsync(
             $"fill {minX} {canalY - depth + 1} {wallZMin} {maxX} {VillageLayout.SurfaceY} {wallZMax} minecraft:air",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Floor: blue_ice
         await rcon.SendCommandAsync(
             $"fill {minX} {canalY - 1} {wallZMin} {maxX} {canalY - 1} {wallZMax} minecraft:blue_ice",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Walls: stone_bricks on both sides (from floor to surface)
         await rcon.SendCommandAsync(
             $"fill {minX} {canalY - 1} {wallZMin} {maxX} {VillageLayout.SurfaceY} {wallZMin} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"fill {minX} {canalY - 1} {wallZMax} {maxX} {VillageLayout.SurfaceY} {wallZMax} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Water source blocks at canal Y level
         await rcon.SendCommandAsync(
             $"fill {minX} {canalY} {waterZMin} {maxX} {canalY} {waterZMax} minecraft:water",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Track canal positions for bridge detection
         for (var x = minX; x <= maxX; x++)
@@ -134,25 +134,25 @@ internal sealed class CanalService(
         // Excavate
         await rcon.SendCommandAsync(
             $"fill {wallXMin} {canalY - VillageLayout.CanalDepth + 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:air",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Floor: blue_ice
         await rcon.SendCommandAsync(
             $"fill {wallXMin} {canalY - 1} {minZ} {wallXMax} {canalY - 1} {maxZ} minecraft:blue_ice",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Walls: stone_bricks on both sides
         await rcon.SendCommandAsync(
             $"fill {wallXMin} {canalY - 1} {minZ} {wallXMin} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"fill {wallXMax} {canalY - 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Water
         await rcon.SendCommandAsync(
             $"fill {waterXMin} {canalY} {minZ} {waterXMax} {canalY} {maxZ} minecraft:water",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Track positions
         for (var x = wallXMin; x <= wallXMax; x++)
@@ -178,31 +178,31 @@ internal sealed class CanalService(
         // Excavate lake area
         await rcon.SendCommandAsync(
             $"fill {x1} {lakeY} {z1} {x2} {VillageLayout.SurfaceY} {z2} minecraft:air",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Stone bricks floor
         await rcon.SendCommandAsync(
             $"fill {x1} {lakeY} {z1} {x2} {lakeY} {z2} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Stone bricks perimeter walls (4 sides, from floor to surface)
         await rcon.SendCommandAsync(
             $"fill {x1} {lakeY} {z1} {x1} {VillageLayout.SurfaceY} {z2} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"fill {x2} {lakeY} {z1} {x2} {VillageLayout.SurfaceY} {z2} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"fill {x1} {lakeY} {z1} {x2} {VillageLayout.SurfaceY} {z1} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"fill {x1} {lakeY} {z2} {x2} {VillageLayout.SurfaceY} {z2} minecraft:stone_bricks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Fill interior with water (inside walls, above floor)
         await rcon.SendCommandAsync(
             $"fill {x1 + 1} {lakeY + 1} {z1 + 1} {x2 - 1} {VillageLayout.SurfaceY - 1} {z2 - 1} minecraft:water",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Small dock on the north side (center of north edge)
         var dockCenterX = (x1 + x2) / 2;
@@ -212,21 +212,21 @@ internal sealed class CanalService(
         // Dock platform: oak_planks (5 wide, 3 deep, at surface level)
         await rcon.SendCommandAsync(
             $"fill {dockCenterX - 2} {dockY} {dockZ - 2} {dockCenterX + 2} {dockY} {dockZ} minecraft:oak_planks",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         // Fence posts around dock edges
         for (var dx = -2; dx <= 2; dx++)
         {
             await rcon.SendCommandAsync(
                 $"setblock {dockCenterX + dx} {dockY + 1} {dockZ - 2} minecraft:oak_fence",
-                CommandPriority.Low, ct);
+                CommandPriority.Normal, ct);
         }
         await rcon.SendCommandAsync(
             $"setblock {dockCenterX - 2} {dockY + 1} {dockZ - 1} minecraft:oak_fence",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {dockCenterX + 2} {dockY + 1} {dockZ - 1} minecraft:oak_fence",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
 
         logger.LogInformation("Lake built at ({X}, {Z}) with dock", lakeX, lakeZ);
     }

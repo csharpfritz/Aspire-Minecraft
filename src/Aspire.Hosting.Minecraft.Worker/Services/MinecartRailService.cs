@@ -40,6 +40,7 @@ internal sealed class MinecartRailService(
         if (_railsBuilt) return;
 
         logger.LogInformation("Minecart rail service initializing rails...");
+        using var burst = rcon.EnterBurstMode(40);
         await BuildRailNetworkAsync(ct);
         _railsBuilt = true;
         logger.LogInformation("Minecart rail service initialized");
@@ -173,37 +174,37 @@ internal sealed class MinecartRailService(
             {
                 await rcon.SendCommandAsync(
                     $"setblock {x} {y - 1} {z} minecraft:stone_brick_slab[type=top]",
-                    CommandPriority.Low, ct);
+                    CommandPriority.Normal, ct);
                 await rcon.SendCommandAsync(
                     $"setblock {x} {y - 2} {z} minecraft:stone_bricks",
-                    CommandPriority.Low, ct);
+                    CommandPriority.Normal, ct);
             }
 
             if (connection.PoweredRailPositions.Contains((x, y, z)))
             {
                 await rcon.SendCommandAsync(
                     $"setblock {x} {y} {z} minecraft:powered_rail",
-                    CommandPriority.Low, ct);
+                    CommandPriority.Normal, ct);
                 // Redstone torch underneath to power the rail
                 if (canals?.CanalPositions.Contains((x, z)) != true)
                 {
                     await rcon.SendCommandAsync(
                         $"setblock {x} {y - 1} {z} minecraft:redstone_torch",
-                        CommandPriority.Low, ct);
+                        CommandPriority.Normal, ct);
                 }
             }
             else
             {
                 await rcon.SendCommandAsync(
                     $"setblock {x} {y} {z} minecraft:rail",
-                    CommandPriority.Low, ct);
+                    CommandPriority.Normal, ct);
             }
         }
 
         // Spawn a chest minecart at the start position
         await rcon.SendCommandAsync(
             $"summon minecraft:chest_minecart {connection.StartPos.x} {railY} {connection.StartPos.z}",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
     }
 
     private async Task PlaceStationAsync(int x, int y, int z, CancellationToken ct)
@@ -211,16 +212,16 @@ internal sealed class MinecartRailService(
         // Station: detector_rail, powered_rail, detector_rail (along Z)
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z} minecraft:detector_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z + 1} minecraft:powered_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y - 1} {z + 1} minecraft:redstone_torch",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z + 2} minecraft:detector_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
     }
 
     private static bool IsStationPosition(int x, int y, int z, RailConnection connection)

@@ -58,7 +58,7 @@ internal sealed class RconService : IAsyncDisposable
         _defaultCommandsPerSecond = maxCommandsPerSecond;
         _tokenCount = maxCommandsPerSecond;
 
-        _commandQueue = Channel.CreateBounded<QueuedCommand>(new BoundedChannelOptions(100)
+        _commandQueue = Channel.CreateBounded<QueuedCommand>(new BoundedChannelOptions(500)
         {
             FullMode = BoundedChannelFullMode.DropOldest
         });
