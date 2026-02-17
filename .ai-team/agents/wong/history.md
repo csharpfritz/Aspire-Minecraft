@@ -169,3 +169,5 @@
 
 **Integration note:**
 - The hosting extension (MinecraftServerBuilderExtensions.cs) will be updated separately by Shuri to detect `ASPIRE_MINECRAFT_PREBAKED=true` and skip the bind-mount setup for BlueMap `core.conf` when using a prebaked image. This optimization reduces startup overhead for Aspire deployments.
+
+📌 Team update (2026-02-17): Docker image with BlueMap plugin created and published to GHCR (ghcr.io/csharpfritz/aspire-minecraft-server), workflow and docs added, hosting extension integration pending — decided by Wong

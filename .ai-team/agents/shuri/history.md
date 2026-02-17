@@ -217,3 +217,5 @@
 - XML doc comments updated to reflect 36-block grand spacing and 10-block grand fence clearance.
 - Tests updated: `ConfigureGrandLayout_SetsGrandValues`, `ConfigureGrandLayout_SetsCorrectPropertyValues`, `GetStructureOrigin_GrandLayout_ReturnsCorrectCoordinates`, `GetFencePerimeter_GrandLayout` — all 59 VillageLayout tests pass, 19 hosting tests pass.
 - Standard (non-grand) layout is completely unaffected — Spacing stays 24, FenceClearance stays 10.
+
+📌 Team update (2026-02-17): Village Redesign Phase 1 implementation complete — Grand spacing 24→36, canal/lake infrastructure methods added, integrated with CanalService and ErrorBoatService — decided by Shuri

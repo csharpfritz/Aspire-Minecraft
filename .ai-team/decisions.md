@@ -2170,3 +2170,148 @@ Additionally, Python and Node applications must properly reflect their health st
 - Both well within burst mode limits
 - Container resources now instantly recognizable with aqua branding
 - More comprehensive language coverage for modern polyglot stacks
+
+
+---
+
+## Shuri: Phase 1 Implementation Details
+
+
+
+---
+
+## Wong: Phase 2 Implementation Details
+
+
+
+
+---
+
+## Implementation Details: Phase 1 Spacing (By Shuri, 2026-02-16)
+
+### Village Redesign Phase 1: Grand Layout Spacing and Canal/Lake Infrastructure
+**By:** Shuri
+**Date:** 2026-02-16
+**What:** Expanded Grand Village spacing from 24 to 36 blocks and added canal/lake coordinate infrastructure to VillageLayout.
+**Why:** The wider 36-block spacing creates room for canals to run between structures toward a communal lake at Z-max. FenceClearance changed from 6 to 10 in grand mode to accommodate lake and canal outlets beyond the fence line. MAX_WORLD_SIZE bumped from 512 to 768 to support the larger village footprint.
+**Key decisions:**
+1. Spacing increase is Grand-only — standard layout remains 24 blocks.
+2. Canal dimensions (5-wide channel, 3-wide water, 2 deep) are sized for Minecraft boat navigation without wall friction.
+3. Lake placement uses dynamic centering on village X-axis with 20-block gap from last row.
+4. `GetCanalEntrance()` positions canals on the east side of buildings (X + StructureSize + 2), leaving room for building walls and a walkway.
+5. FenceClearance set to 10 (same as standard) rather than the previous 6, giving more room for canal outlets and lake infrastructure.
+**Impact:** Rocket will use `GetCanalEntrance()` and `GetLakePosition()` for Phase 2 (water placement). Nebula should add tests for the new methods. Existing grand layout tests updated to match new values.
+**Status:** ✅ Implemented. Build passes, all tests green.
+
+
+---
+
+## Implementation Details: Phase 2 Docker Image (By Wong, 2026-02-17)
+
+# Phase 2 — Docker Image with Prebaked Plugins
+
+**Date:** 2026-02-17  
+**Owner:** Wong (GitHub Ops)  
+**Status:** Complete
+
+## Summary
+
+Created a custom Docker image (`ghcr.io/csharpfritz/aspire-minecraft-server`) that extends `itzg/minecraft-server:latest` with pre-installed plugins for faster, deterministic startup in Aspire applications. Includes a GitHub Actions workflow for building and publishing the image.
+
+## Artifacts Created
+
+1. **`docker/Dockerfile`** — Minimal image extending `itzg/minecraft-server:latest`:
+   - Marker env var `ASPIRE_MINECRAFT_PREBAKED=true` for hosting extension detection
+   - Pre-installs BlueMap via `MODRINTH_PROJECTS="bluemap"`
+   - Extensible for future plugins (DecentHolograms, OTEL agent)
+
+2. **`.github/workflows/docker.yml`** — CI/CD pipeline for image building and publishing:
+   - Triggers: push to main (on `docker/**` changes), manual dispatch, GitHub releases
+   - Tags: `latest`, git SHA, version number (for `v*` tags)
+   - Registry: GitHub Container Registry (`ghcr.io/csharpfritz/aspire-minecraft-server`)
+   - Cache: Registry-backed cache for faster builds
+   - Permissions: `packages: write`, `contents: read`
+
+3. **`docker/README.md`** — Documentation covering:
+   - Contents and included plugins
+   - Usage in Aspire applications
+   - Standalone Docker usage
+   - Local build instructions
+   - Relationship to base image
+   - Future enhancement points
+
+## Key Design Decisions
+
+### Prebaked Marker Env Var
+The image sets `ASPIRE_MINECRAFT_PREBAKED=true` to signal that plugins are already installed. This allows the hosting extension (MinecraftServerBuilderExtensions) to:
+- Detect the prebaked image
+- Skip redundant plugin downloads
+- Skip bind-mount setup for plugin config files (e.g., BlueMap `core.conf`)
+
+This contract will be formalized when Shuri updates the hosting extension to respect the flag.
+
+### Minimal Plugin Set
+Only BlueMap is prebaked initially. This keeps the image lightweight and allows incremental testing. Future plugins can be added via:
+```dockerfile
+ENV MODRINTH_PROJECTS="bluemap,decentholograms"
+```
+
+### Workflow Triggers
+- **Path filter (`docker/**`)** — Avoids rebuilding the image when only .NET code or docs change
+- **Manual dispatch** — Allows emergency rebuilds or testing without merging
+- **Release tags** — Auto-publishes versioned images matching GitHub releases
+
+### Version Tagging
+Image tags match the release.yml version extraction pattern:
+- Git tag `v0.2.0` → image tags `latest`, `<SHA>`, `0.2.0`
+- Keeps image and NuGet package versions in sync for consistency
+
+### Action Versions
+- Uses current stable versions to minimize deprecation warnings
+- Matches versions already used in build.yml and release.yml where applicable
+
+## Integration with Hosting Extension
+
+The hosting extension (MinecraftServerBuilderExtensions.cs) will be updated separately to:
+1. Detect `ASPIRE_MINECRAFT_PREBAKED=true` in container environment
+2. Skip the `WithBlueMap()` bind-mount setup when detected
+3. Use the prebaked image as default when available
+
+This allows users to simply:
+```csharp
+builder.AddMinecraftServer("minecraft")
+    .WithImage("ghcr.io/csharpfritz/aspire-minecraft-server", "latest")
+    // No additional .WithBlueMap() call needed — it's already baked in
+```
+
+## Build Cache Strategy
+
+The workflow uses a registry-backed cache (`buildcache` tag) to:
+- Persist Dockerfile layer cache in GHCR
+- Speed up subsequent builds by reusing layers
+- Reduce build time and runner minutes
+
+This is especially useful for the base `itzg/minecraft-server:latest` layer, which is large.
+
+## Security & Permissions
+
+- **GITHUB_TOKEN** (secrets.GITHUB_TOKEN) is used for GHCR authentication — standard GitHub Actions secret, no additional setup required
+- **Permissions**: Minimal scoping — `packages: write` (push images), `contents: read` (checkout code)
+- **No secrets needed** — Image builds are deterministic and don't require external API keys
+
+## Verification
+
+- YAML syntax validated with Python yaml module ✓
+- Dockerfile structure verified against itzg/minecraft-server base ✓
+- Workflow logic tested for all trigger paths ✓
+
+## Future Work
+
+1. **Hosting Extension Update** (Shuri) — Detect `ASPIRE_MINECRAFT_PREBAKED=true` and optimize plugin setup
+2. **Additional Plugins** — Add DecentHolograms, OTEL agent when tested
+3. **Image Variants** — Consider `slim`, `full` tags if plugin combinations grow
+4. **SBOM/Attestations** — Add provenance metadata via `docker/build-push-action` attestations (v6+)
+
+## Co-authored-by
+Wong (GitHub Ops)
+
