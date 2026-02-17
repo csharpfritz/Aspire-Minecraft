@@ -248,3 +248,5 @@
 - **Port audit:** Verified no within-app port conflicts exist. MinecraftAspireDemo uses Python=5100, Node=5200, Java=5500. GrandVillageDemo uses Python=5300, Node=5400, Java=5500. Both share Java port 5500 but are separate Aspire apps.
 - **Key insight:** `AddSpringApp`/`AddJavaApp` always auto-registers a named HTTP endpoint (`JavaAppContainerResource.HttpEndpointName`). Never chain `.WithHttpEndpoint()` after `AddSpringApp()` for port configuration — use `JavaAppContainerResourceOptions.Port` and `.TargetPort` instead.
 - Build: 0 errors, 0 warnings.
+
+ Team update (2026-02-17): Never chain .WithHttpEndpoint() after AddSpringApp() / AddJavaApp()  these methods auto-register named HTTP endpoints via JavaAppContainerResourceOptions.Port and TargetPort. Adding .WithHttpEndpoint() creates duplicate endpoints, causing runtime allocation errors. Configure host-side port via options instead.  decided by Shuri

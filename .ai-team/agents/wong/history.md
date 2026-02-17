@@ -187,3 +187,4 @@
 
 **Recommendation:** 
 - Remaining 2 PRs (#97, #96) require either (a) token with `workflow` scope, or (b) manual merge via GitHub web UI by a repository admin with sufficient permissions.
+ Team update (2026-02-17): Dependabot PR review completed. Merged 3 PRs (codeql-action 34, github-script 78, upload-pages-artifact 34). Blocked 2 PRs due to token scope limitation (setup-node 46, checkout 46 require workflow scope). All dependency updates are safe. Recommendation: regenerate GitHub token with workflow scope for future automation.  decided by Wong
