@@ -69,7 +69,6 @@ public class MinecraftServerBuilderExtensionTests
             "ASPIRE_FEATURE_WORLDBORDER",
             "ASPIRE_FEATURE_ACHIEVEMENTS",
             "ASPIRE_FEATURE_HEARTBEAT",
-            "ASPIRE_FEATURE_REDSTONE_GRAPH",
             "ASPIRE_FEATURE_SWITCHES",
             "ASPIRE_FEATURE_PEACEFUL",
             "ASPIRE_FEATURE_REDSTONE_DASHBOARD",
@@ -84,9 +83,9 @@ public class MinecraftServerBuilderExtensionTests
             Assert.Equal("true", envVars[envVar]);
         }
 
-        // 21 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 22 total from WithAllFeatures
+        // 20 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 21 total from WithAllFeatures
         var featureVars = envVars.Keys.Where(k => k.StartsWith("ASPIRE_FEATURE_")).ToList();
-        Assert.Equal(21, featureVars.Count);
+        Assert.Equal(20, featureVars.Count);
     }
 
     [Fact]

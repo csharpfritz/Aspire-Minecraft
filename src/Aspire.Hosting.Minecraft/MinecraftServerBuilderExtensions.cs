@@ -65,13 +65,13 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("RCON_PORT", "25575")
             // Startup performance: skip unnecessary work
             .WithEnvironment("SPAWN_PROTECTION", "0")
-            .WithEnvironment("VIEW_DISTANCE", "6")
-            .WithEnvironment("SIMULATION_DISTANCE", "4")
+            .WithEnvironment("VIEW_DISTANCE", "12")
+            .WithEnvironment("SIMULATION_DISTANCE", "8")
             .WithEnvironment("GENERATE_STRUCTURES", "false")
             .WithEnvironment("SPAWN_ANIMALS", "FALSE")
             .WithEnvironment("SPAWN_MONSTERS", "FALSE")
             .WithEnvironment("SPAWN_NPCS", "FALSE")
-            .WithEnvironment("MAX_WORLD_SIZE", "768")
+            .WithEnvironment("MAX_WORLD_SIZE", "29999984")
             .WithEnvironment(context =>
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
@@ -829,7 +829,7 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithBossBar"/>, <see cref="WithSoundEffects"/>, <see cref="WithActionBarTicker"/>,
     /// <see cref="WithBeaconTowers"/>, <see cref="WithFireworks"/>, <see cref="WithGuardianMobs"/>,
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
-    /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
+    /// <see cref="WithHeartbeat"/>, <see cref="WithServiceSwitches"/>,
     /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
     /// <see cref="WithGrandVillage"/>, <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, and <see cref="WithCanals"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
@@ -858,7 +858,6 @@ public static class MinecraftServerBuilderExtensions
             .WithWorldBorderPulse()
             .WithAchievements()
             .WithHeartbeat()
-            .WithRedstoneDependencyGraph()
             .WithServiceSwitches()
             .WithPeacefulMode()
             .WithRedstoneDashboard()

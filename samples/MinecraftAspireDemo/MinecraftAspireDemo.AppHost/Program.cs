@@ -73,7 +73,6 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithWorldBorderPulse()
     .WithHeartbeat()
     .WithAchievements()
-    .WithRedstoneDependencyGraph()
     .WithServiceSwitches()
     .WithPeacefulMode()
 
@@ -99,7 +98,9 @@ if (useGrandVillage)
 {
     minecraft
         .WithGrandVillage()
-        .WithMinecartRails();
+        .WithMinecartRails()
+        .WithCanals()
+        .WithErrorBoats();
 }
 
 builder.Build().Run();

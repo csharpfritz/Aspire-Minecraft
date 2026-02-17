@@ -4,7 +4,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
 /// Pulses the Minecraft world border based on Aspire fleet health.
-/// Normal: 200 blocks diameter. Critical (&gt;50% unhealthy): shrinks to 100 blocks over 10 seconds
+/// Normal: 2000 blocks diameter. Critical (&gt;50% unhealthy): shrinks to 1000 blocks over 10 seconds
 /// with a red warning tint. Restores on recovery.
 /// </summary>
 internal sealed class WorldBorderService(
@@ -12,8 +12,8 @@ internal sealed class WorldBorderService(
     AspireResourceMonitor monitor,
     ILogger<WorldBorderService> logger)
 {
-    private const int NormalDiameter = 200;
-    private const int CriticalDiameter = 100;
+    private const int NormalDiameter = 2000;
+    private const int CriticalDiameter = 1000;
     private const int ShrinkDurationSeconds = 10;
     private const int RestoreDurationSeconds = 5;
     private const int WarningDistance = 5;

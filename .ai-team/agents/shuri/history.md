@@ -219,3 +219,13 @@
 - Standard (non-grand) layout is completely unaffected — Spacing stays 24, FenceClearance stays 10.
 
 📌 Team update (2026-02-17): Village Redesign Phase 1 implementation complete — Grand spacing 24→36, canal/lake infrastructure methods added, integrated with CanalService and ErrorBoatService — decided by Shuri
+
+### Village Redesign Phase 2: World Expansion & Feature Adjustments (2026-02-17)
+
+- **MAX_WORLD_SIZE** changed from 768 to 29999984 (Minecraft's maximum) in `MinecraftServerBuilderExtensions.cs` — eliminates the invisible wall Jeff was hitting.
+- **VIEW_DISTANCE** increased from 6 to 12, **SIMULATION_DISTANCE** from 4 to 8 — better visibility in the expanded world.
+- **WorldBorderService** diameters increased: NormalDiameter 200→2000, CriticalDiameter 100→1000. Updated XML docs to match.
+- **Sample app** (`MinecraftAspireDemo.AppHost/Program.cs`): Removed `.WithRedstoneDependencyGraph()` from the main feature chain. Added `.WithCanals()` and `.WithErrorBoats()` to the `useGrandVillage` block.
+- **WithAllFeatures()**: Removed `.WithRedstoneDependencyGraph()` from the chained method list. Updated XML doc `<see cref>` list. The extension method and `RedstoneDependencyService.cs` are preserved for manual opt-in.
+- **Test update**: `WithAllFeatures_SetsAllFeatureEnvVars` count adjusted from 21→20 ASPIRE_FEATURE_ env vars. Removed `ASPIRE_FEATURE_REDSTONE_GRAPH` from expected list.
+- Build: 0 errors, pre-existing warnings only (CS8604 nullable, xUnit1026 unused param).
