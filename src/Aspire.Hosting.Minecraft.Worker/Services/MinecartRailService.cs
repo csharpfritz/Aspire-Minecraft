@@ -12,7 +12,8 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 internal sealed class MinecartRailService(
     RconService rcon,
     AspireResourceMonitor monitor,
-    ILogger<MinecartRailService> logger)
+    ILogger<MinecartRailService> logger,
+    CanalService? canals = null)
 {
     private bool _railsBuilt;
     private readonly Dictionary<string, bool> _connectionState = new(StringComparer.OrdinalIgnoreCase);
@@ -167,15 +168,29 @@ internal sealed class MinecartRailService(
             if (IsStationPosition(x, y, z, connection))
                 continue;
 
+            // Bridge over canal: place stone brick slab and support pillar under the rail
+            if (canals?.CanalPositions.Contains((x, z)) == true)
+            {
+                await rcon.SendCommandAsync(
+                    $"setblock {x} {y - 1} {z} minecraft:stone_brick_slab[type=top]",
+                    CommandPriority.Low, ct);
+                await rcon.SendCommandAsync(
+                    $"setblock {x} {y - 2} {z} minecraft:stone_bricks",
+                    CommandPriority.Low, ct);
+            }
+
             if (connection.PoweredRailPositions.Contains((x, y, z)))
             {
                 await rcon.SendCommandAsync(
                     $"setblock {x} {y} {z} minecraft:powered_rail",
                     CommandPriority.Low, ct);
                 // Redstone torch underneath to power the rail
-                await rcon.SendCommandAsync(
-                    $"setblock {x} {y - 1} {z} minecraft:redstone_torch",
-                    CommandPriority.Low, ct);
+                if (canals?.CanalPositions.Contains((x, z)) != true)
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {y - 1} {z} minecraft:redstone_torch",
+                        CommandPriority.Low, ct);
+                }
             }
             else
             {
