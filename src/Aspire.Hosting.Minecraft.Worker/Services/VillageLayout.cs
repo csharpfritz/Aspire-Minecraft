@@ -16,7 +16,7 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
 /// <item>2 columns (Columns=2), infinite rows</item>
-/// <item>Spacing=24 blocks center-to-center between structures (configurable via <see cref="ConfigureGrandLayout"/>)</item>
+/// <item>Spacing=24 blocks center-to-center (standard) or 36 blocks (grand, via <see cref="ConfigureGrandLayout"/>)</item>
 /// <item>Each structure footprint: 7×7 blocks by default (configurable via <see cref="ConfigureGrandLayout"/>)</item>
 /// <item>Index 0 → (10, -60, 0), Index 1 → (34, -60, 0), Index 2 → (10, -60, 24), etc.</item>
 /// </list>
@@ -61,7 +61,7 @@ internal static class VillageLayout
 
     /// <summary>
     /// Clearance (in blocks) between village bounds and fence perimeter.
-    /// Default 10 (standard), 6 (grand).
+    /// Default 10 (standard and grand).
     /// </summary>
     public static int FenceClearance { get; private set; } = 10;
 
@@ -83,14 +83,15 @@ internal static class VillageLayout
     public const int DashboardColumns = 10;
 
     /// <summary>
-    /// Switches to Grand Village layout with larger structures and tighter fence clearance.
+    /// Switches to Grand Village layout with larger structures, wider spacing, and tighter fence clearance.
     /// Must be called once at startup before any structure placement.
-    /// Sets StructureSize=15 and FenceClearance=6. Spacing remains 24.
+    /// Sets StructureSize=15, Spacing=36, and FenceClearance=10. Spacing increases from 24 to 36 to accommodate canals.
     /// </summary>
     public static void ConfigureGrandLayout()
     {
         StructureSize = 15;
-        FenceClearance = 6;
+        Spacing = 36;
+        FenceClearance = 10;
         GateWidth = 5;
         IsGrandLayout = true;
     }
@@ -147,6 +148,26 @@ internal static class VillageLayout
         return (cx, SurfaceY + heightAboveBase, cz);
     }
 
+    /// <summary>Canal channel width in blocks (wall + 3 water + wall = 5 total).</summary>
+    public const int CanalTotalWidth = 5;
+
+    /// <summary>Canal water width (3 blocks — boats need 2+ to float without wall friction).</summary>
+    public const int CanalWaterWidth = 3;
+
+    /// <summary>Canal depth below surface (2 blocks deep).</summary>
+    public const int CanalDepth = 2;
+
+    /// <summary>Canal water Y level (one block below grass surface).</summary>
+    public static int CanalY => SurfaceY - 1;
+
+    /// <summary>Lake dimensions.</summary>
+    public const int LakeWidth = 20;
+    public const int LakeLength = 12;
+    public const int LakeBlockDepth = 3;
+
+    /// <summary>Gap between last structure row and lake edge.</summary>
+    public const int LakeGap = 20;
+
     /// <summary>
     /// Gets the rail entrance position centered in front of the building entrance.
     /// Positioned at the center X of the structure, one block south of the front wall (Z - 1),
@@ -187,6 +208,27 @@ internal static class VillageLayout
     {
         var (minX, minZ, maxX, maxZ) = GetVillageBounds(resourceCount);
         return (minX - FenceClearance, minZ - FenceClearance, maxX + FenceClearance, maxZ + FenceClearance);
+    }
+
+    /// <summary>
+    /// Gets the canal entrance position for a resource (east side of building).
+    /// Canal runs from building toward the lake at Z-max.
+    /// </summary>
+    public static (int x, int y, int z) GetCanalEntrance(int index)
+    {
+        var (ox, _, oz) = GetStructureOrigin(index);
+        return (ox + StructureSize + 2, CanalY, oz + StructureSize / 2);
+    }
+
+    /// <summary>
+    /// Gets the lake's northwest corner position.
+    /// Lake is centered on the village's X-axis, placed beyond the last row.
+    /// </summary>
+    public static (int x, int y, int z) GetLakePosition(int resourceCount)
+    {
+        var (minX, _, maxX, maxZ) = GetVillageBounds(resourceCount);
+        var centerX = (minX + maxX) / 2;
+        return (centerX - LakeWidth / 2, SurfaceY - LakeBlockDepth, maxZ + LakeGap);
     }
 
     /// <summary>

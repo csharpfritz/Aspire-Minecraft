@@ -278,9 +278,9 @@ public class VillageLayoutTests
         try
         {
             VillageLayout.ConfigureGrandLayout();
-            Assert.Equal(24, VillageLayout.Spacing);
+            Assert.Equal(36, VillageLayout.Spacing);
             Assert.Equal(15, VillageLayout.StructureSize);
-            Assert.Equal(6, VillageLayout.FenceClearance);
+            Assert.Equal(10, VillageLayout.FenceClearance);
             Assert.Equal(5, VillageLayout.GateWidth);
             Assert.True(VillageLayout.IsGrandLayout);
         }
@@ -389,16 +389,16 @@ public class VillageLayoutTests
     }
 
     [Fact]
-    public void GetFencePerimeter_GrandLayout_Uses6BlockClearance()
+    public void GetFencePerimeter_GrandLayout_Uses10BlockClearance()
     {
         try
         {
             VillageLayout.ConfigureGrandLayout();
             var (minX, minZ, maxX, maxZ) = VillageLayout.GetFencePerimeter(1);
-            Assert.Equal(4, minX);   // 10 - 6
-            Assert.Equal(-6, minZ);  // 0 - 6
-            Assert.Equal(30, maxX);  // 24 + 6
-            Assert.Equal(20, maxZ);  // 14 + 6
+            Assert.Equal(0, minX);   // 10 - 10
+            Assert.Equal(-10, minZ); // 0 - 10
+            Assert.Equal(34, maxX);  // 24 + 10
+            Assert.Equal(24, maxZ);  // 14 + 10
         }
         finally
         {
@@ -427,7 +427,7 @@ public class VillageLayoutTests
         {
             VillageLayout.ConfigureGrandLayout();
             Assert.Equal(15, VillageLayout.StructureSize);
-            Assert.Equal(6, VillageLayout.FenceClearance);
+            Assert.Equal(10, VillageLayout.FenceClearance);
             Assert.Equal(5, VillageLayout.GateWidth);
             Assert.True(VillageLayout.IsGrandLayout);
         }
@@ -454,9 +454,9 @@ public class VillageLayoutTests
 
     [Theory]
     [InlineData(0, 10, -59, 0)]
-    [InlineData(1, 34, -59, 0)]
-    [InlineData(2, 10, -59, 24)]
-    [InlineData(3, 34, -59, 24)]
+    [InlineData(1, 46, -59, 0)]
+    [InlineData(2, 10, -59, 36)]
+    [InlineData(3, 46, -59, 36)]
     public void GetStructureOrigin_GrandLayout_ReturnsCorrectCoordinates(int index, int expectedX, int expectedY, int expectedZ)
     {
         try

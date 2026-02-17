@@ -71,7 +71,7 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("SPAWN_ANIMALS", "FALSE")
             .WithEnvironment("SPAWN_MONSTERS", "FALSE")
             .WithEnvironment("SPAWN_NPCS", "FALSE")
-            .WithEnvironment("MAX_WORLD_SIZE", "512")
+            .WithEnvironment("MAX_WORLD_SIZE", "768")
             .WithEnvironment(context =>
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;

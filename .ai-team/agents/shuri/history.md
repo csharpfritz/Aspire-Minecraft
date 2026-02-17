@@ -204,3 +204,16 @@
 - **Tests added:** 5 new tests in `StructureBuilderTypeTests.cs` + 3 new `InlineData` entries in `StructureBuilderTests.cs`. All pass.
 
  Team update (2026-02-16): Grid ordering unificationall services placing elements on village grid must use VillageLayout.ReorderByDependency(). Affects StructureBuilder, BeaconTowerService, GuardianMobService, ParticleEffectService, ServiceSwitchService, RedstoneDependencyService, MinecartRailService  decided by Rocket
+
+### Village Redesign Phase 1: Spacing, Canal/Lake Infrastructure (2026-02-16)
+
+- **ConfigureGrandLayout()** now sets `Spacing = 36` (was 24) and `FenceClearance = 10` (was 6) to accommodate canals between structures and lake outlet space.
+- **ResetLayout()** already correctly resets Spacing to 24 — no change needed there.
+- Added canal constants: `CanalTotalWidth` (5), `CanalWaterWidth` (3), `CanalDepth` (2), `CanalY` (SurfaceY - 1).
+- Added lake constants: `LakeWidth` (20), `LakeLength` (12), `LakeBlockDepth` (3), `LakeGap` (20).
+- Added `GetCanalEntrance(int index)` — returns position on east side of building at CanalY.
+- Added `GetLakePosition(int resourceCount)` — returns lake northwest corner, centered on village X-axis, placed LakeGap blocks beyond last row.
+- **MAX_WORLD_SIZE** bumped from 512 to 768 in `MinecraftServerBuilderExtensions.cs` to support the expanded village footprint.
+- XML doc comments updated to reflect 36-block grand spacing and 10-block grand fence clearance.
+- Tests updated: `ConfigureGrandLayout_SetsGrandValues`, `ConfigureGrandLayout_SetsCorrectPropertyValues`, `GetStructureOrigin_GrandLayout_ReturnsCorrectCoordinates`, `GetFencePerimeter_GrandLayout` — all 59 VillageLayout tests pass, 19 hosting tests pass.
+- Standard (non-grand) layout is completely unaffected — Spacing stays 24, FenceClearance stays 10.
