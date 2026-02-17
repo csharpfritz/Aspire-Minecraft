@@ -47,12 +47,6 @@ builder.Services.AddSingleton(sp =>
         minCommandInterval: TimeSpan.FromMilliseconds(250));
 });
 
-// Grand Village mode — configure larger layout before any structure placement
-if (builder.Configuration["ASPIRE_FEATURE_GRAND_VILLAGE"] == "true")
-{
-    VillageLayout.ConfigureGrandLayout();
-}
-
 // Minecart rail network — register service when enabled
 if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
 {
@@ -308,11 +302,12 @@ file sealed class MinecraftWorldWorker(
                 await structures.UpdateStructuresAsync(stoppingToken);
                 await horseSpawn.SpawnHorsesAsync(stoppingToken);
 
-                // Build rails and canals AFTER structures so they aren't paved over
-                if (minecartRails is not null)
-                    await minecartRails.InitializeAsync(stoppingToken);
+                // Build canals first so CanalPositions is populated for rail bridge detection,
+                // then rails. Both run AFTER structures so they aren't paved over.
                 if (canals is not null)
                     await canals.InitializeAsync(stoppingToken);
+                if (minecartRails is not null)
+                    await minecartRails.InitializeAsync(stoppingToken);
 
                 // Continuous fleet-health features(update every cycle, but only change on transitions)
                 if (weather is not null)

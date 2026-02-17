@@ -56,9 +56,9 @@ internal record NeighborhoodPlan(
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
 /// <item>2 columns (Columns=2), infinite rows</item>
-/// <item>Spacing=24 blocks center-to-center (standard) or 36 blocks (grand, via <see cref="ConfigureGrandLayout"/>)</item>
-/// <item>Each structure footprint: 7×7 blocks by default (configurable via <see cref="ConfigureGrandLayout"/>)</item>
-/// <item>Index 0 → (10, -60, 0), Index 1 → (34, -60, 0), Index 2 → (10, -60, 24), etc.</item>
+/// <item>Spacing=36 blocks center-to-center</item>
+/// <item>Each structure footprint: 15×15 blocks</item>
+/// <item>Index 0 → (10, -60, 0), Index 1 → (46, -60, 0), Index 2 → (10, -60, 36), etc.</item>
 /// </list>
 /// 
 /// <para><b>Z-Coordinate Conventions:</b></para>
@@ -99,30 +99,23 @@ internal static class VillageLayout
     public const int BaseZ = 0;
 
     /// <summary>Spacing between structure origins (center-to-center) in blocks.</summary>
-    public static int Spacing { get; private set; } = 24;
+    public static int Spacing { get; private set; } = 36;
 
     /// <summary>Number of columns in the village grid.</summary>
     public const int Columns = 2;
 
-    /// <summary>Structure footprint width/depth. Default 7×7 (standard), 15×15 (grand).</summary>
-    public static int StructureSize { get; private set; } = 7;
+    /// <summary>Structure footprint width/depth (15×15 blocks).</summary>
+    public static int StructureSize { get; private set; } = 15;
 
     /// <summary>
     /// Clearance (in blocks) between village bounds and fence perimeter.
-    /// Default 10 (standard and grand).
     /// </summary>
     public static int FenceClearance { get; private set; } = 10;
 
     /// <summary>
     /// Width of the fence gate opening in blocks.
-    /// Default 3 (standard), 5 (grand — wider for larger village entrance).
     /// </summary>
-    public static int GateWidth { get; private set; } = 3;
-
-    /// <summary>
-    /// Whether the Grand Village layout is active.
-    /// </summary>
-    public static bool IsGrandLayout { get; private set; }
+    public static int GateWidth { get; private set; } = 5;
 
     /// <summary>
     /// The active neighborhood plan, or null if neighborhoods are not enabled.
@@ -139,33 +132,7 @@ internal static class VillageLayout
     /// <summary>Number of time columns on the dashboard.</summary>
     public const int DashboardColumns = 10;
 
-    /// <summary>
-    /// Switches to Grand Village layout with larger structures, wider spacing, and tighter fence clearance.
-    /// Must be called once at startup before any structure placement.
-    /// Sets StructureSize=15, Spacing=36, and FenceClearance=10. Spacing increases from 24 to 36 to accommodate canals.
-    /// </summary>
-    public static void ConfigureGrandLayout()
-    {
-        StructureSize = 15;
-        Spacing = 36;
-        FenceClearance = 10;
-        GateWidth = 5;
-        IsGrandLayout = true;
-    }
 
-    /// <summary>
-    /// Resets layout properties to their default (standard) values.
-    /// Intended for test isolation only.
-    /// </summary>
-    internal static void ResetLayout()
-    {
-        Spacing = 24;
-        StructureSize = 7;
-        FenceClearance = 10;
-        GateWidth = 3;
-        IsGrandLayout = false;
-        ActiveNeighborhoodPlan = null;
-    }
 
     /// <summary>
     /// Classifies a resource type string into a <see cref="ResourceCategory"/> for zone assignment.
@@ -191,7 +158,8 @@ internal static class VillageLayout
 
         // Executable check (same as StructureBuilder.IsExecutableResource)
         if (lower.Contains("executable") || lower.Contains("pythonapp")
-            || lower.Contains("nodeapp") || lower.Contains("javascriptapp"))
+            || lower.Contains("nodeapp") || lower.Contains("javascriptapp")
+            || lower.Contains("javaapp") || lower.Contains("springapp"))
             return ResourceCategory.Executable;
 
         // Project type
@@ -493,6 +461,45 @@ internal static class VillageLayout
         var (minX, _, maxX, maxZ) = GetVillageBounds(resourceCount);
         var centerX = (minX + maxX) / 2;
         return (centerX - LakeWidth / 2, SurfaceY - LakeBlockDepth, maxZ + LakeGap);
+    }
+
+    /// <summary>
+    /// Gets all building footprint bounding boxes for collision detection.
+    /// Each box is (minX, minZ, maxX, maxZ) at surface level.
+    /// Used by canal and rail routing to avoid cutting through structures.
+    /// </summary>
+    public static List<(int minX, int minZ, int maxX, int maxZ)> GetAllBuildingFootprints(
+        IReadOnlyList<string> orderedNames)
+    {
+        var footprints = new List<(int, int, int, int)>();
+        for (var i = 0; i < orderedNames.Count; i++)
+        {
+            var (ox, _, oz) = GetStructureOrigin(orderedNames[i], i);
+            // Add 1-block buffer around each structure for walls/decorations
+            footprints.Add((ox - 1, oz - 2, ox + StructureSize, oz + StructureSize));
+        }
+        return footprints;
+    }
+
+    /// <summary>
+    /// Checks if a horizontal segment (at fixed Z, from minX to maxX) intersects any building footprint.
+    /// </summary>
+    public static bool SegmentIntersectsBuilding(
+        int z, int zWidth,
+        int minX, int maxX,
+        IReadOnlyList<(int minX, int minZ, int maxX, int maxZ)> footprints,
+        int excludeIndex = -1)
+    {
+        var segZMin = z - zWidth / 2 - 1;
+        var segZMax = z + zWidth / 2 + 1;
+        for (var i = 0; i < footprints.Count; i++)
+        {
+            if (i == excludeIndex) continue;
+            var fp = footprints[i];
+            if (maxX >= fp.minX && minX <= fp.maxX && segZMax >= fp.minZ && segZMin <= fp.maxZ)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

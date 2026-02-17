@@ -69,6 +69,8 @@ internal sealed class MinecartRailService(
         for (var i = 0; i < orderedNames.Count; i++)
             nameToIndex[orderedNames[i]] = i;
 
+        var footprints = VillageLayout.GetAllBuildingFootprints(orderedNames);
+
         foreach (var (name, info) in resources)
         {
             if (info.Dependencies.Count == 0) continue;
@@ -79,7 +81,7 @@ internal sealed class MinecartRailService(
                 var depLower = dep.ToLowerInvariant();
                 if (!nameToIndex.TryGetValue(depLower, out var parentIndex)) continue;
 
-                var connection = CalculateRailConnection(name, depLower, childIndex, parentIndex);
+                var connection = CalculateRailConnection(name, depLower, childIndex, parentIndex, footprints);
                 _connections.Add(connection);
                 _connectionState[$"{depLower}->{name}"] = true;
 
@@ -91,7 +93,9 @@ internal sealed class MinecartRailService(
         logger.LogInformation("Minecart rail network built with {Count} connections", _connections.Count);
     }
 
-    private static RailConnection CalculateRailConnection(string childName, string parentName, int childIndex, int parentIndex)
+    private static RailConnection CalculateRailConnection(string childName, string parentName,
+        int childIndex, int parentIndex,
+        IReadOnlyList<(int minX, int minZ, int maxX, int maxZ)> footprints)
     {
         var (px, _, pz) = VillageLayout.GetStructureOrigin(parentName, parentIndex);
         var (cx, _, cz) = VillageLayout.GetStructureOrigin(childName, childIndex);
@@ -108,40 +112,70 @@ internal sealed class MinecartRailService(
         var startPos = (startX, railY, startZ);
         var endPos = (endX, railY, endZ);
 
-        // L-shaped path: X first, then Z
+        // Route rails in front of buildings (Z-min side) to avoid cutting through structures.
+        // Use "Z first, then X, then Z" for an S-shaped route through the gap corridors.
         var railPositions = new List<(int x, int y, int z)>();
         var poweredRailPositions = new List<(int x, int y, int z)>();
 
-        var dx = startX < endX ? 1 : -1;
-        var dz = startZ < endZ ? 1 : -1;
+        // Find a safe Z corridor to travel along X. Use the south-most Z of the two endpoints
+        // minus a buffer, or the front of the building row (whichever is more south).
+        var safeZ = Math.Min(startZ, endZ);
         var blockCount = 0;
 
-        // Phase 1: walk along X axis
-        var currentX = startX;
-        while (currentX != endX)
+        void AddRailPos(int x, int z2)
         {
-            var pos = (currentX, railY, startZ);
+            var pos = (x, railY, z2);
             railPositions.Add(pos);
-
             if (blockCount > 0 && blockCount % 8 == 0)
                 poweredRailPositions.Add(pos);
-
             blockCount++;
-            currentX += dx;
         }
 
-        // Phase 2: walk along Z axis
-        var currentZ = startZ;
-        while (currentZ != endZ)
+        if (startX == endX)
         {
-            var pos = (endX, railY, currentZ);
-            railPositions.Add(pos);
+            // Same column — straight Z path, no collision risk
+            var dz = startZ < endZ ? 1 : -1;
+            var currentZ = startZ;
+            while (currentZ != endZ)
+            {
+                AddRailPos(startX, currentZ);
+                currentZ += dz;
+            }
+        }
+        else
+        {
+            // Phase 1: walk Z from startZ to safeZ
+            if (startZ != safeZ)
+            {
+                var dz = startZ < safeZ ? 1 : -1;
+                var currentZ = startZ;
+                while (currentZ != safeZ)
+                {
+                    AddRailPos(startX, currentZ);
+                    currentZ += dz;
+                }
+            }
 
-            if (blockCount > 0 && blockCount % 8 == 0)
-                poweredRailPositions.Add(pos);
+            // Phase 2: walk X from startX to endX at safeZ
+            var dx = startX < endX ? 1 : -1;
+            var currentX = startX;
+            while (currentX != endX)
+            {
+                AddRailPos(currentX, safeZ);
+                currentX += dx;
+            }
 
-            blockCount++;
-            currentZ += dz;
+            // Phase 3: walk Z from safeZ to endZ
+            if (safeZ != endZ)
+            {
+                var dz = safeZ < endZ ? 1 : -1;
+                var currentZ = safeZ;
+                while (currentZ != endZ)
+                {
+                    AddRailPos(endX, currentZ);
+                    currentZ += dz;
+                }
+            }
         }
 
         // Add the final position
