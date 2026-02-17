@@ -482,3 +482,18 @@ Updated the `GetLanguageColor` method in StructureBuilder.cs to modernize tech s
 .NET Project = purple | JavaScript/Node = yellow | Python = yellow + blue secondary | Rust = red | Go = light_blue | Java/Spring = orange | Docker Container = cyan | PHP = magenta | Ruby = pink | Elixir/Erlang = lime | Default = white
 
 📌 Team update (2026-02-16): Tech branding color system updated — Rust→red, Go→light_blue, Container→cyan, +3 new languages (PHP/Ruby/Elixir). Warehouse buildings now have language-colored stripes and banners matching Workshop aesthetic. — decided by Rocket
+
+### Grand Village is Now the Only Option (2026-02-17)
+- Removed small village structures entirely  no more conditional dispatch
+- Grand layout values are now permanent defaults:
+  - StructureSize = 15 (was 7 default)
+  - Spacing = 36 (was 24 default)
+  - GateWidth = 5 (was 3 default)
+  - FenceClearance = 10 (unchanged)
+- Removed ConfigureGrandLayout() method from VillageLayout.cs
+- Removed ResetLayout() method from VillageLayout.cs
+- Removed IsGrandLayout property from VillageLayout.cs
+- Removed ASPIRE_FEATURE_GRAND_VILLAGE environment variable check from Program.cs
+- All Build*Async methods in StructureBuilder.cs now directly call their BuildGrand*Async variants
+- Central boulevard is always built now (removed IsGrandLayout guard, kept rows > 0 check)
+- Rationale: Jeff's directive to focus on the grand design only. Simplifies codebase by removing two code paths for every structure type.

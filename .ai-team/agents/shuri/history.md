@@ -12,10 +12,26 @@
 - Deterministic builds, EnablePackageValidation enabled in Directory.Build.props (SourceLink removed per Jeff's request)
 - All deps pinned to exact versions (no floating Version="*")
 - Content files: bluemap/core.conf and otel/opentelemetry-javaagent.jar bundled with hosting package
+- Grand Village is now the default and only village layout — small village removed
 
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Grand Village Becomes Default (2026-02-17)
+
+- Removed `WithGrandVillage()` extension method entirely from `MinecraftServerBuilderExtensions.cs` — grand village (15×15 buildings) is now always-on, no feature flag needed.
+- Removed `.WithGrandVillage()` from `WithAllFeatures()` method chain in `MinecraftServerBuilderExtensions.cs`.
+- Updated `WithAllFeatures_SetsAllFeatureEnvVars` test — reduced count from 21 to 20 feature env vars, removed `ASPIRE_FEATURE_GRAND_VILLAGE` from expected list.
+- Deleted entire `samples/MinecraftAspireDemo/` directory — GrandVillageDemo is now the only sample.
+- Updated `Aspire-Minecraft.slnx` — removed all MinecraftAspireDemo project entries.
+- Updated integration test fixture (`MinecraftAppFixture.cs`) — changed from `Projects.MinecraftAspireDemo_AppHost` to `Projects.GrandVillageDemo_AppHost`.
+- Updated integration test `.csproj` — changed ProjectReference from MinecraftAspireDemo.AppHost to GrandVillageDemo.AppHost.
+- Updated README.md — removed WithGrandVillage references, updated demo instructions to use GrandVillageDemo, clarified that Grand Village buildings are now the default.
+- Updated CONTRIBUTING.md — changed sample reference from MinecraftAspireDemo to GrandVillageDemo.
+- Updated docs/ files — replaced MinecraftAspireDemo references with GrandVillageDemo in blog posts and design docs.
+- Key insight: Grand village was always intended as the production experience — small village was scaffolding during development.
+
 
 ### Consolidated Summary: Sprints 1-3 (2026-02-10)
 
