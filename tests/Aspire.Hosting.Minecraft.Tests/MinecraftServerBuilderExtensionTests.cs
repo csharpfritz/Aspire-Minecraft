@@ -84,9 +84,9 @@ public class MinecraftServerBuilderExtensionTests
             Assert.Equal("true", envVars[envVar]);
         }
 
-        // 19 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 20 total from WithAllFeatures
+        // 21 ASPIRE_FEATURE_ env vars + 1 debug logging env var = 22 total from WithAllFeatures
         var featureVars = envVars.Keys.Where(k => k.StartsWith("ASPIRE_FEATURE_")).ToList();
-        Assert.Equal(19, featureVars.Count);
+        Assert.Equal(21, featureVars.Count);
     }
 
     [Fact]
