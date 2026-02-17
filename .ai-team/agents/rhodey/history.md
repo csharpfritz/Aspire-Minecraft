@@ -174,6 +174,21 @@
 - **Feasibility analysis:** Request flow = Medium risk (minecart spawning + hitbox counting). Health checks = Hard (pathfinding). Queue depth = Medium (metric polling + spawn/despawn logic). All others = Hard or Very Hard (new data sources or complex routing).
 - **Key MinecartRailService files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs` (L-shaped path calculation, station placement, health-reactive rail disable). `VillageLayout.cs` (structure positioning, dependency ordering). `AspireResourceMonitor.cs` (health polling source). Extension method: `WithMinecartRails()` in main package.
 
+### 2026-02-17: Village Redesign Architecture — Canals, Tracks, Docker Image
+
+- **Comprehensive architecture proposal written** at `.ai-team/decisions/inbox/rhodey-village-redesign-architecture.md` covering Jeff's village redesign vision: custom Docker image, wider village spacing, canal system, error boats, and track/canal bridge interactions.
+- **6-phase implementation plan:** (1) Layout expansion (spacing 24→36), (2) Custom Docker image (parallel), (3) Canal system, (4) Error boats, (5) Track/canal bridges, (6) Tests/docs. ~3 weeks with parallel execution.
+- **VillageLayout.Spacing increases to 36 for Grand layout.** 15 (building) + 21 (corridor: 3 path + 3 rail + 5 canal + 10 buffer). MAX_WORLD_SIZE increases to 768.
+- **Canal architecture: blue ice floor + water layer.** Blue ice gives boats 72.73 blocks/sec speed without needing slope engineering. 3-block-wide channels, 2 blocks deep, stone_brick walls. Branch canals per building merge into trunk canal feeding a shared lake at Z-max + 20.
+- **Error boat lifecycle uses 3-layer anti-pileup:** (1) Location-based despawn in lake zone every update cycle, (2) Per-resource cap of 3 active boats, (3) Global cap of 20 boats + 5-second spawn cooldown. Boats spawned via `summon` with `Motion` tag for initial velocity, creeper passengers have `NoAI:1b` to prevent explosion.
+- **Bridge design for track/canal crossings:** `stone_brick_slab` deck at SurfaceY + 1 spanning canal width + 2. Rails on top, water underneath. CanalService exposes canal positions as HashSet for O(1) bridge detection.
+- **Docker image strategy:** Extend `itzg/minecraft-server:latest` with pre-baked BlueMap, DecentHolograms, OTEL agent. Publish to `ghcr.io`. Keep MODRINTH_PROJECTS as fallback. Marker env var `ASPIRE_PREBAKED` for extension method detection.
+- **6 open questions for Jeff:** Canal floor material (blue ice vs stone), error trigger (health vs OTLP logs), boat wood type, Docker registry, canal wall material, lake decorations.
+- **Key files impacted:** `VillageLayout.cs` (spacing + new methods), `MinecartRailService.cs` (bridge detection), `MinecraftServerBuilderExtensions.cs` (new extension methods + Docker image), `MinecraftWorldWorker.cs` (new service wiring).
+- **New files needed:** `CanalService.cs`, `ErrorBoatService.cs`, `LakeBuilder.cs`, `docker/Dockerfile`, `.github/workflows/docker.yml`.
+
+📌 Team update (2026-02-17): Village redesign architecture proposed — 6-phase plan covering canals, error boats, Docker image, track/canal bridges, spacing increase to 36 blocks — decided by Rhodey
+
 ## Learnings
 
 ### MinecartRailService Architecture Insights
@@ -187,6 +202,18 @@
 4. **RCON cost scales with rail length, not minecart count.** Building a 50-block rail = ~50 setblock commands (one-time cost). Spawning 5 minecarts = 5 summon commands. The visual density problem isn't RCON; it's entity performance. Paper can handle ~50 minecarts server-wide before TPS drops, so limiting to 5 per rail and ~20 total active is safe.
 
 5. **Minecart respawning logic is trivial but needs debounce.** Spawn on demand (when request count increases), despawn when not needed (request count decreases). Use a `RequestCountTracker` polling the health endpoints every 5s, comparing desired count to actual minecarts via `execute as @e[type=chest_minecart]` count query. Avoid rapid spawn/despawn thrashing with 10s hysteresis.
+
+### Canal & Error Boat Architecture Insights
+
+1. **Blue ice is the key enabler for autonomous boat movement.** Boats on blue ice travel at 72.73 blocks/sec without player input. Combined with a `Motion` NBT tag on summon, boats self-propel from building to lake. No slope engineering, no water current blocks, no redstone. This is dramatically simpler than flowing water canals.
+
+2. **Entity lifecycle is the hardest part of error boats.** Minecraft boats don't have an Age tag, so you can't use vanilla despawn timers. Location-based despawn (`kill @e[type=boat,distance=..N]` near lake) is the most reliable approach. Must run every update cycle to prevent accumulation.
+
+3. **Per-resource spawn throttling prevents visual noise.** Without caps, a flapping health check could spawn dozens of boats per minute. Three-layer defense: 5s cooldown per resource, 3 max per resource, 20 max globally.
+
+4. **Canal RCON cost is trivially low.** `/fill` for the channel walls + floor + water = ~3 commands per canal. For 10 resources: ~45 total commands. Compare to a single Grand Watchtower at ~100 commands. Canals are the cheapest major feature we've proposed.
+
+5. **Bridge detection must be cooperative.** `MinecartRailService` and `CanalService` must share coordinate data. CanalService should build first (Phase 3) and expose canal positions. MinecartRailService (already Phase 1 feature) then checks for crossings during rail placement. Service initialization order in `MinecraftWorldWorker` must reflect this dependency.
 
 ### MCA Inspector Architecture Decisions
 

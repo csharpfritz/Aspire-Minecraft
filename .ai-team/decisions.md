@@ -1,4 +1,553 @@
-### 2026-02-10: NuGet hardening completed — floating deps pinned, SourceLink and deterministic builds added
+### 2026-02-17: Village Redesign Architecture — Canals, Tracks, Docker Image
+**By:** Rhodey
+**What:** Comprehensive architecture proposal for Jeff's village redesign: custom Docker image, wider village spacing, canal system, error boats, and track/canal bridge interactions.
+**Why:** Jeff wants the village to be a living, interactive representation of the Aspire system — dependency tracks carry minecarts between services, water canals carry error boats to a shared lake, and bridges where tracks cross canals create a physical network you can walk around and understand.
+
+---
+
+## A. Phased Implementation Plan
+
+### Phase 1: Village Layout Expansion (Blocker — everything depends on this)
+**Duration:** 3–4 days | **Owner:** Shuri
+- Increase `VillageLayout.Spacing` from 24 to **36** blocks for Grand layout
+- Add canal corridor constants: `CanalWidth = 3`, `CanalDepth = 2`, `CanalY = SurfaceY - 1`
+- Add lake zone constants: position at Z-max + 20, dimensions 20×12×3
+- Update `GetFencePerimeter()` to account for canal outlet clearance
+- Update `MAX_WORLD_SIZE` from 512 to **768** (36-block spacing × 20 resources × 2 columns + lake + fence)
+- Add `GetCanalEntrance(int index)` and `GetLakePosition(int resourceCount)` to `VillageLayout`
+- All existing services adapt automatically through `GetStructureOrigin()` — no breaking changes
+
+**Why 36?** Building (15) + rail corridor (3) + walking path (3) + canal channel (5) + buffer (10) = 36. At 24, there's no room for both rails AND canals between buildings.
+
+### Phase 2: Custom Docker Image (Parallel with Phase 1)
+**Duration:** 2–3 days | **Owner:** Wong
+- Create `docker/Dockerfile` extending `itzg/minecraft-server:latest`
+- Pre-bake BlueMap, DecentHolograms, OTEL agent JAR into the image
+- Publish to GitHub Container Registry (`ghcr.io/csharpfritz/aspire-minecraft-server`)
+- Update `MinecraftServerBuilderExtensions.DefaultImage` to use new image
+- Keep `MODRINTH_PROJECTS` as fallback for users who don't use the custom image
+
+### Phase 3: Canal System (Depends on Phase 1)
+**Duration:** 5–7 days | **Owner:** Rocket
+- New `CanalService.cs` — builds water channels from each building to the lake
+- Canal routing: straight Z-axis from each building toward lake, merging into trunk canal
+- Lake construction at village Z-max
+- Water source block placement for proper flow
+
+### Phase 4: Error Boats (Depends on Phase 3)
+**Duration:** 3–4 days | **Owner:** Rocket
+- New `ErrorBoatService.cs` — spawns boats with creepers on error events
+- Despawn lifecycle management
+- Rate limiting to prevent pileup
+
+### Phase 5: Track/Canal Bridges (Depends on Phase 1 + Phase 3)
+**Duration:** 2–3 days | **Owner:** Rocket
+- Modify `MinecartRailService` to detect canal crossings
+- Build bridge segments: stone slab platform over canal
+- Rails cross on bridge; water flows underneath
+
+### Phase 6: Tests & Documentation (Depends on Phases 3–5)
+**Duration:** 3–4 days | **Owner:** Nebula + Rhodey
+- Unit tests for canal routing, bridge detection, boat lifecycle
+- Integration tests for water flow verification
+- User docs and README updates
+
+**Total timeline:** ~3 weeks with parallel execution of Phases 1+2.
+
+**Dependency graph:**
+```
+Phase 1 (Layout) ──┬── Phase 3 (Canals) ── Phase 4 (Boats) ── Phase 6
+                    │                    │
+Phase 2 (Docker)   └── Phase 5 (Bridges) ─────────────────────┘
+```
+
+---
+
+## B. VillageLayout Changes
+
+### New Constants and Properties
+
+```csharp
+// In VillageLayout.cs — added properties for canal/lake system
+
+/// <summary>Canal channel width (3 blocks: wall + water + wall).</summary>
+public const int CanalWidth = 3;
+
+/// <summary>Canal depth below surface (2 blocks deep).</summary>
+public const int CanalDepth = 2;
+
+/// <summary>Canal water Y level (one block below grass surface).</summary>
+public static int CanalY => SurfaceY - 1;
+
+/// <summary>Lake dimensions (20 wide × 12 deep × 3 deep).</summary>
+public const int LakeWidth = 20;
+public const int LakeDepth = 12;
+public const int LakeBlockDepth = 3;
+
+/// <summary>Gap between last structure row and lake edge.</summary>
+public const int LakeGap = 20;
+```
+
+### Spacing Change
+
+`ConfigureGrandLayout()` updated:
+```csharp
+public static void ConfigureGrandLayout()
+{
+    StructureSize = 15;
+    Spacing = 36;           // was 24 — now accommodates rail + canal corridors
+    FenceClearance = 10;    // increased from 6 — lake needs room
+    GateWidth = 5;
+    IsGrandLayout = true;
+}
+```
+
+### Grid Dimensions (10 resources, 2 columns, 5 rows)
+
+| Property | Old (24 spacing) | New (36 spacing) |
+|----------|------------------|-------------------|
+| Row pitch | 24 blocks | 36 blocks |
+| Village Z-extent (5 rows) | 96 + 15 = 111 | 144 + 15 = 159 |
+| Lake Z position | N/A | ~179 (159 + 20 gap) |
+| Total Z range | ~131 | ~211 |
+| MAX_WORLD_SIZE needed | 512 | 768 |
+
+### New Methods
+
+```csharp
+/// <summary>
+/// Gets the canal entrance position for a resource (east side of building).
+/// Canal runs from Z of structure toward the lake at Z-max.
+/// </summary>
+public static (int x, int y, int z) GetCanalEntrance(int index)
+{
+    var (ox, _, oz) = GetStructureOrigin(index);
+    return (ox + StructureSize + 2, CanalY, oz + StructureSize / 2);
+}
+
+/// <summary>
+/// Gets the lake's northwest corner position.
+/// Lake is centered on the village's X-axis, placed beyond the last row.
+/// </summary>
+public static (int x, int y, int z) GetLakePosition(int resourceCount)
+{
+    var (_, _, _, maxZ) = GetVillageBounds(resourceCount);
+    var (minX, _, maxX, _) = GetVillageBounds(resourceCount);
+    var centerX = (minX + maxX) / 2;
+    return (centerX - LakeWidth / 2, SurfaceY - LakeBlockDepth, maxZ + LakeGap);
+}
+```
+
+### Layout Diagram (Top-Down, 2 resources shown)
+
+```
+         X→
+    ┌──────────────────────────────────────────────┐
+    │  [Building 0]  path  rails  canal  │  [Building 1]  path  rails  canal  │
+    │   15×15        3     3      3      │   15×15        3     3      3      │
+    │                                    │                                     │
+    │  ←────── 36 blocks ──────→         │                                     │
+    │                                                                          │
+Z   │  ... next row at Z+36 ...                                                │
+↓   │                                                                          │
+    │  ════════════════════════════ LAKE ═══════════════════════                │
+    └──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Corridor allocation between buildings (36 - 15 = 21 gap):**
+- 3 blocks: walking path (stone_bricks at SurfaceY)
+- 3 blocks: rail corridor (rails at SurfaceY + 1)
+- 5 blocks: canal channel (3 water + 2 walls, dug into terrain)
+- 10 blocks: buffer/greenery
+
+---
+
+## C. Docker Image Strategy
+
+### Recommendation: Custom Dockerfile extending `itzg/minecraft-server`
+
+**Location:** `docker/Dockerfile` in repo root
+
+```dockerfile
+FROM itzg/minecraft-server:latest
+
+# Pre-install plugins so container startup is faster and deterministic
+ENV MODRINTH_PROJECTS="bluemap\ndecentholograms"
+
+# Copy bundled OTEL Java agent
+COPY otel/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
+
+# Copy BlueMap core.conf with accept-download: true
+COPY bluemap/core.conf /plugins/BlueMap/core.conf
+```
+
+**Build and publish:**
+- CI workflow (`docker.yml`) builds on push to main, tags with `latest` and git SHA
+- Push to `ghcr.io/csharpfritz/aspire-minecraft-server`
+- Version-tagged releases also push `:v0.6.0` etc.
+
+**Impact on hosting extension:**
+
+```csharp
+// MinecraftServerBuilderExtensions.cs
+private const string DefaultImage = "ghcr.io/csharpfritz/aspire-minecraft-server";
+private const string DefaultTag = "latest";
+
+// WithBlueMap() becomes simpler — no MODRINTH_PROJECTS env var needed
+// WithOpenTelemetry() becomes simpler — no bind-mount needed for JAR
+// BUT: keep the current code as fallback for users using a different base image
+```
+
+**Key decision: Backward compatibility.** Users who override the image with `.WithImage("itzg/minecraft-server", "latest")` must still get working `WithBlueMap()` and `WithOpenTelemetry()`. The extension methods should detect whether the pre-baked image is in use and skip redundant setup. One approach: check for a marker env var (`ASPIRE_PREBAKED=true`) set in the Dockerfile.
+
+**Why not just keep runtime install?** Three reasons:
+1. **Startup time.** Downloading BlueMap + DecentHolograms from Modrinth adds 15–30s to cold start. Pre-baked = instant.
+2. **Determinism.** Modrinth downloads can fail (rate limits, CDN issues, version changes). Pre-baked = same every time.
+3. **Offline dev.** Pre-baked image works without internet after first pull.
+
+**What stays as bind-mount:** The OTEL Java agent JAR *could* stay as a bind-mount if we want users to bring their own version. But for the default experience, baking it in is simpler. The BlueMap `core.conf` should remain a bind-mount because users may customize it.
+
+---
+
+## D. Canal Architecture
+
+### Minecraft Water Mechanics
+
+Water in Minecraft flows up to 8 blocks from a source block on flat terrain. For a canal longer than 8 blocks, you need source blocks every 8 blocks OR a 1-block drop every 8 blocks to create flowing water that boats can traverse.
+
+**Recommended approach: Source blocks every 7 blocks + 1-block steps.**
+
+For a canal that's 100+ blocks long (building to lake), a flat canal with source blocks works for appearance but boats won't move on their own in still water. Boats need either:
+1. **Player input** (WASD) — not applicable for error visualization
+2. **Water current** (flowing water) — requires slope
+3. **Bubble columns** (soul sand/magma in water source) — too complex
+
+**Architecture decision: Sloped canal with 1-block drops.**
+
+### Canal Cross-Section (3 blocks wide)
+
+```
+Surface level (SurfaceY = -60):
+  ╔═══════╗
+  ║ stone ║ stone ║ stone ║    ← walls at SurfaceY (flush with terrain)
+  ║ WATER ║ WATER ║ WATER ║    ← water at SurfaceY - 1 (Y = -61)
+  ║ stone ║ stone ║ stone ║    ← floor at SurfaceY - 2 (Y = -62)
+  ╚═══════╝
+```
+
+- **Width:** 3 blocks of water (boats need 2+ blocks to float without getting stuck on walls)
+- **Depth:** 2 blocks (1 block water + 1 block floor). Boats float on water surface.
+- **Wall material:** `stone_bricks` (matches village aesthetic)
+- **Floor material:** `blue_ice` (fast boat movement)
+- **Water Y-level:** SurfaceY - 1 (Y = -61 in superflat). This puts the water surface at exactly grass level, making canals appear sunken into the terrain.
+
+### Canal Routing
+
+Each building gets a **branch canal** running Z-positive from its east side toward the lake. Branch canals merge into a **trunk canal** running along the X-axis in front of the lake.
+
+```
+Building 0 ──canal──┐
+                     │
+Building 2 ──canal──┤
+                     ├── trunk canal ── LAKE
+Building 4 ──canal──┤
+                     │
+Building 6 ──canal──┘
+
+Building 1 ──canal──┐
+                     │
+Building 3 ──canal──┤
+                     ├── trunk canal ── LAKE
+Building 5 ──canal──┤
+                     │
+Building 7 ──canal──┘
+```
+
+**Slope mechanics:** Each branch canal drops 1 block every 8 blocks toward the lake. For a 100-block canal, that's ~12 blocks of drop. Starting water level = SurfaceY - 1. Ending water level = SurfaceY - 13. The lake floor must be at least this deep.
+
+**Alternative (recommended for simplicity): Flat canals with ice floor.**
+
+Instead of sloping, use **blue ice** as the canal floor. Boats on blue ice slide at high speed in Minecraft (72.73 blocks/second!). This gives us:
+- No slope engineering (flat canal at constant Y)
+- Fast boat movement (blue ice = instant)
+- Simple RCON commands (no per-segment Y calculation)
+
+**Final canal floor:** `blue_ice` at SurfaceY - 2, water source blocks at SurfaceY - 1.
+
+### Canal RCON Commands
+
+Building the canal for one resource (assume 80-block length):
+```
+# Dig channel: /fill walls and floor
+fill <x1> <surfaceY-2> <z1> <x2> <surfaceY> <z2> stone_bricks hollow
+
+# Place blue ice floor
+fill <x1+1> <surfaceY-2> <z1> <x2-1> <surfaceY-2> <z2> blue_ice
+
+# Fill water layer
+fill <x1+1> <surfaceY-1> <z1> <x2-1> <surfaceY-1> <z2> water
+```
+
+~3 RCON commands per canal segment (using `/fill` for efficiency). For 10 resources: ~30 commands for all canals + ~10 for the trunk + ~5 for the lake = ~45 total. Very RCON-efficient.
+
+### Lake Construction
+
+```
+# Dig lake basin
+fill <lakeX> <surfaceY-3> <lakeZ> <lakeX+20> <surfaceY> <lakeZ+12> air
+
+# Place lake floor
+fill <lakeX> <surfaceY-3> <lakeZ> <lakeX+20> <surfaceY-3> <lakeZ+12> stone_bricks
+
+# Place lake walls
+fill <lakeX> <surfaceY-3> <lakeZ> <lakeX+20> <surfaceY> <lakeZ+12> stone_bricks hollow
+
+# Fill water
+fill <lakeX+1> <surfaceY-2> <lakeZ+1> <lakeX+19> <surfaceY-1> <lakeZ+11> water
+```
+
+---
+
+## E. Error Boat Lifecycle
+
+### Spawning
+
+When an Aspire resource logs an error, spawn a boat with a creeper passenger at that resource's canal entrance:
+
+```
+# Spawn boat at canal entrance
+summon minecraft:boat <canalX> <waterY+1> <canalZ> {Type:"oak",Passengers:[{id:"minecraft:creeper",NoAI:1b,Silent:1b}]}
+
+# Note: NoAI=1 prevents creeper from exploding. Silent=1 prevents hissing.
+```
+
+**RCON command:** `summon minecraft:boat <x> <y> <z> {Type:"oak",Passengers:[{id:"minecraft:creeper",NoAI:1b,Silent:1b,CustomName:'{"text":"error:<resourceName>"}',CustomNameVisible:0b}]}`
+
+The `CustomName` tag lets us query and manage specific error boats later.
+
+### Floating
+
+On blue ice, boats auto-slide toward the lake (if given initial velocity). To push boats:
+
+**Option A: Water current at canal start.** Place a flowing water source at the canal entrance that pushes boats in the +Z direction. One source block at the entrance, air after 2 blocks = 2-block push zone that starts the boat moving. On blue ice, momentum carries it the rest of the way.
+
+**Option B: Summon with Motion tag.**
+```
+summon minecraft:boat <x> <y> <z> {Type:"oak",Motion:[0.0d,0.0d,0.5d],Passengers:[...]}
+```
+This gives initial Z-velocity. On blue ice, the boat slides to the lake.
+
+**Recommendation: Option B (Motion tag).** Simpler, no extra water blocks, deterministic speed.
+
+### Despawning — Jeff's Key Concern
+
+**Pileup prevention strategy (three layers):**
+
+1. **Age-based despawn.** Every 30 seconds, the `ErrorBoatService` runs a cleanup sweep:
+   ```
+   # Kill boats older than 60 seconds (they've reached the lake or gotten stuck)
+   kill @e[type=boat,nbt={},distance=..5,x=<lakeX>,z=<lakeZ>]
+   ```
+   Actually, Minecraft boats don't have an Age tag. Instead:
+
+2. **Location-based despawn.** Kill any boat that reaches the lake zone:
+   ```
+   kill @e[type=boat,x=<lakeCenterX>,y=<waterY>,z=<lakeCenterZ>,distance=..15]
+   ```
+   Run this every update cycle (10 seconds). Boats in the lake = arrived = despawn.
+
+3. **Global cap.** Track spawned boat count. If > 20 boats exist world-wide, kill the oldest ones:
+   ```
+   # Count all boats
+   execute store result score @a boats run execute as @e[type=boat] run data get entity @s UUID
+
+   # If too many, kill all boats in the lake and throttle new spawns
+   kill @e[type=boat,x=<lakeCenterX>,z=<lakeCenterZ>,distance=..20]
+   ```
+
+4. **Per-resource throttle.** Maximum 3 active boats per resource canal. Before spawning, count existing boats near that canal entrance. If ≥ 3, skip the spawn.
+   ```
+   execute store result score count boats run execute if entity @e[type=boat,x=<canalX>,z=<canalZ>,dx=5,dz=100]
+   ```
+
+### ErrorBoatService Design
+
+```csharp
+internal sealed class ErrorBoatService
+{
+    private readonly Dictionary<string, int> _activeBoats = new();  // resource → count
+    private readonly Dictionary<string, DateTime> _lastSpawn = new(); // rate limiting
+    private const int MaxBoatsPerResource = 3;
+    private const int MaxBoatsTotal = 20;
+    private static readonly TimeSpan SpawnCooldown = TimeSpan.FromSeconds(5);
+
+    public async Task SpawnErrorBoatAsync(string resourceName, CancellationToken ct)
+    {
+        // Rate limit: max 1 boat per 5 seconds per resource
+        if (_lastSpawn.TryGetValue(resourceName, out var last) &&
+            DateTime.UtcNow - last < SpawnCooldown)
+            return;
+
+        // Per-resource cap
+        if (_activeBoats.GetValueOrDefault(resourceName) >= MaxBoatsPerResource)
+            return;
+
+        // Global cap check
+        if (_activeBoats.Values.Sum() >= MaxBoatsTotal)
+            return;
+
+        var (x, y, z) = VillageLayout.GetCanalEntrance(resourceIndex);
+        await rcon.SendCommandAsync(
+            $"summon minecraft:boat {x} {y+1} {z} {{Type:\"oak\",Motion:[0.0d,0.0d,0.5d],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
+            CommandPriority.Normal, ct);
+
+        _activeBoats[resourceName] = _activeBoats.GetValueOrDefault(resourceName) + 1;
+        _lastSpawn[resourceName] = DateTime.UtcNow;
+    }
+
+    public async Task CleanupLakeBoatsAsync(CancellationToken ct)
+    {
+        // Kill all boats that reached the lake
+        var (lx, _, lz) = VillageLayout.GetLakePosition(resourceCount);
+        await rcon.SendCommandAsync(
+            $"kill @e[type=boat,x={lx},z={lz},distance=..25]",
+            CommandPriority.Low, ct);
+        // Reset counts (conservative — may undercount, but prevents stale state)
+    }
+}
+```
+
+### Error Detection Hook
+
+The `ErrorBoatService` subscribes to the existing `AspireResourceMonitor` health change events. When a resource transitions to `Unhealthy`, spawn a boat. When it transitions back to `Healthy`, stop spawning (but let existing boats finish their journey).
+
+For log-level errors (Jeff's original ask), we'd need the worker to consume log data (not just health status). This is the same OTLP ingestion architecture gap identified in Sprint 4 brainstorming. **For v1: trigger on health status change. For v2: trigger on individual error log entries via OTLP.**
+
+---
+
+## F. Track/Canal Interaction
+
+### The Problem
+
+Minecart tracks (from `MinecartRailService`) and water canals will cross paths when tracks connect buildings in different rows. A track running in the Z-axis will cross a canal running in the Z-axis if they share X-coordinates, or an X-axis track will cross a Z-axis canal.
+
+### Bridge Design
+
+When `MinecartRailService` calculates an L-shaped rail path and detects it crosses a canal's X-coordinate range, it inserts a **bridge segment**:
+
+```
+Side view of bridge over canal:
+                    ╔═══╗
+          rail ─────║   ║───── rail
+                    ║   ║
+          ──────────╚═══╝──────────  ← stone_brick_slab at CanalY + 2 (SurfaceY + 1)
+                    │   │
+     canal water ───│   │─── canal water at CanalY (SurfaceY - 1)
+                    │   │
+          ──────────┘   └──────────  ← canal floor at SurfaceY - 2
+```
+
+**Bridge block composition:**
+- `stone_brick_slab` at SurfaceY + 1 (rail surface level) spanning 5 blocks (canal width + 2 for abutments)
+- Rails placed on top of the slab
+- Canal walls and water pass underneath unmodified
+- Stone brick abutments on both sides of the canal
+
+**RCON commands for one bridge (5 blocks wide):**
+```
+# Place bridge deck (stone_brick_slab spanning canal)
+fill <x-1> <surfaceY+1> <bridgeZ> <x+canalWidth> <surfaceY+1> <bridgeZ> stone_brick_slab[type=bottom]
+
+# Place rail on bridge deck
+setblock <x> <surfaceY+2> <bridgeZ> rail
+```
+
+### Detection Logic
+
+In `MinecartRailService.CalculateRailConnection()`, after computing the L-shaped path:
+
+```csharp
+// Check each rail position against known canal positions
+foreach (var (x, y, z) in railPositions)
+{
+    if (CanalService.IsOverCanal(x, z))
+    {
+        bridgePositions.Add((x, y, z));
+    }
+}
+```
+
+`CanalService` exposes a `HashSet<(int x, int z)>` of all canal block positions for O(1) lookup.
+
+### Rail Types Near Water
+
+Rails cannot be placed on water or in water — they pop off. The bridge slab provides a solid surface. Critical: the bridge slab must be at least 1 block ABOVE the water surface to prevent water from washing away the rail. With water at SurfaceY - 1 and rails at SurfaceY + 1, there's a 2-block gap — sufficient.
+
+---
+
+## G. Impact on Existing Code
+
+### Files That Change
+
+| File | Change | Risk |
+|------|--------|------|
+| `VillageLayout.cs` | Add canal/lake constants, new methods, update `ConfigureGrandLayout()` spacing to 36 | **Medium** — all services use VillageLayout; must test thoroughly |
+| `MinecraftServerBuilderExtensions.cs` | Add `WithCanals()`, `WithErrorBoats()` extension methods, update `DefaultImage` | **Low** — follows established pattern |
+| `MinecartRailService.cs` | Add bridge detection logic, coordinate with CanalService for crossing points | **Medium** — existing L-shaped routing needs bridge insertion |
+| `MinecraftWorldWorker.cs` | Add CanalService + ErrorBoatService initialization and update calls | **Low** — follows singleton pattern |
+| `AddMinecraftServer()` | Update `MAX_WORLD_SIZE` from `512` to `768` | **Low** — one env var change |
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `Services/CanalService.cs` | Builds water canals from buildings to lake |
+| `Services/ErrorBoatService.cs` | Spawns/despawns error boats with creeper passengers |
+| `Services/LakeBuilder.cs` | One-time lake construction |
+| `docker/Dockerfile` | Custom pre-baked Minecraft server image |
+| `.github/workflows/docker.yml` | CI/CD for Docker image |
+
+### What Breaks
+
+1. **Village spacing increase (24→36) changes ALL structure positions for Grand layout.** Every test that asserts exact coordinates for Grand layout structures will need updating. Standard (7×7) layout is unaffected.
+
+2. **MinecartRailService rail positions shift** with new spacing. The L-shaped path math is relative to structure origins (which change), so the paths automatically adjust. But any hardcoded test coordinates for rail positions break.
+
+3. **Fence perimeter expands significantly.** Lake zone extends the Z-axis bounds. `GetFencePerimeter()` already delegates to `GetVillageBounds()` which is calculated, so it auto-adjusts. But fence RCON command count increases.
+
+4. **World border at 512 is insufficient.** Must increase to 768. This is a one-line change in `AddMinecraftServer()`.
+
+### What Doesn't Break
+
+- Standard (non-Grand) layout — completely untouched
+- All feature services (boss bar, weather, particles, etc.) — they use `VillageLayout.GetStructureOrigin()` 
+- Redstone dependency graph — L-shaped routing adapts to new positions
+- Beacon towers — positioned relative to structures
+- Holograms — positioned relative to structures
+- Dashboard wall — positioned at fixed X offset from BaseX, unaffected by Z-axis changes
+
+---
+
+## Open Questions for Jeff
+
+1. **Canal floor material:** Blue ice (fast boats, magical look) vs. stone (realistic, slower boats requiring water current)? **RESOLVED: Blue ice approved.**
+
+2. **Error trigger:** Health status change only (v1) or individual log entries (requires OTLP ingestion architecture)? **RESOLVED: Health-status-based for v1; log-based for v2.**
+
+3. **Boat type:** Oak boat (classic) vs. different wood types per resource type? **RESOLVED: Oak boats approved.**
+
+4. **Docker image registry:** `ghcr.io` (free, GitHub-native) vs. Docker Hub? **RESOLVED: GHCR approved.**
+
+5. **Canal aesthetics:** Stone brick walls (medieval village feel) vs. prismarine (aquatic temple feel)? **RESOLVED: Stone brick approved.**
+
+6. **Lake feature:** Just a catch basin, or add decorative elements (fountain, dock, pier, lily pads)? **RESOLVED: Simple lake with dock approved.**
+
+### 2026-02-17: Village redesign design defaults
+**By:** Jeffrey T. Fritz (via Copilot — autonomous defaults)
+**What:** For the village redesign: blue ice canal floors, stone brick walls, oak boats, GHCR for Docker image, health-status-based error triggers (v1), simple lake with dock. Spacing 24→36 for Grand layout.
+**Why:** Jeff approved the architecture direction. Defaults chosen for mechanical superiority (blue ice), visual consistency (stone brick), and implementability (health-based triggers exist today).
+
+
 
 ### 2026-02-10: Proposed feature ideas for Aspire-Minecraft
 **By:** Rocket
