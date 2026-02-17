@@ -27,7 +27,7 @@ jobs:
   heartbeat:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Ralph — Check for squad work
         uses: actions/github-script@v8
