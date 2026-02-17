@@ -6,3 +6,4 @@ obj/
 *.DotSettings.user
 nupkgs/
 *.nupkg
+TestResults/
