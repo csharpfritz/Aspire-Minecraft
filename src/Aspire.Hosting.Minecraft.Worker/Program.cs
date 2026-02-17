@@ -65,6 +65,12 @@ if (builder.Configuration["ASPIRE_FEATURE_CANALS"] == "true")
     builder.Services.AddSingleton<CanalService>();
 }
 
+// Error boat visualization — register service when enabled
+if (builder.Configuration["ASPIRE_FEATURE_ERROR_BOATS"] == "true")
+{
+    builder.Services.AddSingleton<ErrorBoatService>();
+}
+
 // Services
 builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
@@ -168,7 +174,8 @@ file sealed class MinecraftWorldWorker(
     ServiceSwitchService? serviceSwitches = null,
     RedstoneDashboardService? redstoneDashboard = null,
     MinecartRailService? minecartRails = null,
-    CanalService? canals = null) : BackgroundService
+    CanalService? canals = null,
+    ErrorBoatService? errorBoats = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -208,6 +215,8 @@ file sealed class MinecraftWorldWorker(
             await minecartRails.InitializeAsync(stoppingToken);
         if (canals is not null)
             await canals.InitializeAsync(stoppingToken);
+        if (errorBoats is not null)
+            await errorBoats.InitializeAsync(stoppingToken);
 
         // Peaceful mode — eliminate hostile mobs (one-time setup)
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
@@ -246,6 +255,8 @@ file sealed class MinecraftWorldWorker(
                         await deploymentFanfare.CheckAndCelebrateAsync(changes, stoppingToken);
                     if (achievements is not null)
                         await achievements.CheckAchievementsAsync(changes, stoppingToken);
+                    if (errorBoats is not null)
+                        await errorBoats.SpawnBoatsForChangesAsync(changes, stoppingToken);
                 }
 
                 // Achievement checks that run every cycle (e.g., Night Shift needs time query)
@@ -283,6 +294,8 @@ file sealed class MinecraftWorldWorker(
                     await minecartRails.UpdateAsync(stoppingToken);
                 if (canals is not null)
                     await canals.UpdateAsync(stoppingToken);
+                if (errorBoats is not null)
+                    await errorBoats.CleanupBoatsAsync(stoppingToken);
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)
