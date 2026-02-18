@@ -294,3 +294,5 @@
 
  Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
 
+Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
+

@@ -238,3 +238,6 @@ This avoids the 6hr hang by running each project's tests independently (Integrat
 - BlueMap WebServer confirmed started
 
 📌 Team update (2026-02-17): Pre-baked Docker image completed — turnkey Minecraft server with all server properties, RCON, BlueMap plugin + config baked in. Image: 868 MB, startup: ~33s. Tested locally on Windows Docker Desktop — decided by Wong
+
+Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
+

@@ -148,6 +148,37 @@
 - **Three non-blocking observations for future work:** (1) Add `[Trait("Category", "Integration")]` to integration tests. (2) Fix CS8604 nullable warning. (3) Confirm CI sets correct version from git tag.
 - **Release decision:** APPROVED — written to `.ai-team/decisions/inbox/rhodey-v050-release-ready.md`.
 
+### 2026-02-17: BlueMap + Playwright Testing Feasibility Assessment
+
+- **Jeff's question:** "Is there a path to having Playwright tests built that use BlueMap to browse around the generated map to validate what was built?"
+- **Feasibility analysis completed.** Full assessment written to `.ai-team/decisions/inbox/rhodey-bluemap-playwright-feasibility.md`.
+
+**Key learnings:**
+
+- **BlueMap has no block-level REST API.** Serves only pre-rendered tile files (`/maps/{id}/{lod}/{x}_{z}.json` geometry, `.png` textures). No endpoint to query "what block at X,Y,Z?" The Java API exists but requires a server-side plugin — not callable from .NET tests. Tile format is undocumented binary/compressed and version-dependent.
+
+- **RCON `execute if block` remains the right primary approach.** Returns empty string on match, exact coordinates, deterministic, immediate (no render delay), uses existing RconClient. Combined with VillageLayout constants, provides 100% confidence in block placement.
+
+- **BlueMap render timing is a hidden constraint (30-60s).** After `/fill` commands complete (blocks exist in <1ms), BlueMap's server-side renderer waits for chunk change notifications (~5-10s), then re-renders affected tiles (~30-60s depending on CPU and region size). No public API to check render status — polling HTTP tile endpoints is heuristic-based.
+
+- **Playwright CAN navigate BlueMap, but visual validation is non-deterministic.** WebGL rendering varies by driver, lighting, anti-aliasing. Screenshot comparison requires reference images + pixel tolerance tuning. Fragile across BlueMap version updates. Good for visual regression testing (post-MVP), poor for correctness assertions.
+
+- **Three.js scene-graph is not accessible from JavaScript.** The canvas is a locked pixel bitmap. Cannot extract "render structure X at position Y" data without parsing pixels — not viable.
+
+- **WebGL in headless Chromium works on Ubuntu CI but is fragile.** GitHub Actions ubuntu-latest supports it (hardware acceleration). Windows runners lack GPU (would need `--disable-gpu` with software rendering). Docker containers need extra flags (`--no-sandbox`, libc deps). Additional ~200MB Chromium binary download per CI run.
+
+**Recommended phasing:**
+
+1. **Ship now (Sprint 5):** RCON block tests (already designed + partially implemented) + HTTP smoke tests (already implemented). High confidence, zero flakiness, <1 minute CI time.
+
+2. **Consider for Sprint 6:** Playwright smoke test (page load + canvas renders + no JS errors). Low-risk, optional enhancement. Adds ~1 minute CI time.
+
+3. **Defer to Sprint 7+:** Visual regression with reference images. Requires image diff library, baseline management, BlueMap version pinning. High implementation effort, medium-high flakiness, adds ~90 seconds CI time for render wait.
+
+**Bottom line:** Don't oversell Playwright for data validation — it's a rendering tool. RCON + HTTP is the right stack for MVP. Playwright screenshots can enhance visual polish later without blocking correctness tests.
+
+**Decision logged:** `.ai-team/decisions/inbox/rhodey-bluemap-playwright-feasibility.md`.
+
 📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey
 
 📌 Team update (2026-02-15): Grand Watchtower exterior redesigned with ornate medieval aesthetics (deepslate buttresses, iron bar arrow slits, taller turrets with pinnacles, portcullis gatehouse, string courses) — stays under 100 RCON command budget — decided by Rocket
@@ -284,3 +315,8 @@
 - **Success criteria by phase:** #95 → decision doc + test harness. #91 → fixture complete, RconAssertions helper, 5 tests passing, CI integration job added. #93 → AnvilRegionReader reads .mca files, block lookups work. #94 → WorldSaveDirectory exposed, AnvilTestHelper convenience wrapper. #48 → custom Docker image in registry, startup time <1 min.
 - **Risks mitigated:** BlueMap render timing (RCON primary, BlueMap secondary). Port conflicts (Aspire auto-assignment). Shared fixture flakiness (poll-based readiness, deterministic RCON). NBT library choice (spike validates before committing). World file timing (gate on RCON readiness first).
 - **Triage written to:** `.ai-team/decisions/inbox/rhodey-test-improvement-triage.md` (17.4 KB document with full dependency graph, individual issue analysis, sequencing table, success criteria, strategic notes).
+
+Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
+
+Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  Comprehensive analysis recommending RCON + HTTP hybrid approach as MVP (deterministic, stable, fast), Playwright screenshots deferred to Sprint 6+ (visual regression, non-deterministic). Supersedes earlier 2026-02-12 decision.  decided by Rhodey (lead)
+
