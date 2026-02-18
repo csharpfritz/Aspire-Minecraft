@@ -514,3 +514,28 @@ Evaluated 3 NBT library candidates (fNbt, SharpNBT, Unmined.Minecraft.Nbt) for i
 - SharpNBT viable but stale (last release Sep 2023, targets .NET 7 only)
 - Unmined.Minecraft.Nbt too niche (pre-release, GitHub Packages only, 10 stars)
 - Full evaluation with comparison table and conceptual API code written to `.ai-team/decisions/inbox/rocket-nbt-library-evaluation.md`
+
+### AnvilRegionReader Implementation (Issue #93)
+
+Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` for reading Minecraft Anvil (.mca) region files. Used for test verification of in-world block placement.
+
+**Key files:**
+- `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` — Full MCA reader with `GetBlockAt(worldX, worldY, worldZ)` API
+- `tests/Aspire.Hosting.Minecraft.Integration.Tests/Aspire.Hosting.Minecraft.Integration.Tests.csproj` — Added fNbt 1.0.0 package reference
+
+**Implementation details:**
+- `AnvilRegionReader.Open(filePath)` parses `r.{x}.{z}.mca` filename and reads 4KB offset header
+- `GetBlockAt()` converts world coords → region/chunk/section/block offsets, handles negative Y (1.18+ format, -64 to 319)
+- Chunk decompression supports zlib (type 2), gzip (type 1), and uncompressed (type 3)
+- Block state extraction navigates sections list → block_states compound → palette + packed long array
+- Bit-unpacking uses 1.18+ format: indices don't span long boundaries, minimum 4 bits per entry
+- `BlockState` record holds name + properties dictionary with human-readable `ToString()`
+- Static helpers: `WorldToRegion()` and `GetRegionFilePath()` for coordinate/path lookups
+- Edge cases: out-of-bounds Y returns null, missing chunks return null, wrong region returns null
+
+## Learnings
+- fNbt `NbtFile.LoadFromStream()` with `NbtCompression.None` works after manual decompression — don't double-decompress
+- MCA sector offsets are 3-byte big-endian integers (shift+OR, not BitConverter) — Java heritage means all binary is big-endian
+- 1.18+ section Y index for negative coords: use floor division `(worldY - 15) / 16` not truncation
+- Palette bit-packing: indices per long = `64 / bitsPerEntry` (integer division), unused bits are padding at the high end
+- `ZLibStream` (System.IO.Compression) handles the raw zlib format Minecraft uses — no need for third-party decompression

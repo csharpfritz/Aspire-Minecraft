@@ -18,6 +18,8 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+📌 CI test hang fix (2026-02-10): The solution-wide `dotnet test Aspire-Minecraft.slnx` command hangs on CI (~6 hours) because it loads Integration.Tests, which requires docker. Split into 3 individual `dotnet test` calls per project: Aspire.Hosting.Minecraft.Tests, Aspire.Hosting.Minecraft.Worker.Tests, Aspire.Hosting.Minecraft.Rcon.Tests. Integration tests run in separate job on push to main (ubuntu only). Pattern: individual project test calls avoid loading unwanted test assemblies — decided by Wong
+
 📌 Milestone release changelog template: Section headers (Features Delivered, Issues Resolved, Test Coverage, Breaking Changes), bulleted feature lists with issue references, test metrics summary — use this for future release documentation — decided by Wong
 
 📌 Team update (2026-02-10): NuGet packages blocked — no CI/CD pipeline exists, must be created — decided by Shuri
@@ -190,3 +192,28 @@
 **Recommendation:** 
 - Remaining 2 PRs (#97, #96) require either (a) token with `workflow` scope, or (b) manual merge via GitHub web UI by a repository admin with sufficient permissions.
  Team update (2026-02-17): Dependabot PR review completed. Merged 3 PRs (codeql-action 34, github-script 78, upload-pages-artifact 34). Blocked 2 PRs due to token scope limitation (setup-node 46, checkout 46 require workflow scope). All dependency updates are safe. Recommendation: regenerate GitHub token with workflow scope for future automation.  decided by Wong
+
+### Village Redesign Branch — Grand Village Consolidation & CI Fixes (2026-02-18)
+
+**Summary:**
+- **Grand village consolidation:** Removed MinecraftAspireDemo sample; consolidated all village features into GrandVillageDemo.
+- **Neighborhood layout engine:** Zone-based structure placement strategy with collision avoidance.
+- **Canal & rail routing:** Building-aware routing with S-shaped paths through gap corridors. Java/Spring resource detection in GetResourceCategory().
+- **CI test split:** Solution-wide `dotnet test` split into 3 individual project calls (Aspire.Hosting.Minecraft.Tests, Worker.Tests, Rcon.Tests) to avoid loading Integration.Tests (which hangs on CI due to docker requirement).
+- **Integration test job:** New job on push to main (ubuntu-latest only), runs separately with timeout=10min, uploads results artifact.
+- **Integration test fixes:** Watchtower coords corrected, block type assertions updated.
+- **NBT library:** Evaluated options; fNbt recommended.
+
+**Build.yml pattern (fixed):**
+```yaml
+- name: Test
+  run: |
+    dotnet test tests/Aspire.Hosting.Minecraft.Tests/ --no-build -c Release --verbosity normal
+    dotnet test tests/Aspire.Hosting.Minecraft.Worker.Tests/ --no-build -c Release --verbosity normal
+    dotnet test tests/Aspire.Hosting.Minecraft.Rcon.Tests/ --no-build -c Release --verbosity normal
+```
+This avoids the 6hr hang by running each project's tests independently (Integration.Tests is handled in a separate job on push to main only).
+
+**Branch status:** Pushed to origin/village-redesign (commit 40f02aa). Ready for PR review.
+
+📌 Team update (2026-02-18): Village redesign branch with grand consolidation, neighborhood layout engine, canal/rail routing, and CI test split fixes staged and pushed to origin/village-redesign — decided by Wong
