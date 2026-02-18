@@ -28,6 +28,8 @@
 - Updated integration test fixture (`MinecraftAppFixture.cs`) — changed from `Projects.MinecraftAspireDemo_AppHost` to `Projects.GrandVillageDemo_AppHost`.
 - Updated integration test `.csproj` — changed ProjectReference from MinecraftAspireDemo.AppHost to GrandVillageDemo.AppHost.
 - Updated README.md — removed WithGrandVillage references, updated demo instructions to use GrandVillageDemo, clarified that Grand Village buildings are now the default.
+
+📌 Team update (2026-02-18): Test improvement triage assigned — Shuri to implement #94 (WorldSaveDirectory + AnvilTestHelper), 2-3 days effort after Rocket completes #93. Add WorldSaveDirectory property to MinecraftAppFixture, ensure Docker volume mount is wired, create AnvilTestHelper static class with LoadRegionAsync()/GetBlockAsync() convenience wrappers. Depends on #93 (AnvilRegionReader) completion — decided by Rhodey
 - Updated CONTRIBUTING.md — changed sample reference from MinecraftAspireDemo to GrandVillageDemo.
 - Updated docs/ files — replaced MinecraftAspireDemo references with GrandVillageDemo in blog posts and design docs.
 - Key insight: Grand village was always intended as the production experience — small village was scaffolding during development.

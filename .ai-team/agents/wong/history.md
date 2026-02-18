@@ -28,6 +28,8 @@
 **Workflows created:**
 - `.github/workflows/build.yml` — CI on push/PR to `main`, matrix build (ubuntu + windows), restore → build → test → pack → upload artifacts. Concurrency groups cancel stale runs.
 - `.github/workflows/release.yml` — Publishes to NuGet.org on `v*` tag push. Also creates a GitHub Release with nupkg files attached. Uses `softprops/action-gh-release@v2`.
+
+📌 Team update (2026-02-18): Test improvement triage assigned — Wong to implement #48 (pre-baked Docker image), 2-3 days effort. Build custom Dockerfile extending itzg/minecraft-server, pre-install BlueMap + DecentHolograms, publish to GitHub Container Registry, update AppHost to use custom image. Priority: 🟡 Medium (optimization story), deferred post-release, independent from test correctness work — decided by Rhodey
 - `.github/PULL_REQUEST_TEMPLATE.md` — Standard PR template with What/Why/Testing/Checklist sections.
 
 **Key decisions:**

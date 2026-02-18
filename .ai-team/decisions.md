@@ -2700,3 +2700,683 @@ builder.AddMinecraftServer("minecraft")
 
 
 
+
+
+# Decision: Integration Test Coordinate Corrections and Coverage Expansion
+
+**Author:** Nebula (Tester)
+**Date:** 2026-02-17
+**Issue:** #91 — BlueMap integration testing infrastructure
+
+## Context
+
+The integration test suite had coordinate bugs from the pre-grand-building era. The HealthIndicatorTests used old small-building coordinates (x+3, y+4, z+1) which don't match the grand watchtower's actual DoorPosition (x+7, y+4, z) and GlowBlock (x+7, y+5, z). VillageStructureTests checked for stone_bricks at origin corners, but the grand watchtower base is mossy_stone_bricks. Resource count was hardcoded to 4 but GrandVillageDemo monitors 12 resources.
+
+## Decisions Made
+
+1. **Fixed all coordinates to match grand building geometry.** GlowBlock is at (CenterX, TopY+1, FaceZ) = (x+7, y+5, z) for watchtowers.
+
+2. **Expanded from 5 tests to 8 tests** — 6 RCON block verification + 2 BlueMap HTTP. This exceeds the issue's "at least 5 RCON-based" requirement.
+
+3. **Added CI integration-tests job** that runs only on `push` to `main` (not PRs). Ubuntu-only, 10-minute timeout, separate from the fast unit test gate. Uploads TRX artifacts.
+
+4. **Resource count updated to 12** across fence and path tests to match GrandVillageDemo's actual monitored resource count.
+
+## Test Inventory
+
+| File | Tests | What it verifies |
+|------|-------|-----------------|
+| VillageFenceTests | 2 | Oak fence at corners and edge midpoints |
+| VillagePathTests | 2 | Cobblestone at village center and in front of first structure |
+| VillageStructureTests | 2 | Grand watchtower mossy stone brick base + stone brick walls |
+| HealthIndicatorTests | 1 | Glow block (glowstone/redstone_lamp/sea_lantern) above door |
+| BlueMapSmokeTests | 2 | Root page 200 OK + settings.json contains "maps" |
+
+## Impact
+
+- No unit test changes — only integration test corrections
+- CI unit test pipeline unchanged (still fast, still 3 projects)
+- Integration tests only run on main branch pushes
+
+
+# Test Improvement Issue Triage & Sequencing
+
+**Date:** 2026-02-18  
+**By:** Rhodey (Lead)  
+**Requested by:** Jeffrey T. Fritz  
+
+## Executive Summary
+
+Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues fall into two streams:
+
+1. **Integration Testing Infrastructure (Sprint 5 blocker)** — #91 is the foundation; requires NBT library decision (#95) before MCA inspection work (#93, #94).
+2. **Startup Performance (v1.0 optimization)** — #48 pre-baked Docker image is valuable but deferred; lower priority than test correctness.
+
+**Recommended sequence:** Start with #95 (NBT eval, 1–2 days) → #91 core infrastructure (Nebula, 4–5 days) → #93 + #94 in parallel (Rocket + Shuri, 3–4 days each) → #48 as post-release optimization.
+
+---
+
+## Issue Dependency Chain
+
+### Stream A: Integration Testing Infrastructure (Critical Path)
+
+```
+#95 (NBT library selection)
+    ↓ [BLOCKS]
+#93 (AnvilRegionReader core class)
+    ↓ [BLOCKS] + #94 (WorldSaveDirectory support)
+#94 (MinecraftAppFixture enhancement) 
+    ↓
+#91 (BlueMap integration test infrastructure)
+    ↑ [DEPENDS ON]
+    └─ BlueMap infrastructure design already complete (docs/designs/bluemap-integration-tests.md)
+       But test execution needs MCA file reading for advanced scenarios
+```
+
+### Stream B: Performance Optimization (Independent)
+
+```
+#48 (Pre-baked Docker image)
+    ├─ No blockers
+    ├─ Value: Reduce startup 45–60s → 10–15s  
+    └─ Can run in parallel but not on critical path for test correctness
+```
+
+---
+
+## Individual Issue Analysis
+
+### #91 — [Sprint 5] BlueMap Integration Test Infrastructure
+
+**Status:** Ready to start (design complete; blocked only by #95)  
+**Scope:** Build integration test harness using hybrid RCON + BlueMap approach  
+**Why it matters:**
+- Current CI: unit tests pass (~5 min), but integration tests skipped  
+- This unblocks Sprint 5 feature verification (Grand Village, minecart rails, ornate towers)  
+- Hybrid approach (RCON block verification + BlueMap smoke tests) is already designed
+
+**Key decisions from design doc (bluemap-integration-tests.md):**
+- Primary: RCON `execute if block` for exact block-level assertions → deterministic, fast, zero rendering delay
+- Secondary: Playwright for visual smoke tests → validates BlueMap renders without screenshot comparison fragility  
+- Shared fixture: Single `MinecraftAppFixture` via xUnit `[CollectionFixture]` to amortize 45–60s server startup
+- Poll-based readiness: Fixture polls `execute if block` on known coordinate every 5s, adapts to variable startup times
+- Linux-only CI: Tests require Docker; should not block PR CI. Run as gated job after unit tests on `main`/release branches
+- Existing test project structure already in place: `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with Fixtures/, Helpers/, Village/, BlueMap/ directories
+
+**What needs to be done:**
+1. ✅ Fixture already started — `MinecraftAppFixture` exists, needs completion  
+2. ✅ `RconAssertions` helper class (blocks, regions) — ready to implement
+3. ✅ First 5 tests: VillageFence, VillagePathTests, VillageStructureTests, HealthIndicatorTests, BlueMapSmoke — sample code in design doc
+4. ⚠️ Wire into CI: Add job to build.yml (separate from unit test jobs, Linux only, 8-min timeout)
+
+**Risks & mitigations:**
+- BlueMap render timing: Mitigated by using RCON as primary, BlueMap screenshots as secondary
+- Port conflicts: Use Aspire auto-assigned ports (no hardcoded `gamePort: 25565`)
+- Test flakiness on shared fixture: Mitigated by deterministic RCON block polling
+
+**Depends on:** #95 (NBT evaluation) — Needed if tests want to read .mca files for verification snapshots in future extensions
+
+**Assigned to:** **Nebula (Tester)**  
+**Estimated effort:** 4–5 days  
+**Priority:** 🔴 **Critical** (blocks Sprint 5 verification, directly improves test process)
+
+---
+
+### #93 — [MCA Inspector] Implement AnvilRegionReader
+
+**Status:** Blocked by #95  
+**Scope:** Core class to read .mca region files, query block state at world coordinates  
+**Why it matters:**
+- Enables snapshot-based integration tests ("golden" block state comparison)  
+- Supports future feature: dump all blocks in region, compare to expected layout  
+- More comprehensive than spot-check RCON assertions
+- MCA format is Minecraft's native save format — direct truth source
+
+**Key decisions from design context:**
+- Depends on NBT library evaluation (#95) — need to pick fNbt, SharpNBT, or Unmined.Minecraft.Nbt
+- Core responsibility: parse .mca files, decompress NBT chunk sections, expose block lookup by (X, Y, Z)  
+- Stretch goal: `FindBlocksOfType()` helper for pattern matching across regions
+
+**What needs to be done:**
+1. Research + eval NBT libraries (#95 — do first)
+2. Design `AnvilRegionReader` public API (IAsyncEnumerable chunks? Direct lookup?)  
+3. Implement chunk decompression + NBT parsing  
+4. Add block state query method
+5. Tests: decode sample .mca files, assert block lookups match known coordinates
+
+**Risks & mitigations:**
+- NBT format complexity: Mitigated by picking a mature library with good docs  
+- Performance: Decompressing all chunks upfront is slow; implement lazy loading per chunk  
+- Minecraft NBT version compat: Pin Minecraft server version in tests to avoid format surprises
+
+**Depends on:** #95 (NBT library selection)  
+**Blocks:** #94 (WorldSaveDirectory fixture support needs this to be available)  
+**Assigned to:** **Rocket (Integration Dev)**  
+**Estimated effort:** 3–4 days (after #95 decision)  
+**Priority:** 🟠 **High** (enables snapshot-based verification, but #91 RCON approach is sufficient for Sprint 5)
+
+---
+
+### #94 — [MCA Inspector] Add WorldSaveDirectory Support to MinecraftAppFixture
+
+**Status:** Blocked by #93  
+**Scope:** Expose world save directory property on fixture; create `AnvilTestHelper` convenience wrapper  
+**Why it matters:**
+- Tests need access to world files on disk  
+- Helper abstracts away RCON + file I/O coordination  
+- Enables comparison of expected vs. actual world state  
+
+**Key decisions:**
+- Property: `MinecraftAppFixture.WorldSaveDirectory` (string path to `/world/` folder in container)  
+- Helper: `AnvilTestHelper` convenience wrapper around `AnvilRegionReader`  
+- Container mapping: Aspire Docker resource exposes world directory via volume mount
+
+**What needs to be done:**
+1. Expose `WorldSaveDirectory` property on `MinecraftAppFixture`  
+2. Ensure container volume mount is wired (likely already done in AppHost)  
+3. Create `AnvilTestHelper` static class with `LoadRegionAsync()`, `GetBlockAsync()`, etc.  
+4. Wire into test projects
+
+**Risks & mitigations:**
+- File path differences between CI environments: Use `Path.Combine()` for OS independence  
+- Timing race condition: World file might be incomplete while server is writing. Mitigate by gating on RCON readiness first, then querying files.
+
+**Depends on:** #93 (AnvilRegionReader must exist first)  
+**Assigned to:** **Shuri (Backend Dev)**  
+**Estimated effort:** 2–3 days (after #93)  
+**Priority:** 🟠 **High** (enables file-based verification, but #91 is sufficient for immediate needs)
+
+---
+
+### #95 — [MCA Inspector] Research & Evaluate NBT Libraries
+
+**Status:** Ready to start  
+**Scope:** Evaluate fNbt, SharpNBT, Unmined.Minecraft.Nbt  
+**Why it matters:**
+- Prerequisite for #93 and #94  
+- Determines design of `AnvilRegionReader` API  
+- Wrong choice could create tech debt or performance issues
+
+**Evaluation criteria:**
+- Minecraft version coverage (1.17+? 1.20+?)  
+- API simplicity (easy block lookup?)  
+- Performance (lazy loading? Memory efficiency?)  
+- Maintenance (active project? Issue response time?)  
+- License (permissive? No GPL/AGPL?)  
+- Documentation quality  
+
+**What needs to be done:**
+1. Create test harness to decode sample .mca files from a small world  
+2. For each library: load a region, extract a known chunk, verify block lookups match  
+3. Benchmark decompression speed for a full region  
+4. Summarize pros/cons, recommend one library + justification  
+5. Create decision doc: `.ai-team/decisions/inbox/rhodey-nbt-library-evaluation.md`
+
+**Output:** Clear recommendation (e.g., "Use SharpNBT: cleaner API than fNbt, lighter than Unmined") + decision log
+
+**Risks & mitigations:**
+- Library might have hidden bugs: Mitigate by writing comprehensive test harness  
+- Community abandonment risk: Check GitHub stars, commit frequency, issue resolution time  
+
+**Depends on:** Nothing  
+**Blocks:** #93, #94  
+**Assigned to:** **Rocket (Integration Dev)** — as research/feasibility task before #93 implementation  
+**Estimated effort:** 1–2 days  
+**Priority:** 🔴 **Critical** (pure blocker for MCA work)
+
+---
+
+### #48 — Pre-baked Docker Image for Faster Minecraft Server Startup
+
+**Status:** Ready to start, but not critical  
+**Scope:** Custom Docker image with pre-installed server, plugins, spawn chunks baked in  
+**Why it matters:**
+- Reduce startup 45–60s → 10–15s  
+- Improves test iteration velocity  
+- Reduces CI time  
+
+**Value calculation:**
+- Unit tests: ~5 min (unaffected)  
+- Integration tests (once #91 live): ~2–3 min per run  
+  - With #48: ~1 min (Minecraft startup 10s + worker build 30s + test 20s)  
+  - **Saves 1–2 min per CI run**  
+- Dev inner loop (local testing): Huge win — tests reusable across features
+
+**What needs to be done:**
+1. Build custom `Dockerfile.minecraft` based on `itzg/minecraft-server`  
+2. Pre-load plugins: BlueMap, DecentHolograms  
+3. Build spawn chunks at known coordinates (0, 0)  
+4. Publish to registry (DockerHub or GitHub Container Registry)  
+5. Update AppHost and CI to use custom image instead of `itzg/minecraft-server:latest`
+
+**Implementation notes:**
+- Minecraft server by default precomputes spawning area (X/Z chunks near 0, 0). Leverage this to have land ready.
+- BlueMap cache is per-installation; pre-warming won't help much. Only helps with startup, not render time.
+- Plugins need consistent configuration (eula.txt, server.properties, etc.) — bake these into Docker build.
+
+**Risks & mitigations:**
+- Image size bloat: Monitor image size; use multi-stage build if needed  
+- Stale snapshots: Rebuild monthly or on plugin updates  
+- Registry reliability: Use GitHub Container Registry (more reliable than DockerHub for teams)
+
+**Depends on:** Nothing  
+**Blocks:** Nothing  
+**Assigned to:** **Wong (GitHub Ops)** — Docker build is ops/infrastructure work  
+**Estimated effort:** 2–3 days  
+**Priority:** 🟡 **Medium** (good optimization but not blocking test correctness)
+
+---
+
+## Recommended Sequencing & Team Assignments
+
+### Phase 1: Foundation (Immediate, parallel)
+
+| Task | Owner | Start | Duration | Notes |
+|------|-------|-------|----------|-------|
+| #95: NBT library evaluation | Rocket | Week 1, Mon | 1–2 days | Research + decision doc. Output: recommendation. Unblocks #93. |
+| #91: BlueMap integration infrastructure | Nebula | Week 1, Mon | 4–5 days | Implement fixture, helpers, first 5 tests. Design is done. Heavy lifting. |
+
+**Parallelization note:** Rocket's research (2 days) finishes well before Nebula needs the result (for stretch goals). Rocket can context-switch to #93 design while waiting for Nebula.
+
+### Phase 2: MCA Inspection (After Phase 1)
+
+| Task | Owner | Start | Duration | Dependencies | Notes |
+|-------|-------|-------|----------|--------------|-------|
+| #93: AnvilRegionReader | Rocket | After Rocket finishes #95 | 3–4 days | #95 decision | Core MCA reading. Rocket already familiar with research. |
+| #94: WorldSaveDirectory + helper | Shuri | After Rocket finishes #93 | 2–3 days | #93 exists | Fixture enhancement + wrapper class. |
+
+**Parallelization note:** Could start Shuri after Rocket has draft #93 API (day 1), but API will change. Better to wait for #93 to stabilize (ETA day 3).
+
+### Phase 3: Performance (Independent, lower priority)
+
+| Task | Owner | Start | Duration | Notes |
+|------|-------|-------|----------|-------|
+| #48: Pre-baked Docker image | Wong | Week 2, after Phase 1 | 2–3 days | Low priority. Can run in parallel with Phase 2 if Wong has capacity. |
+
+**Rationale:** Wong has distinct skill set (Docker ops). Doesn't interfere with dev work. Can start anytime after #91 is mostly complete (fixture design is finalized).
+
+---
+
+## Current Blockers & CI Status
+
+### CI Fix Status ✅
+
+**Good news:** CI hanging issue was fixed. Build now runs ~5 min (was 6+ hours).
+
+- **Root cause:** Solution-wide `dotnet test` hung; split into 3 individual project calls  
+- **Current state:** `build.yml` still has old test command on `main` branch  
+- **Fix is ready:** On `village-redesign` branch but not yet merged  
+- **Action:** Merge village-redesign PR before closing #91  
+
+**Test counts (current):**
+- 553 unit tests pass  
+  - 489 Worker.Tests  
+  - 19 Hosting.Tests  
+  - 45 Rcon.Tests  
+- Integration tests: Skipped in CI (will be enabled by #91)
+
+### Integration Test Project ✅
+
+Fixture project already exists at `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with proper structure:
+- Fixtures/ (MinecraftAppFixture stub)  
+- Helpers/ (RconAssertions to be implemented)  
+- Village/ (VillageFenceTests, VillagePathTests, etc.)  
+- BlueMap/ (BlueMapSmokeTests)
+
+No cleanup needed — just fill in the gaps.
+
+---
+
+## Success Criteria
+
+### By End of #95 (NBT Evaluation)
+✅ Decision doc recommending one NBT library with justification  
+✅ Simple test harness showing library can decode sample .mca files  
+
+### By End of #91 (BlueMap Infrastructure)
+✅ MinecraftAppFixture fully implemented (start Aspire app, connect RCON, wait for village)  
+✅ RconAssertions helper with block/region assertion methods  
+✅ First 5 tests passing locally (RCON block checks, BlueMap HTTP 200)  
+✅ build.yml updated with integration test job (Linux only, after unit tests, 8-min timeout)  
+
+### By End of #93 + #94 (MCA Inspection)
+✅ AnvilRegionReader parses .mca files, supports block lookups  
+✅ MinecraftAppFixture.WorldSaveDirectory property exposed  
+✅ AnvilTestHelper convenience wrapper available  
+✅ Snapshot-based test example written (using #93 + #94 together)  
+
+### By End of #48 (Docker Image)
+✅ Custom Docker image in GitHub Container Registry  
+✅ AppHost updated to use custom image  
+✅ Integration test startup time reduced to ~1 min  
+
+---
+
+## Strategic Notes
+
+### Why #91 is the priority
+
+- **Design is already complete** (bluemap-integration-tests.md) — just needs implementation  
+- **Unblocks Sprint 5 feature delivery** — Grand Village, minecart rails, ornate towers need test verification  
+- **Hybrid RCON approach is sufficient** — don't over-engineer with MCA inspection on day 1  
+- **Builds confidence in test infrastructure** — fixes CI hanging issue + validates worker behavior end-to-end  
+
+### Why #95 must come before #93
+
+- **Pure research task** — no dependencies, clear output (recommendation)  
+- **Unblocks MCA design** — API shape depends on library choice  
+- **Quick turnaround** — 1–2 days vs. waiting for other work  
+- **Low risk** — decision can be revisited if initial choice doesn't work out  
+
+### Why #48 is deferred
+
+- **Incremental optimization** — #91 already cuts startup from 45–60s to ~1–2 min for full integration test runs (via shared fixture)  
+- **Can run in parallel** — not on critical path for test correctness  
+- **Good candidate for post-release work** — optimization story, not feature blocker  
+- **Reduces scope pressure on Sprint 5** — focus on test correctness first  
+
+### Dependency graph visualized
+
+```
+#95 (NBT eval)
+  ↓
+#93 (AnvilRegionReader)
+  ↓
+#94 (WorldSaveDirectory)
+
+#91 (BlueMap infrastructure) — ready now, runs independently
+
+#48 (Docker image) — ready now, runs independently
+```
+
+**Parallelization opportunities:**
+- #91 and #95 can start same day  
+- #93 and #94 can be planned together but sequential execution  
+- #48 can start anytime  
+
+---
+
+## Recommended Read-Aheads for Assignees
+
+| Assignee | Read | Why |
+|----------|------|-----|
+| Nebula | docs/designs/bluemap-integration-tests.md | Complete design doc with code samples, CI strategy, risk analysis |
+| Rocket | docs/designs/bluemap-integration-tests.md (overview), architecture-diagram.md, minecraft-constraints.md | Context for where #93/#94 fit into testing. MCA reading will query block coordinates tracked by these docs. |
+| Shuri | docs/designs/bluemap-integration-tests.md (fixture section) | Understanding how fixture works before adding WorldSaveDirectory |
+| Wong | build.yml (current), docs/designs/bluemap-integration-tests.md (CI section) | Current test job structure + recommended Linux-only integration test job |
+
+---
+
+## Next Steps (For Jeff)
+
+1. **Confirm team assignments** — Rhodey recommends Nebula → #91, Rocket → #95 + #93, Shuri → #94, Wong → #48  
+2. **Kick off Phase 1** — Have Rocket start #95 research, Nebula start #91 implementation  
+3. **Merge village-redesign branch** — Fixes CI hanging issue before integration tests go live  
+4. **Link issues together** — Mark #93/#94 as blocking #91, #95 as blocking #93  
+
+---
+
+**Triage complete. Ready to hand off to team leads.**
+
+
+### 2026-02-17: Village bug triage — 8 issues
+**By:** Rhodey
+**What:** Triaged Jeff's 8 reported issues into prioritized work items with agent assignments
+**Why:** Need clear work breakdown before fanning out to Rocket/Shuri/Nebula
+
+---
+
+## Investigation Findings
+
+### CanalService — exists, partially working
+- `CanalService.cs` exists and implements branch canals (building→trunk), a north–south trunk canal, and a lake with dock.
+- **Canal entrance position** uses `GetCanalEntrance()` → `(ox + StructureSize + 2, CanalY, oz + StructureSize/2)`. This places the entrance 2 blocks east of the building's east wall, at the building's Z-midpoint.
+- **Problem #1 (disconnected):** Branch canals run west→east from building to trunk. The trunk runs north→south. But `trunkMinZ` is calculated from the first/last entrance Z positions — if entrance Z positions aren't monotonically ordered (e.g., with neighborhoods enabled, buildings can be in different zones), the trunk canal won't span all branches. The trunk canal assumes a simple linear layout.
+- **Problem #3 (canals under buildings):** Canal entrances are at `ox + StructureSize + 2`, which is east of the building. However, with neighborhood-enabled layout, buildings in the NE and SE zones have different X origins. The trunk X is calculated from `maxX + CanalTotalWidth + 2`, so branch canals from NW/SW buildings run eastward *through* NE/SE zone buildings to reach the trunk. The routing doesn't avoid building footprints.
+- **Problem #5 (no lake connection):** The trunk canal's `trunkMaxZ` is set to `lakeZ` (lake northwest corner Z). But the lake is centered on the village X-axis, while the trunk canal is at `maxX + 7`. The trunk ends at the correct Z but at a different X than the lake. There's no connecting segment from the trunk canal to the lake's water.
+
+### MinecartRailService — exists, mostly working
+- `MinecartRailService.cs` builds L-shaped rail paths between dependent resources.
+- **Problem #2 (tracks missing):** Rail routing uses `GetStructureOrigin()` for start/end positions, and walks L-shaped paths (X first, then Z). With neighborhood-enabled layout, dependent resources can be in different zone quadrants (e.g., API depends on Redis — API is in NW .NET zone, Redis is in SW Container zone). The L-path may traverse through other buildings. Rails that overlap with building `/fill` commands get paved over.
+- **Bridge support exists**: `MinecartRailService` already detects `CanalPositions` and places stone_brick_slab bridges. This is partially implemented but depends on canals being built first (correct ordering in Program.cs: rails→canals, but canals build AFTER rails — need to verify ordering).
+- **Wait — ordering bug confirmed:** Program.cs line 306-309 calls `minecartRails.InitializeAsync` BEFORE `canals.InitializeAsync`. But bridge detection reads `canals.CanalPositions` which is empty until canals are built. So bridges are never detected. This needs to be reversed: canals first, then rails.
+
+### Java Detection — works for structure type, broken for health and neighborhoods
+- `IsExecutableResource()` in StructureBuilder checks for `javaapp` and `springapp` — matches `JavaAppContainer` type string. Structure type mapping is correct (→ Workshop).
+- `GetResourceCategory()` in VillageLayout does NOT check for `javaapp` or `springapp`. Java containers fall through to `lower == "container"` → `ContainerOrDatabase`. This means Java apps get grouped with databases in the SW neighborhood instead of with executables in the SE neighborhood.
+- Health detection: `AddSpringApp` creates a container resource (`JavaAppContainerResourceOptions`). The hosting extension line 296-300 checks `JavaAppExecutable` — which won't match `JavaAppContainer`. So endpoint resolution IS attempted for Java container resources. Since containers DO have endpoints, this should work. The health issue Jeff reports may be a startup timing problem — Java/Spring apps take 15-30 seconds to start, and the first poll may happen before the app is ready, locking it into Unhealthy until next state change.
+
+### Neighborhood/Fountain — zone layout done, fountains not implemented
+- `VillageLayout.PlanNeighborhoods()` is fully implemented — groups resources by category into NW/NE/SW/SE quadrants.
+- There is NO fountain code anywhere in the codebase. No `NeighborhoodService.cs`, no fountain builder, nothing. The `WithNeighborhoods` doc says "Groups of 4+ resources of the same type will eventually form town squares with fountains (Phase 2)." Fountains are a Phase 2 feature that hasn't been built yet.
+
+---
+
+## Triage Table
+
+| # | Issue | Category | Priority | Agent | Size | Dependencies | Notes |
+|---|-------|----------|----------|-------|------|--------------|-------|
+| 1 | Canals disconnected / misrouted | Bug | P0 | Rocket | M | None | Trunk canal Z-range calculation doesn't account for neighborhood zone layout. Branch canals assume linear east-west to a single trunk X. With neighborhoods, buildings span multiple X ranges — need per-zone trunk canals or smarter routing. |
+| 3 | Canals go under buildings | Bug | P0 | Rocket | L | Fix #1 first | Branch canal routing has no collision detection with building footprints. Need pathfinding that avoids structure origins or route canals along zone boundaries. Tightly coupled with #1 — same routing rewrite. |
+| 5 | Canals don't connect to lake | Bug | P0 | Rocket | S | Fix #1 first | Trunk canal terminates at lake Z but at wrong X. Need a connecting segment from trunk to lake. May be trivial once trunk routing is fixed. |
+| 2 | Tracks missing | Bug | P1 | Rocket | M | Fix canal init order | Two root causes: (a) Rail init happens BEFORE canal init, so bridge detection fails (empty CanalPositions). Fix: swap init order in Program.cs. (b) L-shaped paths may cross through buildings — need collision avoidance or path routing around structures. |
+| 4 | No walkway bridges over canals | Missing feature | P1 | Rocket | M | Fix #1, #2 first | `MinecartRailService` has rail bridge support but no pedestrian walkway bridges. Need a new bridge builder that places stone/wood slab walkways where village paths cross canal channels. |
+| 6 | Java app state not detected properly | Bug | P1 | Rocket | S | None (independent) | Two sub-issues: (a) `GetResourceCategory()` in VillageLayout missing `javaapp`/`springapp` checks — Java containers miscategorized in neighborhoods. (b) Health polling may report Unhealthy during slow Java startup. Fix (a) is a 2-line code change. Fix (b) needs investigation — may need startup grace period or retry logic. |
+| 7 | Neighborhood fountains missing | Missing feature | P2 | Rocket | L | Neighborhoods must work first | Fountains are Phase 2 per the architecture plan. No code exists. Requires: fountain geometry builder, detection of 4+ same-type zone, center-of-zone positioning, water/decorative block placement. The honey-block "beer fountain" easter egg idea from history needs Jeff sign-off. |
+| 8 | GrandVillageDemo needs more resources | Missing feature | P2 | Shuri | S | None (independent) | Sample already has 4 .NET projects, 4 Azure resources, 2 databases, 1 Python, 1 Node, 1 Java (13 total). Jeff wants more Azure/.NET resources to exercise neighborhood zones. Shuri should add 1-2 more of each to ensure 4+ per category for fountain trigger threshold. |
+
+---
+
+## Recommended Execution Order
+
+**Sprint A (Canal & Track Foundation) — ~1 week:**
+1. **#6a** — Fix `GetResourceCategory()` Java detection (Rocket, 1 hour). Unblocks correct neighborhood layout.
+2. **#1 + #3 + #5** — Canal routing rewrite (Rocket, 3-4 days). Single PR: zone-aware routing, building collision avoidance, lake connection. These three are the same underlying problem.
+3. **#2** — Fix rail init ordering + path collision (Rocket, 2 days). Swap canal/rail init order in Program.cs. Add building footprint avoidance to L-path calculation.
+
+**Sprint B (Bridges & Polish) — ~1 week:**
+4. **#4** — Walkway bridges (Rocket, 2-3 days). New bridge builder for pedestrian paths over canals.
+5. **#6b** — Java health startup grace period (Rocket, 1 day). Investigate and fix if needed.
+6. **#8** — Add sample resources (Shuri, half day).
+
+**Sprint C (Fountains) — ~1 week:**
+7. **#7** — Neighborhood fountains (Rocket, 4-5 days). Phase 2 feature — design + implement.
+
+**Test coverage (Nebula) throughout:** Unit tests for canal routing, bridge detection, and neighborhood categorization should accompany each sprint's fixes.
+
+---
+
+## Open Questions for Jeff
+
+1. **Canal routing strategy:** Should canals route per-zone (each neighborhood gets its own canal to the lake) or should there be a single trunk canal? Per-zone is simpler and avoids cross-zone collision. Single trunk is more visually dramatic but harder to route.
+2. **Fountain design:** Honey-block beer fountain easter egg — approved? Or stick with standard water fountain?
+3. **Java health grace period:** Should we add a configurable startup delay before marking resources unhealthy, or is the current behavior (shows unhealthy then transitions to healthy) acceptable?
+
+
+### 2026-02-18: NBT library evaluation for MCA Inspector
+**By:** Rocket
+**What:** Evaluated 3 NBT library candidates, recommending **fNbt**
+**Why:** Needed for AnvilRegionReader (#93) — prerequisite for MCA-based integration tests (#94). Blocks MCA Inspector work (#95).
+
+---
+
+## Comparison Table
+
+| Criteria | fNbt | SharpNBT | Unmined.Minecraft.Nbt |
+|---|---|---|---|
+| **Latest Version** | 1.0.0 (Jul 2025) | 1.3.1 (Sep 2023) | 0.1.5-dev |
+| **License** | BSD-3-Clause | MIT | MIT |
+| **Target Framework** | .NET Standard 2.0 | .NET 7.0 | .NET Standard 2.0 |
+| **.NET 8/10 Compat** | ✅ Yes (netstandard2.0) | ✅ Yes (forward compat) | ✅ Yes (netstandard2.0) |
+| **NuGet Availability** | ✅ nuget.org | ✅ nuget.org | ❌ GitHub Packages only |
+| **GitHub Stars** | ~200+ (established) | ~35 | ~10 |
+| **Last Commit** | 2025 (active) | 2023 (infrequent) | Unclear (low activity) |
+| **Java+Bedrock** | ✅ Both | ✅ Both | ✅ Both |
+| **Big/Little Endian** | ✅ | ✅ | ✅ |
+| **Compression** | GZip, ZLib, None | GZip, ZLib, Auto | GZip, ZLib |
+| **High-level API** | NbtFile/NbtTag | NbtFile/CompoundTag | CompoundTag + Find() |
+| **Low-level API** | NbtReader/NbtWriter | Stream callbacks | Span\<T\> parser |
+| **LINQ Support** | ✅ ICollection/IList | ✅ | ✅ |
+| **SNBT Support** | Pretty-print only | ✅ Parse + Generate | ✅ Parse + Generate |
+| **Async Support** | ❌ | ✅ | ❌ |
+| **Performance Focus** | Good, low alloc | Span/stackalloc | Poolable, minimal alloc |
+| **Documentation** | Excellent (API docs) | Wiki-based | README examples |
+| **Community Adoption** | Highest (most used) | Moderate | Niche (uNmINeD tool) |
+| **Region/MCA Parsing** | ❌ NBT only | ❌ NBT only | ❌ NBT only |
+| **Verdict** | ✅ **RECOMMENDED** | ⚠️ Viable alternative | ❌ Too niche |
+
+## Key Finding: None of These Parse MCA Files Directly
+
+All three libraries are **NBT-only parsers**. None of them handle the Anvil region file format (.mca) — the 8KB header, chunk offset tables, sector-based storage, or per-chunk compression. This means:
+
+**We need to write our own `AnvilRegionReader`** that:
+1. Opens the `.mca` file and reads the 8KB header (4KB chunk locations + 4KB timestamps)
+2. For each chunk: seeks to the sector offset, reads length + compression type byte
+3. Decompresses the chunk data (ZLib type=2 or GZip type=1)
+4. Passes the decompressed stream to the NBT library for parsing
+
+The NBT library handles step 4. Steps 1-3 are ~80 lines of straightforward binary I/O that we own.
+
+Additionally, extracting a **block state at (x, y, z)** from chunk NBT requires understanding the 1.18+ chunk format:
+- Navigate to `sections[n].block_states.palette` (list of block state names)
+- Decode `sections[n].block_states.data` (bit-packed long array of palette indices)
+- Map world coords → section index + local coords within section
+
+This is format-specific logic that no library provides — it's the core of our `AnvilRegionReader`.
+
+## Recommendation: **fNbt**
+
+### Why fNbt Wins
+
+1. **Most actively maintained.** v1.0.0 released July 2025 — the only candidate with a recent stable release. SharpNBT's last release was Sept 2023; Unmined is still at 0.1.5-dev.
+
+2. **License compatibility.** BSD-3-Clause is fully compatible with our MIT project. All three candidates pass this test, but BSD-3-Clause is well-understood and permissive.
+
+3. **Broadest .NET compatibility.** Targeting .NET Standard 2.0 means it works on .NET 8, .NET 10, and any future runtime without needing library updates. SharpNBT targets .NET 7.0, which works via forward compat but could theoretically have edge cases.
+
+4. **Largest community.** fNbt is the most widely used C# NBT library. More users = more battle-tested edge cases, more Stack Overflow answers, more examples of MCA parsing using fNbt as the NBT layer.
+
+5. **Clean API for our use case.** Reading chunk NBT from a decompressed stream is our primary operation:
+   ```csharp
+   var nbtFile = new NbtFile();
+   nbtFile.LoadFromStream(decompressedChunkStream, NbtCompression.None);
+   var sections = nbtFile.RootTag.Get<NbtList>("sections");
+   ```
+   The indexer syntax (`tag["sections"]["block_states"]["palette"]`) is ergonomic for deep NBT traversal through chunk data.
+
+6. **NuGet availability.** `dotnet add package fNbt` just works. Unmined requires configuring a GitHub Packages NuGet source — unnecessary friction.
+
+7. **Proven Minecraft ecosystem pedigree.** Originally built for Minecraft tools (fCraft/ClassiCube ecosystem), which means it's been tested against real-world Minecraft NBT data for over a decade.
+
+### Why Not SharpNBT
+
+SharpNBT is a solid library with modern C# features (Span\<T\>, async). However:
+- Last release Sept 2023 — 2+ years without updates
+- Targets .NET 7 (not netstandard2.0), slightly narrower compat surface
+- 35 stars vs fNbt's much larger community
+- The async support is nice but unnecessary — our MCA reads are in-memory, synchronous operations on test fixtures
+
+### Why Not Unmined.Minecraft.Nbt
+
+Despite being purpose-built for a Minecraft world viewer (which is close to our use case):
+- Pre-release only (0.1.5-dev) — not production-ready
+- Only available via GitHub Packages — NuGet source configuration required
+- Tiny community (10 stars, 2 forks)
+- If uNmINeD changes direction, the library may not be maintained
+
+## Conceptual API Usage with fNbt
+
+```csharp
+// AnvilRegionReader.cs — our custom code
+public class AnvilRegionReader
+{
+    public NbtCompound ReadChunk(Stream mcaStream, int chunkX, int chunkZ)
+    {
+        // 1. Read 8KB header
+        var header = new byte[8192];
+        mcaStream.Read(header, 0, 8192);
+
+        // 2. Calculate chunk offset from header
+        int index = ((chunkX & 31) + (chunkZ & 31) * 32) * 4;
+        int offset = (header[index] << 16) | (header[index + 1] << 8) | header[index + 2];
+        int sectorCount = header[index + 3];
+        if (offset == 0) return null; // Chunk not present
+
+        // 3. Seek to chunk data, read length + compression
+        mcaStream.Position = offset * 4096;
+        using var reader = new BinaryReader(mcaStream, Encoding.UTF8, leaveOpen: true);
+        int length = IPAddress.NetworkToHostOrder(reader.ReadInt32());
+        byte compressionType = reader.ReadByte();
+        byte[] compressedData = reader.ReadBytes(length - 1);
+
+        // 4. Decompress
+        using var compressedStream = new MemoryStream(compressedData);
+        using var decompressed = compressionType == 2
+            ? (Stream)new ZLibStream(compressedStream, CompressionMode.Decompress)
+            : new GZipStream(compressedStream, CompressionMode.Decompress);
+
+        // 5. Parse NBT with fNbt
+        var nbtFile = new NbtFile();
+        nbtFile.LoadFromStream(decompressed, NbtCompression.None);
+        return nbtFile.RootTag;
+    }
+
+    public string GetBlockAt(NbtCompound chunkRoot, int x, int y, int z)
+    {
+        // Local coords within chunk
+        int localX = x & 15;
+        int localY = y & 15;
+        int localZ = z & 15;
+        int sectionIndex = y >> 4; // Section Y index (-4 to 19 for 1.20+)
+
+        var sections = chunkRoot.Get<NbtList>("sections");
+        var section = sections?.Cast<NbtCompound>()
+            .FirstOrDefault(s => s.Get<NbtByte>("Y")?.Value == sectionIndex);
+        if (section == null) return "minecraft:air";
+
+        var blockStates = section.Get<NbtCompound>("block_states");
+        var palette = blockStates?.Get<NbtList>("palette");
+        if (palette == null || palette.Count == 0) return "minecraft:air";
+        if (palette.Count == 1)
+            return ((NbtCompound)palette[0]).Get<NbtString>("Name")?.Value ?? "minecraft:air";
+
+        var data = blockStates.Get<NbtLongArray>("data");
+        if (data == null) return "minecraft:air";
+
+        // Decode bit-packed palette index
+        int bitsPerEntry = Math.Max(4, (int)Math.Ceiling(Math.Log2(palette.Count)));
+        int blockIndex = (localY * 16 + localZ) * 16 + localX;
+        int entriesPerLong = 64 / bitsPerEntry;
+        int longIndex = blockIndex / entriesPerLong;
+        int bitOffset = (blockIndex % entriesPerLong) * bitsPerEntry;
+        long mask = (1L << bitsPerEntry) - 1;
+        int paletteIndex = (int)((data.Value[longIndex] >> bitOffset) & mask);
+
+        var entry = (NbtCompound)palette[paletteIndex];
+        return entry.Get<NbtString>("Name")?.Value ?? "minecraft:air";
+    }
+}
+```
+
+## Risks and Limitations
+
+1. **MCA format is our code, not the library's.** The Anvil region format parsing (~80 lines) is custom code we must write, test, and maintain. This is unavoidable with any NBT library choice.
+
+2. **Block state decoding complexity.** The bit-packing format for block states changed in 1.18 (compacted palette) and may change again. We should pin to a specific Minecraft version in test fixtures and document the expected format version.
+
+3. **fNbt is BSD-3-Clause, not MIT.** BSD-3-Clause is compatible with MIT but adds the "no endorsement" clause. This is a non-issue for our usage — just noting for completeness.
+
+4. **No async API.** fNbt is synchronous only. For test fixtures reading small .mca files, this is perfectly fine. If we ever need async MCA reads in production code, we can wrap in `Task.Run()`.
+
+5. **Section Y range in 1.20+.** Sections use Y indices from -4 to 19 (world height -64 to 319). Our `GetBlockAt` must handle negative section indices correctly.
+
+## Additional Packages Needed
+
+- **None for Anvil parsing.** We write the region file reader ourselves using standard `System.IO` and `System.IO.Compression`.
+- **fNbt** is the only external dependency needed: `dotnet add package fNbt --version 1.0.0`
+- Consider adding `System.IO.Hashing` if we want CRC verification of chunk data (unlikely for test fixtures).
+
+## Decision
+
+**Use fNbt 1.0.0** for NBT parsing in the MCA Inspector / AnvilRegionReader. Write custom Anvil region format parsing using standard .NET I/O. This unblocks #93 (AnvilRegionReader implementation) and #94 (fixture integration tests).
+

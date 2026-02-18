@@ -254,3 +254,33 @@
 5. **Honey blocks for the beer fountain create a gameplay easter egg.** Players who step into the fountain experience reduced movement speed and can't jump — simulating "getting tipsy." This is a fun discovery moment, but needs Jeff's sign-off in case it annoys players.
 
 6. **Phase 1 (neighborhoods without town squares) is the minimum viable change.** Type-grouping alone creates distinct neighborhoods — Azure buildings clustered together, .NET projects clustered together. Town squares and fountains are Phase 2, ornate upgrades Phase 3. This lets us ship incrementally and validate the zone-aware positioning before adding rotational complexity.
+
+### 2026-02-17: Village Bug Triage — 8 Issues
+
+1. **Canal routing is fundamentally broken with neighborhoods enabled.** The CanalService assumes a linear 2-column layout — single trunk canal east of all buildings, branch canals running east from each building. With neighborhood zones (NW/NE/SW/SE), branch canals from NW/SW buildings cross through NE/SE building footprints to reach the trunk. The trunk Z-range is calculated from first/last entrance positions, which aren't monotonic across zones. Needs a full routing rewrite — either per-zone canals or collision-aware pathfinding.
+
+2. **Rail/canal init ordering is backwards.** Program.cs initializes rails BEFORE canals (line 306-309), but `MinecartRailService` reads `CanalPositions` for bridge detection — which is empty until canals are built. Bridges are never placed. Fix is trivial: swap the init order.
+
+3. **`GetResourceCategory()` is missing Java detection.** `IsExecutableResource()` in StructureBuilder correctly checks for `javaapp`/`springapp`, but `GetResourceCategory()` in VillageLayout does not. Java containers fall through to `ContainerOrDatabase` instead of `Executable`, causing misplacement in neighborhood zones.
+
+4. **Fountain code doesn't exist yet.** No `NeighborhoodService`, no fountain builder — this is still Phase 2 per the architecture plan. The neighborhood zone layout (Phase 1) is implemented and working.
+
+5. **Canal-to-lake connection is missing.** Trunk canal ends at lake Z but at a different X than the lake. No connecting water segment bridges the gap. Likely a simple fix once the trunk routing is corrected.
+
+6. **GrandVillageDemo sample is adequate (13 resources) but could use 1-2 more per category** to hit the 4+ threshold needed for future fountain triggers.
+
+7. **Three sprints estimated:** Sprint A (canal routing + rail fix + Java detection, ~1 week), Sprint B (bridges + sample, ~1 week), Sprint C (fountains, ~1 week). Canal issues (#1, #3, #5) are the same root cause and should be one PR.
+
+### 2026-02-18: Test Improvement Issue Triage — 5 Issues Sequenced
+
+- **Comprehensive triage created** at `.ai-team/decisions/inbox/rhodey-test-improvement-triage.md` — analyzed 5 testing-related GitHub issues (#48, #91, #93, #94, #95), mapped dependency chain, assigned team members, and sequenced work.
+- **Two parallel streams identified:** (1) Integration Testing Infrastructure (critical path for Sprint 5) and (2) Startup Performance (independent optimization). Issues #91, #93, #94, #95 are sequentially dependent; #48 is independent.
+- **Critical path: #95 → #93 + #94 → #91 (then #48 optional).** #95 (NBT library evaluation) is the pure blocker — 1–2 days of research + decision. Unblocks #93 (AnvilRegionReader implementation, 3–4 days). #94 (fixture enhancement, 2–3 days) depends on #93. #91 (integration test infrastructure, 4–5 days) is mostly ready but benefits from #93/#94 for advanced scenarios. #48 (Docker image, 2–3 days) has no blockers and can run in parallel.
+- **Team assignments:** Rocket → #95 research + #93 implementation (5–6 days total). Shuri → #94 fixture enhancement (2–3 days after #93). Nebula → #91 integration infrastructure (4–5 days, can start immediately). Wong → #48 Docker image (2–3 days, lower priority, can start week 2). **Parallelization:** Nebula starts #91 on day 1; Rocket starts #95 same day. #93/#94 start after #95 decision, no wait time.
+- **Why #91 is the immediate priority:** Design doc (bluemap-integration-tests.md) is complete. Hybrid RCON + BlueMap approach is proven (RCON is immediate, BlueMap is secondary smoke test). Integration test project structure (fixtures, helpers, directories) already exists. CI hanging issue was just fixed; now is the moment to wire integration tests into build.yml before new work accumulates.
+- **Why #95 must happen first:** Pure research task with zero dependencies. Output is a clear recommendation (which NBT library). 1–2 days of spiking saves months of regret if the initial choice doesn't work. Decision unblocks #93 API design immediately.
+- **Why #48 is deferred but not blocked:** Shared Aspire test fixture already reduces integration test startup by amortizing the 45–60s server init across all tests in a run. Pre-baked Docker image is a nice-to-have optimization (saves 1–2 min per CI run) but doesn't improve test correctness. Good candidate for post-release work or parallel execution if Wong has capacity.
+- **Key files and structure:** Integration test project at `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with Fixtures/, Helpers/, Village/, BlueMap/ directories. Design complete in `docs/designs/bluemap-integration-tests.md`. CI job needs to be added to `build.yml` as a separate job (Linux only, 8-min timeout, after unit tests). build.yml on `main` still has old test command; village-redesign branch has the fix — must merge before #91 ships.
+- **Success criteria by phase:** #95 → decision doc + test harness. #91 → fixture complete, RconAssertions helper, 5 tests passing, CI integration job added. #93 → AnvilRegionReader reads .mca files, block lookups work. #94 → WorldSaveDirectory exposed, AnvilTestHelper convenience wrapper. #48 → custom Docker image in registry, startup time <1 min.
+- **Risks mitigated:** BlueMap render timing (RCON primary, BlueMap secondary). Port conflicts (Aspire auto-assignment). Shared fixture flakiness (poll-based readiness, deterministic RCON). NBT library choice (spike validates before committing). World file timing (gate on RCON readiness first).
+- **Triage written to:** `.ai-team/decisions/inbox/rhodey-test-improvement-triage.md` (17.4 KB document with full dependency graph, individual issue analysis, sequencing table, success criteria, strategic notes).

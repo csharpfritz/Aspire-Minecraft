@@ -26,6 +26,8 @@
 
 **Grand Village foundation:** Spacing doubled to 24 blocks with 10-block fence clearance. Structure size bumped to 15×15 (13×13 usable interior) supporting ~20 resources before world border issues at 512 MAX_WORLD_SIZE. Grand variants branch on `StructureSize >= 15`. Shared placement methods (health lamp, azure banner, sign) now use `StructureSize / 2` for adaptive positioning. Minecart rails coexist with redstone wires (1-block X offset) — both visual systems coexist. Easter egg: 3 named horses (Charmer/Dancer/Toby) with variants and tameness. All 7 building types (Watchtower, Warehouse, Workshop, Cottage, Cylinder, AzureThemed, + Grand variants) follow consistent placement/health indicator patterns.
 
+📌 Team update (2026-02-18): NBT library evaluation for #95 complete — recommended fNbt 1.0.0 (most actively maintained v1.0.0 Jul 2025, broadest .NET compatibility via netstandard2.0, largest community adoption 200+ stars). Documented requirement for custom 80-line AnvilRegionReader to parse MCA file header, sector offsets, and per-chunk decompression. Designed block lookup API with 1.18+ bit-packed palette decoding. Unblocks #93 (AnvilRegionReader implementation) and #94 (WorldSaveDirectory fixture) — decided by Rocket
+
 ### Azure Resource Visualization Design (2026-02-10)
 
 Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource types to Minecraft structures. Two-universe separation: Aspire village (warm wood/stone) vs Azure citadel (cool prismarine/quartz/end stone) at X=60. 3-column tiered layout by functional tier. Azure beacon colors: Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta. Rich health states: Stopped=cobwebs, Deallocated=soul sand, Failed=netherrack fire. Scale: 3x5 grid for <=15, multiple Z-offset planes for 50+.
@@ -497,3 +499,18 @@ Updated the `GetLanguageColor` method in StructureBuilder.cs to modernize tech s
 - All Build*Async methods in StructureBuilder.cs now directly call their BuildGrand*Async variants
 - Central boulevard is always built now (removed IsGrandLayout guard, kept rows > 0 check)
 - Rationale: Jeff's directive to focus on the grand design only. Simplifies codebase by removing two code paths for every structure type.
+
+### NBT Library Evaluation for MCA Inspector (2026-02-18)
+
+Evaluated 3 NBT library candidates (fNbt, SharpNBT, Unmined.Minecraft.Nbt) for issue #95 — prerequisite for AnvilRegionReader (#93) and fixture integration (#94).
+
+**Decision:** Recommended **fNbt 1.0.0** (BSD-3-Clause, .NET Standard 2.0, most actively maintained, largest community).
+
+**Key findings:**
+- All 3 libraries are NBT-only parsers — none handle Anvil region (.mca) file format directly
+- We must write our own AnvilRegionReader (~80 lines) for the MCA header/chunk offset/decompression layer
+- Block state extraction from chunk NBT requires custom bit-unpacking logic for the 1.18+ palette format
+- fNbt wins on maintenance (v1.0.0 Jul 2025), community adoption, NuGet availability, and .NET Standard 2.0 breadth
+- SharpNBT viable but stale (last release Sep 2023, targets .NET 7 only)
+- Unmined.Minecraft.Nbt too niche (pre-release, GitHub Packages only, 10 stars)
+- Full evaluation with comparison table and conceptual API code written to `.ai-team/decisions/inbox/rocket-nbt-library-evaluation.md`
