@@ -81,6 +81,28 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Switches the Minecraft server to use a pre-baked Docker image that already contains
+    /// BlueMap, DecentHolograms, the OTEL agent, and other plugins.
+    /// When this is set, methods like <see cref="WithBlueMap"/> skip redundant bind-mounts
+    /// (e.g., <c>core.conf</c>) because the files are already in the image.
+    /// The default env vars (EULA, TYPE, etc.) are still applied — they're harmless overrides.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="imageName">The Docker image name. Defaults to <c>"aspire-minecraft-server"</c>.</param>
+    /// <param name="tag">The image tag. Defaults to <c>"latest"</c>.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithPrebakedImage(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string imageName = "aspire-minecraft-server",
+        string tag = "latest")
+    {
+        return builder
+            .WithImage(imageName, tag)
+            .WithEnvironment("ASPIRE_MINECRAFT_PREBAKED", "true")
+            .WithAnnotation(new PrebakedImageAnnotation());
+    }
+
+    /// <summary>
     /// Persists the Minecraft world data across container restarts using a named Docker volume.
     /// Without this, each run starts with a fresh world (default behavior).
     /// </summary>
@@ -118,7 +140,9 @@ public static class MinecraftServerBuilderExtensions
         // Bind-mount the core.conf into /plugins/BlueMap/ so itzg copies it to
         // /data/plugins/BlueMap/core.conf before the server starts.
         // This ensures accept-download: true is set on first boot.
-        if (File.Exists(coreConfPath))
+        // Skip when using a pre-baked image — the file is already in the image.
+        var isPrebaked = builder.Resource.Annotations.OfType<PrebakedImageAnnotation>().Any();
+        if (!isPrebaked && File.Exists(coreConfPath))
         {
             result = result.WithBindMount(coreConfPath, "/plugins/BlueMap/core.conf", isReadOnly: true);
         }
@@ -1131,3 +1155,10 @@ internal class ModrinthPluginAnnotation(string slug) : IResourceAnnotation
 /// Annotation indicating the Aspire world display worker should connect to this server.
 /// </summary>
 internal class AspireWorldDisplayAnnotation : IResourceAnnotation;
+
+/// <summary>
+/// Annotation indicating this server uses a pre-baked Docker image with plugins already installed.
+/// Methods like <see cref="MinecraftServerBuilderExtensions.WithBlueMap"/> check for this to skip
+/// redundant bind-mounts.
+/// </summary>
+internal class PrebakedImageAnnotation : IResourceAnnotation;

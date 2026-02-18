@@ -1,0 +1,4 @@
+### 2026-02-18: Pre-baked image detection uses annotation, not env var inspection
+**By:** Shuri
+**What:** `WithPrebakedImage()` attaches a `PrebakedImageAnnotation` to the resource. `WithBlueMap()` checks for this annotation to decide whether to skip the `core.conf` bind-mount. The env var `ASPIRE_MINECRAFT_PREBAKED=true` is also set for the container to read at runtime, but the Aspire-side decision is driven by the annotation.
+**Why:** Environment variable callbacks in Aspire execute lazily during publish/run — they aren't available during the synchronous builder chain when `WithBlueMap()` runs. An annotation is inspectable immediately via `resource.Annotations.OfType<T>()` and follows the same pattern used by `ModrinthPluginAnnotation` and `AspireWorldDisplayAnnotation` in this codebase. This keeps the detection reliable and idiomatic.

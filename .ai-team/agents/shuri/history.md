@@ -80,6 +80,14 @@
 - Azure RG epic designed — Shuri owns Phases 1 and 3 (ARM client, auth, options, NuGet scaffold) — decided by Rhodey
 - Azure monitoring ships as separate NuGet package — decided by Rhodey, Shuri
 
+### Pre-baked Docker Image Hosting Support (2026-02-18)
+
+- Added `WithPrebakedImage(string imageName, string tag)` extension method to `MinecraftServerBuilderExtensions.cs`. Defaults to image `aspire-minecraft-server:latest`. Sets `ASPIRE_MINECRAFT_PREBAKED=true` env var and attaches a `PrebakedImageAnnotation` to the resource.
+- `WithBlueMap()` now checks for `PrebakedImageAnnotation` on the resource. When present, the `core.conf` bind-mount is skipped — the file is already in the pre-baked image. MODRINTH_PROJECTS env var and endpoint setup still apply regardless.
+- Design choice: Used an annotation (`PrebakedImageAnnotation`) rather than inspecting env vars at build time. Annotations are the idiomatic Aspire mechanism for resource metadata and are available synchronously during the builder chain, unlike env var callbacks which run later.
+- The existing `AddMinecraftServer()` flow is completely unchanged — `WithPrebakedImage()` is purely additive.
+- Users who prefer manual control can call `.WithImage(...)` and `.WithEnvironment("ASPIRE_MINECRAFT_PREBAKED", "true")` themselves, but won't get the annotation-based bind-mount skip unless they also add the annotation. `WithPrebakedImage()` is the recommended path.
+
 ### Structure Build Validation (2026-02-10)
 
 - Added validation to StructureBuilder after each structure type builds (Watchtower, Warehouse, Workshop, Cottage).
