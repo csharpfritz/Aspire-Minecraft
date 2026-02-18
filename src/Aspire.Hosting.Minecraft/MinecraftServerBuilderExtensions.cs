@@ -115,6 +115,34 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Marks all existing Minecraft server endpoints as externally accessible so that remote
+    /// machines can connect. This modifies the game and RCON endpoints (and BlueMap, if present)
+    /// rather than adding duplicate endpoints.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithExternalAccess(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var externalEndpointNames = new HashSet<string>
+        {
+            MinecraftServerResource.GameEndpointName,
+            MinecraftServerResource.RconEndpointName,
+            MinecraftServerResource.BlueMapEndpointName
+        };
+
+        foreach (var annotation in builder.Resource.Annotations.OfType<EndpointAnnotation>())
+        {
+            if (externalEndpointNames.Contains(annotation.Name))
+            {
+                annotation.IsExternal = true;
+            }
+        }
+
+        return builder;
+    }
+
+    /// <summary>
     /// Adds BlueMap web map plugin, exposing its web UI as an HTTP endpoint in the Aspire dashboard.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
