@@ -34,6 +34,13 @@
 - Updated docs/ files — replaced MinecraftAspireDemo references with GrandVillageDemo in blog posts and design docs.
 - Key insight: Grand village was always intended as the production experience — small village was scaffolding during development.
 
+### WithExternalAccess Pattern (2026-02-18)
+
+- Added `WithExternalAccess()` to `MinecraftServerBuilderExtensions.cs` — modifies existing `EndpointAnnotation` instances by name rather than adding new endpoints. This avoids the duplicate endpoint conflict Sayed hit when trying `.WithEndpoint()` with the same target port.
+- Pattern: iterate `builder.Resource.Annotations.OfType<EndpointAnnotation>()`, match by `Name`, set `IsExternal = true`. Same approach Aspire uses in `WithExternalHttpEndpoints()`.
+- Placed after `WithPersistentWorld()` and before `WithBlueMap()` — it's infrastructure-level, not feature-specific.
+- BlueMap endpoint is included in the check set even if not yet added; the HashSet lookup simply won't match anything, so call order doesn't matter for game/RCON but `WithBlueMap()` should come before `WithExternalAccess()` if you want the map endpoint externalized too.
+
 
 ### Consolidated Summary: Sprints 1-3 (2026-02-10)
 
@@ -295,4 +302,4 @@
  Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
 
 Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
-
+ Team update (2026-02-18): WithExternalAccess() extension method implements annotation-mutation pattern to fix port exposure bug (#102)  modifies existing EndpointAnnotation instances by name instead of adding duplicate endpoints via .WithEndpoint()  decided by Shuri

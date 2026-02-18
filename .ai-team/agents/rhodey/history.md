@@ -319,4 +319,4 @@
 Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
 
 Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  Comprehensive analysis recommending RCON + HTTP hybrid approach as MVP (deterministic, stable, fast), Playwright screenshots deferred to Sprint 6+ (visual regression, non-deterministic). Supersedes earlier 2026-02-12 decision.  decided by Rhodey (lead)
-
+ Team update (2026-02-18): User directive to skip BlueMap Playwright tests for now  Jeff agrees RCON block verification + HTTP smoke tests are sufficient MVP validation, Playwright visual regression deferred to future  decided by Jeff
