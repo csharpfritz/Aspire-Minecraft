@@ -17,7 +17,6 @@ public class ServiceAdaptationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        VillageLayout.ResetLayout();
         _server = new MockRconServer();
         _rcon = new RconService("127.0.0.1", _server.Port, "test",
             NullLogger<RconService>.Instance, maxCommandsPerSecond: 1000);
@@ -30,7 +29,6 @@ public class ServiceAdaptationTests : IAsyncLifetime
     {
         await _rcon.DisposeAsync();
         await _server.DisposeAsync();
-        VillageLayout.ResetLayout();
     }
 
     private async Task WaitForRconConnected()

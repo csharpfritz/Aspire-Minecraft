@@ -746,26 +746,6 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
-    /// Enables the Grand Village layout with enlarged, walkable buildings.
-    /// Replaces the standard 7×7 village layout with 15×15 structures
-    /// that have furnished interiors, proper lighting, and multiple floors.
-    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
-    /// </summary>
-    /// <param name="builder">The Minecraft server resource builder.</param>
-    /// <returns>The resource builder for chaining.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
-    public static IResourceBuilder<MinecraftServerResource> WithGrandVillage(
-        this IResourceBuilder<MinecraftServerResource> builder)
-    {
-        var workerBuilder = builder.Resource.WorkerBuilder
-            ?? throw new InvalidOperationException(
-                "WithGrandVillage() requires WithAspireWorldDisplay() to be called first.");
-
-        workerBuilder.WithEnvironment("ASPIRE_FEATURE_GRAND_VILLAGE", "true");
-        return builder;
-    }
-
-    /// <summary>
     /// Enables the minecart rail network connecting dependent resources.
     /// Powered rails with automated chest minecarts run between buildings
     /// that have dependency relationships. Complementary to redstone wiring.
@@ -826,8 +806,7 @@ public static class MinecraftServerBuilderExtensions
     /// <summary>
     /// Enables neighborhood-based layout grouping. Resources of the same type (Azure, .NET, containers,
     /// executables) are grouped into distinct zones within the village, creating neighborhood clusters.
-    /// When combined with <see cref="WithGrandVillage"/>, groups of 4+ resources of the same type
-    /// will eventually form town squares with fountains (Phase 2).
+    /// Groups of 4+ resources of the same type will eventually form town squares with fountains (Phase 2).
     /// Requires <see cref="WithAspireWorldDisplay{TWorker}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -853,7 +832,7 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
     /// <see cref="WithHeartbeat"/>, <see cref="WithServiceSwitches"/>,
     /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
-    /// <see cref="WithGrandVillage"/>, <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, and <see cref="WithCanals"/>.
+    /// <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, <see cref="WithCanals"/>, and <see cref="WithNeighborhoods"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -884,7 +863,6 @@ public static class MinecraftServerBuilderExtensions
             .WithPeacefulMode()
             .WithRedstoneDashboard()
             .WithRconDebugLogging()
-            .WithGrandVillage()
             .WithMinecartRails()
             .WithErrorBoats()
             .WithCanals()

@@ -20,7 +20,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        VillageLayout.ResetLayout();
         _server = new MockRconServer();
         _rcon = new RconService("127.0.0.1", _server.Port, "test",
             NullLogger<RconService>.Instance, maxCommandsPerSecond: 1000);
@@ -35,7 +34,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     {
         await _rcon.DisposeAsync();
         await _server.DisposeAsync();
-        VillageLayout.ResetLayout();
     }
 
     private async Task WaitForRconConnected()
@@ -231,10 +229,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
 
     private async Task<BuildResult> BuildSingleStructure(string resourceType, bool grand = false)
     {
-        VillageLayout.ResetLayout();
-        if (grand)
-            VillageLayout.ConfigureGrandLayout();
-
         // Capture layout state immediately to avoid parallel test interference
         var (ox, oy, oz) = VillageLayout.GetStructureOrigin(0);
         var structureSize = VillageLayout.StructureSize;
@@ -401,7 +395,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     [Fact]
     public async Task GrandCylinder_SpruceDoorPlacedAtGroundLevel()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("postgres", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
@@ -432,7 +425,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     [Fact]
     public async Task GrandWatchtower_SpiralStairs_ConnectFloorToFloor()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
@@ -480,7 +472,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
                  "leaving no headroom. Staircase should start at x+3 or buttress should be narrower.")]
     public async Task GrandWatchtower_Stairs_HaveHeadroom()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
@@ -510,7 +501,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     [Fact]
     public async Task GrandWatchtower_StairwellHoles_ExistInFloors()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var oy = result.Oy;
@@ -536,7 +526,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     [Fact]
     public async Task GrandWatchtower_Stairs_HaveCorrectFacingDirection()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
@@ -634,7 +623,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
                  "Torch should be at z+s-1 facing=north (inside, mounted on south wall at z+s).")]
     public async Task BUG_GrandWatchtower_TorchOnSouthWall_HasNoSupport()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var s = result.StructureSize - 1;
@@ -656,7 +644,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
                  "facing=north. Support block at z+s+1 is outside the structure. Sign should be at z+s-1 (inside).")]
     public async Task BUG_GrandStructures_WallSignOnSouthWall_HasNoSupport()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Project", grand: true);
 
         var s = result.StructureSize - 1;
@@ -678,7 +665,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
                  "at y+7..y+10 removes the wall block at z+2. Signs should be on bookshelves or at a different position.")]
     public async Task BUG_GrandCylinder_WallSignsLostSupport()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("postgres", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);
@@ -741,12 +727,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("watchtower", false)]
-    [InlineData("warehouse", false)]
-    [InlineData("workshop", false)]
-    [InlineData("cottage", false)]
-    [InlineData("cylinder", false)]
-    [InlineData("azure", false)]
     [InlineData("watchtower", true)]
     [InlineData("warehouse", true)]
     [InlineData("workshop", true)]
@@ -795,12 +775,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("watchtower", false)]
-    [InlineData("warehouse", false)]
-    [InlineData("workshop", false)]
-    [InlineData("cottage", false)]
-    [InlineData("cylinder", false)]
-    [InlineData("azure", false)]
     [InlineData("watchtower", true)]
     [InlineData("warehouse", true)]
     [InlineData("workshop", true)]
@@ -892,7 +866,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
     [Fact]
     public async Task GrandWorkshop_Ladders_HaveSolidBlockBehind()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("Executable", grand: true);
 
         // Workshop uses fill command for ladders, not setblock
@@ -925,7 +898,6 @@ public partial class StructuralGeometryTests : IAsyncLifetime
                  "Currently, facing=west means support should be at x+9 (east) which is interior air.")]
     public async Task GrandCylinder_Ladders_HaveSolidBlockBehind()
     {
-        VillageLayout.ConfigureGrandLayout();
         var result = await BuildSingleStructure("postgres", grand: true);
 
         var setblocks = ParseSetblockCommands(result.Commands);

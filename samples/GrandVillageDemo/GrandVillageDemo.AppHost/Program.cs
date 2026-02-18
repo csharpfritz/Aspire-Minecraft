@@ -4,8 +4,8 @@ using Aspire.Hosting.ApplicationModel;
 // ───────────────────────────────────────────────────────────────────────────────
 // Grand Village Demo
 //
-// Showcases WithGrandVillage() which renders every monitored resource as a
-// 15×15 block grand building variant (instead of the default 7×7 compact size).
+// Showcases the Grand Village feature which renders every monitored resource as a
+// 15×15 block grand building with furnished interiors and multi-story layouts.
 // Includes all supported resource types so every grand building style is visible:
 //
 //   Resource Kind        │ Building Type    │ Grand Size
@@ -70,7 +70,7 @@ var javaApi = builder.AddSpringApp("java-api",
         Port = 5500,
     });
 
-// --- Minecraft server with ALL features + Grand Village ---
+// --- Minecraft server with ALL features ---
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
     .WithMaxPlayers(10)
     .WithMotd("Grand Village Demo")
@@ -78,7 +78,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
 
-    // Enable every feature including Grand Village and Minecart Rails
+    // Enable every feature (Grand Village buildings are now the default)
     .WithAllFeatures()
 
     // Wire all resource types so every grand building variant is shown

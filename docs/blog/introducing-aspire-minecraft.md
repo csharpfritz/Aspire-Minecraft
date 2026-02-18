@@ -281,7 +281,7 @@ Or clone the repo and run the demo:
 
 ```shell
 git clone https://github.com/csharpfritz/Aspire-Minecraft.git
-cd Aspire-Minecraft/samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost
+cd Aspire-Minecraft/samples/GrandVillageDemo/GrandVillageDemo.AppHost
 dotnet run
 ```
 

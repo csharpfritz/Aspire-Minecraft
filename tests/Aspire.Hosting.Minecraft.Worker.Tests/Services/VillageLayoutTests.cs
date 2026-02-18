@@ -8,15 +8,15 @@ public class VillageLayoutTests
     [Theory]
     [InlineData(1, 0, new[] { 10, -59, 0 })]
     [InlineData(2, 0, new[] { 10, -59, 0 })]
-    [InlineData(2, 1, new[] { 34, -59, 0 })]
+    [InlineData(2, 1, new[] { 46, -59, 0 })]
     [InlineData(4, 0, new[] { 10, -59, 0 })]
-    [InlineData(4, 1, new[] { 34, -59, 0 })]
-    [InlineData(4, 2, new[] { 10, -59, 24 })]
-    [InlineData(4, 3, new[] { 34, -59, 24 })]
+    [InlineData(4, 1, new[] { 46, -59, 0 })]
+    [InlineData(4, 2, new[] { 10, -59, 36 })]
+    [InlineData(4, 3, new[] { 46, -59, 36 })]
     [InlineData(8, 0, new[] { 10, -59, 0 })]
-    [InlineData(8, 7, new[] { 34, -59, 72 })]
+    [InlineData(8, 7, new[] { 46, -59, 108 })]
     [InlineData(10, 0, new[] { 10, -59, 0 })]
-    [InlineData(10, 9, new[] { 34, -59, 96 })]
+    [InlineData(10, 9, new[] { 46, -59, 144 })]
     public void GetStructureOrigin_ReturnsCorrectCoordinates(int totalResources, int index, int[] expected)
     {
         var (x, y, z) = VillageLayout.GetStructureOrigin(index);
@@ -27,10 +27,10 @@ public class VillageLayoutTests
     }
 
     [Theory]
-    [InlineData(0, 13, -59, 3)]
-    [InlineData(1, 37, -59, 3)]
-    [InlineData(2, 13, -59, 27)]
-    [InlineData(3, 37, -59, 27)]
+    [InlineData(0, 17, -59, 7)]
+    [InlineData(1, 53, -59, 7)]
+    [InlineData(2, 17, -59, 43)]
+    [InlineData(3, 53, -59, 43)]
     public void GetStructureCenter_ReturnsCorrectOffset(int index, int expectedX, int expectedY, int expectedZ)
     {
         var (x, y, z) = VillageLayout.GetStructureCenter(index);
@@ -41,11 +41,11 @@ public class VillageLayoutTests
     }
 
     [Theory]
-    [InlineData(1, 10, 0, 16, 6)]
-    [InlineData(2, 10, 0, 40, 6)]
-    [InlineData(4, 10, 0, 40, 30)]
-    [InlineData(8, 10, 0, 40, 78)]
-    [InlineData(10, 10, 0, 40, 102)]
+    [InlineData(1, 10, 0, 24, 14)]
+    [InlineData(2, 10, 0, 60, 14)]
+    [InlineData(4, 10, 0, 60, 50)]
+    [InlineData(8, 10, 0, 60, 122)]
+    [InlineData(10, 10, 0, 60, 158)]
     public void GetVillageBounds_ReturnsCorrectBoundingBox(int resourceCount, int expectedMinX, int expectedMinZ, int expectedMaxX, int expectedMaxZ)
     {
         var (minX, minZ, maxX, maxZ) = VillageLayout.GetVillageBounds(resourceCount);
@@ -57,11 +57,11 @@ public class VillageLayoutTests
     }
 
     [Theory]
-    [InlineData(1, 0, -10, 26, 16)]
-    [InlineData(2, 0, -10, 50, 16)]
-    [InlineData(4, 0, -10, 50, 40)]
-    [InlineData(8, 0, -10, 50, 88)]
-    [InlineData(10, 0, -10, 50, 112)]
+    [InlineData(1, 0, -10, 34, 24)]
+    [InlineData(2, 0, -10, 70, 24)]
+    [InlineData(4, 0, -10, 70, 60)]
+    [InlineData(8, 0, -10, 70, 132)]
+    [InlineData(10, 0, -10, 70, 168)]
     public void GetFencePerimeter_ReturnsCorrectPerimeterWithGap(int resourceCount, int expectedMinX, int expectedMinZ, int expectedMaxX, int expectedMaxZ)
     {
         var (minX, minZ, maxX, maxZ) = VillageLayout.GetFencePerimeter(resourceCount);
@@ -230,9 +230,10 @@ public class VillageLayoutTests
             VillageLayout.SurfaceY = 72;
             var (x, y, z) = VillageLayout.GetStructureCenter(0);
 
-            Assert.Equal(13, x);
+            // Grand layout: BaseX=10, StructureSize=15, center at x+7 = 17
+            Assert.Equal(17, x);
             Assert.Equal(73, y);
-            Assert.Equal(3, z);
+            Assert.Equal(7, z); // BaseZ=0, center at z+7 = 7
         }
         finally
         {
@@ -249,9 +250,10 @@ public class VillageLayoutTests
             VillageLayout.SurfaceY = 64;
             var (x, y, z) = VillageLayout.GetAboveStructure(0, 10);
 
-            Assert.Equal(13, x);
+            // Grand layout: center at x+7 = 17, z+7 = 7
+            Assert.Equal(17, x);
             Assert.Equal(74, y); // SurfaceY + 10
-            Assert.Equal(3, z);
+            Assert.Equal(7, z);
         }
         finally
         {
@@ -262,79 +264,29 @@ public class VillageLayoutTests
     // --- Configurable layout tests ---
 
     [Fact]
-    public void DefaultLayout_MatchesSprint4Values()
+    public void DefaultLayout_MatchesGrandValues()
     {
-        VillageLayout.ResetLayout();
-        Assert.Equal(24, VillageLayout.Spacing);
-        Assert.Equal(7, VillageLayout.StructureSize);
+        Assert.Equal(36, VillageLayout.Spacing);
+        Assert.Equal(15, VillageLayout.StructureSize);
         Assert.Equal(10, VillageLayout.FenceClearance);
-        Assert.Equal(3, VillageLayout.GateWidth);
-        Assert.False(VillageLayout.IsGrandLayout);
-    }
-
-    [Fact]
-    public void ConfigureGrandLayout_SetsGrandValues()
-    {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            Assert.Equal(36, VillageLayout.Spacing);
-            Assert.Equal(15, VillageLayout.StructureSize);
-            Assert.Equal(10, VillageLayout.FenceClearance);
-            Assert.Equal(5, VillageLayout.GateWidth);
-            Assert.True(VillageLayout.IsGrandLayout);
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
+        Assert.Equal(5, VillageLayout.GateWidth);
     }
 
     [Fact]
     public void GetStructureCenter_UsesStructureSizeHalf()
     {
-        VillageLayout.ResetLayout();
-        // Standard: StructureSize=7, half=3
+        // Grand: StructureSize=15, half=7
         var (x, y, z) = VillageLayout.GetStructureCenter(0);
-        Assert.Equal(13, x); // 10 + 3
-        Assert.Equal(3, z);  // 0 + 3
+        Assert.Equal(17, x); // 10 + 7
+        Assert.Equal(7, z);  // 0 + 7
     }
 
     [Fact]
-    public void GetStructureCenter_GrandLayout_UsesLargerHalf()
-    {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            // Grand: StructureSize=15, half=7
-            var (x, y, z) = VillageLayout.GetStructureCenter(0);
-            Assert.Equal(17, x); // 10 + 7
-            Assert.Equal(7, z);  // 0 + 7
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
-    }
-
-    [Fact]
-    public void GetRailEntrance_StandardLayout_ReturnsCorrectPosition()
-    {
-        VillageLayout.ResetLayout();
-        VillageLayout.SurfaceY = VillageLayout.BaseY;
-        var (x, y, z) = VillageLayout.GetRailEntrance(0);
-        Assert.Equal(13, x);  // 10 + 7/2 = 10 + 3
-        Assert.Equal(-59, y); // SurfaceY + 1
-        Assert.Equal(-1, z);  // 0 - 1
-    }
-
-    [Fact]
-    public void GetRailEntrance_GrandLayout_ReturnsCorrectPosition()
+    public void GetRailEntrance_ReturnsCorrectPosition()
     {
         var originalSurface = VillageLayout.SurfaceY;
         try
         {
-            VillageLayout.ConfigureGrandLayout();
             VillageLayout.SurfaceY = VillageLayout.BaseY;
             var (x, y, z) = VillageLayout.GetRailEntrance(0);
             Assert.Equal(17, x);  // 10 + 15/2 = 10 + 7
@@ -343,7 +295,6 @@ public class VillageLayoutTests
         }
         finally
         {
-            VillageLayout.ResetLayout();
             VillageLayout.SurfaceY = originalSurface;
         }
     }
@@ -351,155 +302,50 @@ public class VillageLayoutTests
     [Fact]
     public void GetRailEntrance_SecondIndex_ReturnsCorrectPosition()
     {
-        VillageLayout.ResetLayout();
-        VillageLayout.SurfaceY = VillageLayout.BaseY;
-        var (x, y, z) = VillageLayout.GetRailEntrance(1);
-        Assert.Equal(37, x);  // 34 + 3
-        Assert.Equal(-59, y);
-        Assert.Equal(-1, z);
-    }
-
-    [Fact]
-    public void GetVillageBounds_GrandLayout_UsesLargerStructureSize()
-    {
+        var originalSurface = VillageLayout.SurfaceY;
         try
         {
-            VillageLayout.ConfigureGrandLayout();
-            var (minX, minZ, maxX, maxZ) = VillageLayout.GetVillageBounds(1);
-            Assert.Equal(10, minX);
-            Assert.Equal(0, minZ);
-            Assert.Equal(24, maxX); // 10 + 15 - 1
-            Assert.Equal(14, maxZ); // 0 + 15 - 1
+            VillageLayout.SurfaceY = VillageLayout.BaseY;
+            var (x, y, z) = VillageLayout.GetRailEntrance(1);
+            Assert.Equal(53, x);  // 46 + 7 (grand layout: 10 + 36 + 15/2)
+            Assert.Equal(-59, y);
+            Assert.Equal(-1, z);
         }
         finally
         {
-            VillageLayout.ResetLayout();
+            VillageLayout.SurfaceY = originalSurface;
         }
     }
 
     [Fact]
-    public void GetFencePerimeter_StandardLayout_Uses10BlockClearance()
+    public void GetVillageBounds_UsesGrandStructureSize()
     {
-        VillageLayout.ResetLayout();
+        var (minX, minZ, maxX, maxZ) = VillageLayout.GetVillageBounds(1);
+        Assert.Equal(10, minX);
+        Assert.Equal(0, minZ);
+        Assert.Equal(24, maxX); // 10 + 15 - 1
+        Assert.Equal(14, maxZ); // 0 + 15 - 1
+    }
+
+    [Fact]
+    public void GetFencePerimeter_Uses10BlockClearance()
+    {
         var (minX, minZ, maxX, maxZ) = VillageLayout.GetFencePerimeter(1);
         Assert.Equal(0, minX);   // 10 - 10
         Assert.Equal(-10, minZ); // 0 - 10
-        Assert.Equal(26, maxX);  // 16 + 10
-        Assert.Equal(16, maxZ);  // 6 + 10
-    }
-
-    [Fact]
-    public void GetFencePerimeter_GrandLayout_Uses10BlockClearance()
-    {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            var (minX, minZ, maxX, maxZ) = VillageLayout.GetFencePerimeter(1);
-            Assert.Equal(0, minX);   // 10 - 10
-            Assert.Equal(-10, minZ); // 0 - 10
-            Assert.Equal(34, maxX);  // 24 + 10
-            Assert.Equal(24, maxZ);  // 14 + 10
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
-    }
-
-    [Fact]
-    public void ResetLayout_RestoresDefaults()
-    {
-        VillageLayout.ConfigureGrandLayout();
-        VillageLayout.ResetLayout();
-        Assert.Equal(24, VillageLayout.Spacing);
-        Assert.Equal(7, VillageLayout.StructureSize);
-        Assert.Equal(10, VillageLayout.FenceClearance);
-        Assert.Equal(3, VillageLayout.GateWidth);
-        Assert.False(VillageLayout.IsGrandLayout);
+        Assert.Equal(34, maxX);  // 24 + 10
+        Assert.Equal(24, maxZ);  // 14 + 10
     }
 
     // --- Grand Village layout tests ---
 
     [Fact]
-    public void ConfigureGrandLayout_SetsCorrectPropertyValues()
+    public void GetStructureCenter_ReturnsCenterOfFifteenByFifteen()
     {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            Assert.Equal(15, VillageLayout.StructureSize);
-            Assert.Equal(10, VillageLayout.FenceClearance);
-            Assert.Equal(5, VillageLayout.GateWidth);
-            Assert.True(VillageLayout.IsGrandLayout);
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
-    }
-
-    [Fact]
-    public void ResetLayout_RestoresDefaultValues()
-    {
-        VillageLayout.ConfigureGrandLayout();
-        Assert.True(VillageLayout.IsGrandLayout);
-
-        VillageLayout.ResetLayout();
-
-        Assert.Equal(7, VillageLayout.StructureSize);
-        Assert.Equal(10, VillageLayout.FenceClearance);
-        Assert.Equal(3, VillageLayout.GateWidth);
-        Assert.Equal(24, VillageLayout.Spacing);
-        Assert.False(VillageLayout.IsGrandLayout);
-    }
-
-    [Theory]
-    [InlineData(0, 10, -59, 0)]
-    [InlineData(1, 46, -59, 0)]
-    [InlineData(2, 10, -59, 36)]
-    [InlineData(3, 46, -59, 36)]
-    public void GetStructureOrigin_GrandLayout_ReturnsCorrectCoordinates(int index, int expectedX, int expectedY, int expectedZ)
-    {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            var (x, y, z) = VillageLayout.GetStructureOrigin(index);
-            Assert.Equal(expectedX, x);
-            Assert.Equal(expectedY, y);
-            Assert.Equal(expectedZ, z);
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
-    }
-
-    [Fact]
-    public void GetStructureCenter_GrandLayout_ReturnsCenterOfFifteenByFifteen()
-    {
-        try
-        {
-            VillageLayout.ConfigureGrandLayout();
-            // Grand: StructureSize=15, half=7
-            var (x, y, z) = VillageLayout.GetStructureCenter(0);
-            Assert.Equal(17, x); // 10 + 7
-            Assert.Equal(-59, y);
-            Assert.Equal(7, z);  // 0 + 7
-        }
-        finally
-        {
-            VillageLayout.ResetLayout();
-        }
-    }
-
-    [Fact]
-    public void GetRailEntrance_ReturnsCorrectPosition()
-    {
-        VillageLayout.ResetLayout();
-        VillageLayout.SurfaceY = VillageLayout.BaseY;
-        // Standard: StructureSize=7, half=3
-        var (x, y, z) = VillageLayout.GetRailEntrance(0);
-        Assert.Equal(13, x);  // BaseX + StructureSize/2 = 10 + 3
-        Assert.Equal(-59, y); // SurfaceY + 1
-        Assert.Equal(-1, z);  // BaseZ - 1
+        // Grand: StructureSize=15, half=7
+        var (x, y, z) = VillageLayout.GetStructureCenter(0);
+        Assert.Equal(17, x); // 10 + 7
+        Assert.Equal(-59, y);
+        Assert.Equal(7, z);  // 0 + 7
     }
 }

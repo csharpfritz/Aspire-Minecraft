@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\samples\MinecraftAspireDemo\MinecraftAspireDemo.AppHost\MinecraftAspireDemo.AppHost.csproj" />
+    <ProjectReference Include="..\..\samples\GrandVillageDemo\GrandVillageDemo.AppHost\GrandVillageDemo.AppHost.csproj" />
     <ProjectReference Include="..\..\src\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" />
     <ProjectReference Include="..\..\src\Aspire.Hosting.Minecraft.Worker\Aspire.Hosting.Minecraft.Worker.csproj" />
   </ItemGroup>

@@ -56,7 +56,7 @@ tests/
   Aspire.Hosting.Minecraft.Rcon.Tests/
   Aspire.Hosting.Minecraft.Worker.Tests/
 samples/
-  MinecraftAspireDemo/             # Demo application
+  GrandVillageDemo/                # Demo application
 ```
 
 ### Single-Package Architecture

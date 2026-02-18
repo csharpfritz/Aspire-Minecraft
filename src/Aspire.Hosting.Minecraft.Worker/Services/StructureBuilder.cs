@@ -310,8 +310,8 @@ internal sealed class StructureBuilder(
             await rcon.SendCommandAsync(
                 $"fill {fMinX + 1} {VillageLayout.SurfaceY} {fMinZ + 1} {fMaxX - 1} {VillageLayout.SurfaceY} {fMaxZ - 1} minecraft:cobblestone", ct);
 
-            // Step 3: For Grand layout, add a central boulevard (3-wide stone brick) between columns
-            if (VillageLayout.IsGrandLayout && rows > 0)
+            // Step 3: Add a central boulevard (3-wide stone brick) between columns
+            if (rows > 0)
             {
                 var boulevardX = VillageLayout.BaseX + VillageLayout.StructureSize; // between column 0 and column 1
                 await rcon.SendCommandAsync(
@@ -378,61 +378,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildWatchtowerAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize >= 15)
-        {
-            return await BuildGrandWatchtowerAsync(x, y, z, info, ct);
-        }
-
-        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
-
-        // Foundation: 7×7 stone brick floor
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:stone_bricks", ct);
-
-        // Walls: 5×5 hollow stone brick tower (inside the 7×7), 8 blocks tall
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 1} {z + 1} {x + 5} {y + 8} {z + 5} minecraft:stone_bricks hollow", ct);
-
-        // Corner pillars: extend to full height with stone brick
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 1} {z + 1} {x + 1} {y + 9} {z + 1} minecraft:stone_brick_stairs[facing=south]", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 5} {y + 1} {z + 1} {x + 5} {y + 9} {z + 1} minecraft:stone_brick_stairs[facing=south]", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 1} {z + 5} {x + 1} {y + 9} {z + 5} minecraft:stone_brick_stairs[facing=north]", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 5} {y + 1} {z + 5} {x + 5} {y + 9} {z + 5} minecraft:stone_brick_stairs[facing=north]", ct);
-
-        // Windows (one on each side, at y+4)
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 4} {z + 1} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 4} {z + 5} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 4} {z + 3} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 4} {z + 3} minecraft:glass_pane", ct);
-
-        // Language-colored wool trim at top
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 8} {z + 1} {x + 5} {y + 8} {z + 5} {wool}", ct);
-
-        // Roof cap (3×3 stone brick slab)
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 9} {z + 2} {x + 4} {y + 9} {z + 4} minecraft:stone_brick_slab", ct);
-
-        // Flag pole + standing banner on top
-        await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 9} {z + 3} {x + 3} {y + 10} {z + 3} minecraft:oak_fence", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 11} {z + 3} {banner}[rotation=0]", ct);
-
-        // Door opening (front face, Z-min side) - 2 blocks wide, 3 tall
-        // Watchtower has 5x5 hollow starting at x+1,z+1, so front wall is at z+1
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z + 1} {x + 4} {y + 3} {z + 1} minecraft:air", ct);
-
-        return new DoorPosition(x + 3, y + 3, z + 1);
+        return await BuildGrandWatchtowerAsync(x, y, z, info, ct);
     }
 
     /// <summary>
@@ -672,57 +618,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildWarehouseAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize >= 15)
-        {
-            return await BuildGrandWarehouseAsync(x, y, z, info, ct);
-        }
-
-        // Foundation: 7×7 iron block floor
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:iron_block", ct);
-
-        // Walls: hollow box, 4 blocks tall
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:iron_block hollow", ct);
-
-        // Flat roof
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:iron_block", ct);
-
-        // Wide cargo door (front face, 3 wide × 3 tall) - ensure on actual wall face
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 4} {y + 3} {z} minecraft:air", ct);
-
-        // Purple stained glass windows on sides
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 3} {z + 2} {x} {y + 3} {z + 4} minecraft:purple_stained_glass", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 3} {z + 2} {x + 6} {y + 3} {z + 4} minecraft:purple_stained_glass", ct);
-
-        // Purple stained glass on back wall
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 3} {z + 6} {x + 4} {y + 3} {z + 6} minecraft:purple_stained_glass", ct);
-
-        // Interior: barrel storage
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z + 5} minecraft:barrel[facing=up]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 2} {z + 5} minecraft:barrel[facing=up]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z + 3} minecraft:barrel[facing=up]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 2} {z + 3} minecraft:barrel[facing=up]", ct);
-
-        // Language-colored accent stripe at mid-height
-        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 2} {z} {x + 6} {y + 2} {z + 6} {wool} hollow", ct);
-
-        // Language-colored banner on roof center
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 5} {z + 3} {banner}", ct);
-
-        return new DoorPosition(x + 3, y + 3, z);
+        return await BuildGrandWarehouseAsync(x, y, z, info, ct);
     }
 
     /// <summary>
@@ -880,73 +776,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildWorkshopAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize >= 15)
-        {
-            return await BuildGrandWorkshopAsync(x, y, z, info, ct);
-        }
-
-        var (wool, banner, _) = GetLanguageColor(info.Type, info.Name);
-        var secondary = GetSecondaryLanguageColor(info.Type, info.Name);
-
-        // Foundation: 7×7 oak planks floor
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:oak_planks", ct);
-
-        // Walls: hollow box, 5 blocks tall (raised for dual-stripe headroom)
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 6} {y + 5} {z + 6} minecraft:oak_planks hollow", ct);
-
-        // Language-colored wool stripe at top of walls (hollow = outer ring only)
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} {wool} hollow", ct);
-        if (secondary is not null)
-        {
-            // Secondary color stripe one row below for dual-branded languages (e.g., Python)
-            await rcon.SendCommandAsync(
-                $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z + 6} {secondary.Value.wool} hollow", ct);
-        }
-
-        // Peaked roof (oak stairs forming an A-frame along X axis)
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z} {x + 6} {y + 6} {z + 1} minecraft:oak_stairs[facing=south,half=bottom]", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + 5} {x + 6} {y + 6} {z + 6} minecraft:oak_stairs[facing=north,half=bottom]", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 6} {z + 2} {x + 6} {y + 6} {z + 4} minecraft:oak_planks", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 7} {z + 3} {x + 6} {y + 7} {z + 3} minecraft:oak_slab", ct);
-
-        // Standing banner on roof ridge
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 8} {z + 3} {banner}[rotation=0]", ct);
-
-        // Door - 2 blocks wide
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
-
-        // Cyan stained glass windows
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 3} {z} minecraft:cyan_stained_glass", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 3} {z} minecraft:cyan_stained_glass", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x} {y + 3} {z + 3} minecraft:cyan_stained_glass", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 3} {z + 3} minecraft:cyan_stained_glass", ct);
-
-        // Chimney (cobblestone column on one corner)
-        await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 6} {z + 6} {x + 6} {y + 8} {z + 6} minecraft:cobblestone", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 8} {z + 6} minecraft:campfire", ct);
-
-        // Interior: crafting table + anvil
-        await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y + 2} {z + 5} minecraft:crafting_table", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y + 2} {z + 5} minecraft:anvil", ct);
-
-        return new DoorPosition(x + 3, y + 2, z);
+        return await BuildGrandWorkshopAsync(x, y, z, info, ct);
     }
 
     /// <summary>
@@ -1142,50 +972,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildCottageAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize == 15)
-        {
-            return await BuildGrandCottageAsync(x, y, z, info, ct);
-        }
-
-        var (wool, _, _) = GetLanguageColor(info.Type, info.Name);
-
-        // Foundation: 7×7 cobblestone floor
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:cobblestone", ct);
-
-        // Walls: hollow box, 4 blocks tall
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:cobblestone hollow", ct);
-
-        // Language-colored wool trim at top of walls
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} {wool}", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} {wool}", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} {wool}", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} {wool}", ct);
-
-        // Flat roof with slab
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:cobblestone_slab", ct);
-
-        // Door - 2 blocks wide
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
-
-        // Windows (glass panes on sides)
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 2} {z} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x} {y + 2} {z + 3} minecraft:glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 2} {z + 3} minecraft:glass_pane", ct);
-
-        return new DoorPosition(x + 3, y + 2, z);
+        return await BuildGrandCottageAsync(x, y, z, info, ct);
     }
 
     /// <summary>
@@ -1313,117 +1100,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildCylinderAsync(int x, int y, int z, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize >= 15)
-        {
-            return await BuildGrandCylinderAsync(x, y, z, ct);
-        }
-
-        // === FLOOR (y+0): polished deepslate disc ===
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y} {z} {x + 4} {y} {z} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y} {z + 1} {x + 5} {y} {z + 1} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z + 2} {x + 6} {y} {z + 2} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z + 3} {x + 6} {y} {z + 3} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z + 4} {x + 6} {y} {z + 4} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y} {z + 5} {x + 5} {y} {z + 5} minecraft:polished_deepslate", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y} {z + 6} {x + 4} {y} {z + 6} minecraft:polished_deepslate", ct);
-
-        // === WALLS (y+1 to y+4): smooth_stone perimeter, polished_deepslate top band ===
-        for (int layer = 1; layer <= 4; layer++)
-        {
-            string wallBlock = layer <= 3
-                ? "minecraft:smooth_stone"
-                : "minecraft:polished_deepslate";
-
-            // North face (z+0): 3 blocks
-            await rcon.SendCommandAsync(
-                $"fill {x + 2} {y + layer} {z} {x + 4} {y + layer} {z} {wallBlock}", ct);
-            // South face (z+6): 3 blocks
-            await rcon.SendCommandAsync(
-                $"fill {x + 2} {y + layer} {z + 6} {x + 4} {y + layer} {z + 6} {wallBlock}", ct);
-            // Upper diagonals
-            await rcon.SendCommandAsync(
-                $"setblock {x + 1} {y + layer} {z + 1} {wallBlock}", ct);
-            await rcon.SendCommandAsync(
-                $"setblock {x + 5} {y + layer} {z + 1} {wallBlock}", ct);
-            // Lower diagonals
-            await rcon.SendCommandAsync(
-                $"setblock {x + 1} {y + layer} {z + 5} {wallBlock}", ct);
-            await rcon.SendCommandAsync(
-                $"setblock {x + 5} {y + layer} {z + 5} {wallBlock}", ct);
-            // East/west faces (z+2 to z+4)
-            await rcon.SendCommandAsync(
-                $"fill {x} {y + layer} {z + 2} {x} {y + layer} {z + 4} {wallBlock}", ct);
-            await rcon.SendCommandAsync(
-                $"fill {x + 6} {y + layer} {z + 2} {x + 6} {y + layer} {z + 4} {wallBlock}", ct);
-        }
-
-        // === INTERIOR AIR (y+1 to y+4): clear inside the cylinder ===
-        for (int layer = 1; layer <= 4; layer++)
-        {
-            await rcon.SendCommandAsync(
-                $"fill {x + 2} {y + layer} {z + 1} {x + 4} {y + layer} {z + 1} minecraft:air", ct);
-            await rcon.SendCommandAsync(
-                $"fill {x + 1} {y + layer} {z + 2} {x + 5} {y + layer} {z + 2} minecraft:air", ct);
-            await rcon.SendCommandAsync(
-                $"fill {x + 1} {y + layer} {z + 3} {x + 5} {y + layer} {z + 3} minecraft:air", ct);
-            await rcon.SendCommandAsync(
-                $"fill {x + 1} {y + layer} {z + 4} {x + 5} {y + layer} {z + 4} minecraft:air", ct);
-            await rcon.SendCommandAsync(
-                $"fill {x + 2} {y + layer} {z + 5} {x + 4} {y + layer} {z + 5} minecraft:air", ct);
-        }
-
-        // === DOME ROOF (y+5): smooth_stone_slab outer ring ===
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 5} {z} {x + 4} {y + 5} {z} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 5} {z + 1} {x + 5} {y + 5} {z + 1} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 2} {x + 6} {y + 5} {z + 2} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 3} {x + 6} {y + 5} {z + 3} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z + 4} {x + 6} {y + 5} {z + 4} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 5} {z + 5} {x + 5} {y + 5} {z + 5} minecraft:smooth_stone_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 5} {z + 6} {x + 4} {y + 5} {z + 6} minecraft:smooth_stone_slab", ct);
-
-        // === DOME CAP (y+6): polished_deepslate_slab inner cap ===
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 6} {z + 1} {x + 4} {y + 6} {z + 1} minecraft:polished_deepslate_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 6} {z + 2} {x + 5} {y + 6} {z + 2} minecraft:polished_deepslate_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 6} {z + 3} {x + 5} {y + 6} {z + 3} minecraft:polished_deepslate_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 1} {y + 6} {z + 4} {x + 5} {y + 6} {z + 4} minecraft:polished_deepslate_slab", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 6} {z + 5} {x + 4} {y + 6} {z + 5} minecraft:polished_deepslate_slab", ct);
-
-        // === DOOR (south face, z+0): 1-wide centered at x+3, 2-tall ===
-        await rcon.SendCommandAsync(
-            $"fill {x + 3} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
-
-        // === INTERIOR ACCENTS ===
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y} {z + 3} minecraft:copper_block", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 2} {y} {z + 3} minecraft:copper_block", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 4} {y} {z + 3} minecraft:copper_block", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 1} {z + 1} minecraft:iron_block", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 1} {z + 1} minecraft:iron_block", ct);
-
-        return new DoorPosition(x + 3, y + 2, z);
+        return await BuildGrandCylinderAsync(x, y, z, ct);
     }
 
     /// <summary>
@@ -1632,52 +1309,7 @@ internal sealed class StructureBuilder(
     /// </summary>
     private async Task<DoorPosition> BuildAzureThemedAsync(int x, int y, int z, ResourceInfo info, CancellationToken ct)
     {
-        if (VillageLayout.StructureSize == 15)
-        {
-            return await BuildGrandAzurePavilionAsync(x, y, z, info, ct);
-        }
-
-        // Foundation: 7×7 light blue concrete floor
-        await rcon.SendCommandAsync(
-            $"fill {x} {y} {z} {x + 6} {y} {z + 6} minecraft:light_blue_concrete", ct);
-
-        // Walls: hollow box, 4 blocks tall
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 1} {z} {x + 6} {y + 4} {z + 6} minecraft:light_blue_concrete hollow", ct);
-
-        // Blue concrete trim at top of walls
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z} {x + 6} {y + 4} {z} minecraft:blue_concrete", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 6} {x + 6} {y + 4} {z + 6} minecraft:blue_concrete", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 4} {z + 1} {x} {y + 4} {z + 5} minecraft:blue_concrete", ct);
-        await rcon.SendCommandAsync(
-            $"fill {x + 6} {y + 4} {z + 1} {x + 6} {y + 4} {z + 5} minecraft:blue_concrete", ct);
-
-        // Flat roof with light blue stained glass
-        await rcon.SendCommandAsync(
-            $"fill {x} {y + 5} {z} {x + 6} {y + 5} {z + 6} minecraft:light_blue_stained_glass", ct);
-
-        // Door - 2 blocks wide
-        await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 1} {z} {x + 3} {y + 2} {z} minecraft:air", ct);
-
-        // Windows (blue stained glass panes on sides)
-        await rcon.SendCommandAsync(
-            $"setblock {x + 1} {y + 2} {z} minecraft:blue_stained_glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 5} {y + 2} {z} minecraft:blue_stained_glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x} {y + 2} {z + 3} minecraft:blue_stained_glass_pane", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {x + 6} {y + 2} {z + 3} minecraft:blue_stained_glass_pane", ct);
-
-        // Azure banner on roof (always for AzureThemed)
-        await rcon.SendCommandAsync(
-            $"setblock {x + 3} {y + 6} {z + 3} minecraft:light_blue_banner[rotation=0]", ct);
-
-        return new DoorPosition(x + 3, y + 2, z);
+        return await BuildGrandAzurePavilionAsync(x, y, z, info, ct);
     }
 
     /// <summary>

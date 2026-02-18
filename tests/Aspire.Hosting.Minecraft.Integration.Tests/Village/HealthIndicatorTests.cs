@@ -18,10 +18,11 @@ public class HealthIndicatorTests(MinecraftAppFixture fixture)
     {
         var (x, y, z) = VillageLayout.GetStructureOrigin(0);
 
-        // Watchtower DoorPosition: (x+3, y+3, z+1) → GlowBlock at (x+3, y+4, z+1)
-        var glowX = x + 3;
-        var glowY = y + 4;
-        var glowZ = z + 1;
+        // Grand Watchtower DoorPosition: (x+7, y+4, z) → GlowBlock at (x+7, y+5, z)
+        var half = VillageLayout.StructureSize / 2; // 7
+        var glowX = x + half;
+        var glowY = y + 5; // DoorPosition.TopY (y+4) + 1
+        var glowZ = z;
 
         // The glow block should be glowstone (healthy), redstone_lamp (unhealthy),
         // or sea_lantern (unknown) depending on resource state at test time.

@@ -30,7 +30,7 @@ docker pull itzg/minecraft-server:latest
 
 ```bash
 git clone https://github.com/csharpfritz/Aspire-Minecraft.git
-cd Aspire-Minecraft/samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost
+cd Aspire-Minecraft/samples/GrandVillageDemo/GrandVillageDemo.AppHost
 dotnet run
 ```
 
@@ -63,8 +63,8 @@ Show the code. Walk through the key lines:
 // "This is a standard Aspire app — API, web frontend, Redis, Postgres."
 var redis = builder.AddRedis("cache");
 var pg = builder.AddPostgres("db-host");
-var api = builder.AddProject<Projects.MinecraftAspireDemo_ApiService>("api");
-var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web");
+var api = builder.AddProject<Projects.GrandVillageDemo_ApiService>("api");
+var web = builder.AddProject<Projects.GrandVillageDemo_Web>("web");
 
 // "And then we add a Minecraft server. One line."
 var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPort: 25575)
@@ -254,4 +254,4 @@ If you're building a slide deck around this demo:
 
 ---
 
-*The demo project is in `samples/MinecraftAspireDemo/`. Every feature shown here is already wired up — just `dotnet run` and go.*
+*The demo project is in `samples/GrandVillageDemo/`. Every feature shown here is already wired up — just `dotnet run` and go.*

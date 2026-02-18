@@ -30,7 +30,7 @@ public sealed class MinecraftAppFixture : IAsyncLifetime
     {
         // 1. Build the Aspire AppHost using the testing builder
         var builder = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.MinecraftAspireDemo_AppHost>();
+            .CreateAsync<Projects.GrandVillageDemo_AppHost>();
 
         _app = await builder.BuildAsync();
         await _app.StartAsync();

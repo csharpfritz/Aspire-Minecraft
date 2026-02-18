@@ -48,4 +48,36 @@ jobs:
         run: dotnet build Aspire-Minecraft.slnx -c Release --no-restore
 
       - name: Test
-        run: dotnet test Aspire-Minecraft.slnx --no-build -c Release --verbosity normal --filter "Category!=Integration"
+        run: |
+          dotnet test tests/Aspire.Hosting.Minecraft.Tests/ --no-build -c Release --verbosity normal
+          dotnet test tests/Aspire.Hosting.Minecraft.Worker.Tests/ --no-build -c Release --verbosity normal
+          dotnet test tests/Aspire.Hosting.Minecraft.Rcon.Tests/ --no-build -c Release --verbosity normal
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run integration tests
+        run: |
+          dotnet test tests/Aspire.Hosting.Minecraft.Integration.Tests/ \
+            --configuration Release \
+            --logger "trx" \
+            --results-directory ./test-results
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: ./test-results/

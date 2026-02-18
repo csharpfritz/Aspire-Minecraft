@@ -98,7 +98,7 @@ Run the sample:
 
 ```bash
 git clone https://github.com/csharpfritz/Aspire-Minecraft.git
-cd Aspire-Minecraft/samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost
+cd Aspire-Minecraft/samples/GrandVillageDemo/GrandVillageDemo.AppHost
 dotnet run
 ```
 

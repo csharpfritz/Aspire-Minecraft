@@ -36,7 +36,6 @@ builder.AddMinecraftServer("minecraft")
     .WithWeatherEffects()
     .WithHeartbeat()
     .WithAchievements()
-    .WithGrandVillage()       // 15×15 walkable buildings with interiors
     .WithMinecartRails()      // Powered rail connections between dependencies
     .WithMonitoredResource(api);
 
@@ -48,7 +47,7 @@ That's it — a Minecraft server appears in the Aspire dashboard with a boss bar
 ### Run the Demo
 
 ```bash
-cd samples/MinecraftAspireDemo/MinecraftAspireDemo.AppHost
+cd samples/GrandVillageDemo/GrandVillageDemo.AppHost
 dotnet run
 ```
 
@@ -71,7 +70,7 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
   - **Cylinder** (smooth stone, domed roof) — Database resources (Postgres, Redis, SQL Server, MongoDB, etc.)
   - **Azure-Themed** (light blue concrete, blue glass roof, banner) — Azure resources (Service Bus, Key Vault, etc.)
   - **Cottage** (cobblestone, humble dwelling) — Other resources
-- **Grand Village** — Enable with `.WithGrandVillage()` for 15×15 walkable buildings with furnished interiors:
+- **Grand Village Buildings** — 15×15 walkable buildings with furnished interiors:
   - **Grand Watchtower** — 3 floors with spiral staircase, enchanting table, observation deck
   - **Grand Warehouse** — Loading dock, barrel storage, hanging lanterns
   - **Grand Workshop** — Loft with ladder access, crafting stations, chimney
@@ -117,7 +116,6 @@ This starts a Paper Minecraft server, a sample API + web frontend, Redis, Postgr
 - **OpenTelemetry** — `WithOpenTelemetry()` injects the OTEL Java agent for automatic JVM metrics (heap, GC, threads, CPU)
 - **RCON Debug Logging** — `WithRconDebugLogging()` enables debug-level logging of every command sent to the server, visible in Aspire dashboard logs
 - **All Features** — `WithAllFeatures()` enables every opt-in feature in a single call — perfect for demos or when you want everything
-- **Grand Village** — `WithGrandVillage()` upgrades all buildings to 15×15 walkable structures with furnished interiors, spiral staircases, and multi-story layouts
 - **Minecart Rails** — `WithMinecartRails()` adds powered rail connections between dependent resources with circulating chest minecarts. Rails break when parent resources go unhealthy
 - **Startup Optimization** — Tuned view distance (6), simulation distance (4), and disabled mob spawning for fast container boot (~30 seconds)
 
@@ -181,7 +179,7 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithBlueMap(port: 8100)
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
-    .WithAllFeatures()  // Enables all opt-in features at once (including Grand Village and Minecart Rails)
+    .WithAllFeatures()  // Enables all opt-in features at once (including Minecart Rails)
     // Resources to monitor
     .WithMonitoredResource(api)
     .WithMonitoredResource(web)
@@ -290,7 +288,7 @@ src/
   Aspire.Hosting.Minecraft.Rcon/   # RCON protocol client library (embedded in hosting package)
   Aspire.Hosting.Minecraft.Worker/ # Worker service for in-world display (separate project, not packaged)
 samples/
-  MinecraftAspireDemo/             # Demo application with all features enabled
+  GrandVillageDemo/                # Demo application with all features enabled
 docs/
   blog/                            # Blog posts and demo guides
 ```

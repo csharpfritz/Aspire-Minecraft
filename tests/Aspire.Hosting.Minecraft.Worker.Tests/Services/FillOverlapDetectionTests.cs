@@ -20,7 +20,6 @@ public class FillOverlapDetectionTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        VillageLayout.ResetLayout();
         _server = new MockRconServer();
         _rcon = new RconService("127.0.0.1", _server.Port, "test",
             NullLogger<RconService>.Instance);
@@ -35,7 +34,6 @@ public class FillOverlapDetectionTests : IAsyncLifetime
     {
         await _rcon.DisposeAsync();
         await _server.DisposeAsync();
-        VillageLayout.ResetLayout();
     }
 
     private async Task WaitForRconConnected()
@@ -254,9 +252,6 @@ public class FillOverlapDetectionTests : IAsyncLifetime
     /// </summary>
     private async Task<List<string>> BuildAndDetectOverlaps(string resourceName, string resourceType, bool grandLayout = false)
     {
-        if (grandLayout)
-            VillageLayout.ConfigureGrandLayout();
-
         TestResourceMonitorFactory.SetResourcesWithTypes(_monitor,
             (resourceName, resourceType, ResourceStatus.Healthy)
         );
@@ -266,58 +261,6 @@ public class FillOverlapDetectionTests : IAsyncLifetime
 
         var commands = _server.GetCommands();
         return DetectSolidOnSolidOverlaps(commands);
-    }
-
-    // ====================================================================
-    // STANDARD (7×7) BUILDING FILL-OVERLAP TESTS
-    // ====================================================================
-
-    [Fact]
-    public async Task Standard_Watchtower_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("api", "Project");
-        Assert.True(overlaps.Count == 0,
-            $"Watchtower has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
-    }
-
-    [Fact]
-    public async Task Standard_Warehouse_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("redis", "Container");
-        Assert.True(overlaps.Count == 0,
-            $"Warehouse has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
-    }
-
-    [Fact]
-    public async Task Standard_Workshop_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("worker", "Executable");
-        Assert.True(overlaps.Count == 0,
-            $"Workshop has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
-    }
-
-    [Fact]
-    public async Task Standard_Cottage_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("misc", "SomeType");
-        Assert.True(overlaps.Count == 0,
-            $"Cottage has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
-    }
-
-    [Fact]
-    public async Task Standard_Cylinder_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("db", "postgres");
-        Assert.True(overlaps.Count == 0,
-            $"Cylinder has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
-    }
-
-    [Fact]
-    public async Task Standard_AzureThemed_NoSolidOnSolidFillOverlaps()
-    {
-        var overlaps = await BuildAndDetectOverlaps("storage", "azure.storage");
-        Assert.True(overlaps.Count == 0,
-            $"AzureThemed has {overlaps.Count} solid-on-solid fill overlap(s):\n{string.Join("\n\n", overlaps)}");
     }
 
     // ====================================================================
