@@ -269,5 +269,20 @@
 
  Team update (2026-02-17): Never chain .WithHttpEndpoint() after AddSpringApp() / AddJavaApp()  these methods auto-register named HTTP endpoints via JavaAppContainerResourceOptions.Port and TargetPort. Adding .WithHttpEndpoint() creates duplicate endpoints, causing runtime allocation errors. Configure host-side port via options instead.  decided by Shuri
 
+### Issue #94: WorldSaveDirectory + AnvilTestHelper (2026-02-18)
+
+- **WorldSaveDirectory property** added to `MinecraftAppFixture` — resolves the host-side path to the Minecraft world save by inspecting `ContainerMountAnnotation` on the "minecraft" resource via `DistributedApplicationModel` from DI.
+- Only bind mounts to `/data` are resolved; named Docker volumes are skipped because their host paths are platform-specific (WSL2 on Windows, `/var/lib/docker` on Linux) and fragile to resolve. Property is null when no mount exists (ephemeral storage default).
+- Access `DistributedApplicationModel` via `App.Services.GetRequiredService<DistributedApplicationModel>()` — `DistributedApplication` does not expose `Resources` directly. Use `ResourceExtensions.TryGetContainerMounts()` for mount annotations.
+- **AnvilTestHelper** static class created at `tests/.../Helpers/AnvilTestHelper.cs` — wraps RCON `save-all flush` + `AnvilRegionReader` into `GetBlockAsync`, `VerifyBlockAsync`, `VerifyBlockRangeAsync`. All methods return early (graceful skip) when `WorldSaveDirectory` is null.
+- `NormalizeBlockName()` helper ensures `minecraft:` prefix is always present, so callers can pass "stone_bricks" or "minecraft:stone_bricks".
+- `VerifyBlockRangeAsync` flushes once, then iterates the bounding box — avoids redundant RCON save commands.
+- Dual-verification test pattern added to `VillageStructureTests.cs` — RCON asserts always run; MCA asserts gracefully skip when world files aren't host-mounted.
+- Key file paths:
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Fixtures/MinecraftAppFixture.cs` — fixture with WorldSaveDirectory
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilTestHelper.cs` — convenience wrapper
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` — low-level MCA reader (Rocket's code, read-only)
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Village/VillageStructureTests.cs` — dual-verification test
+
  Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
 

@@ -38,4 +38,23 @@ public class VillageStructureTests(MinecraftAppFixture fixture)
         // Check the front wall at y+3 (above door height) at center
         await RconAssertions.AssertBlockAsync(fixture.Rcon, x + half, y + 5, z, "minecraft:stone_bricks");
     }
+
+    /// <summary>
+    /// Demonstrates dual verification: RCON (live server query) and MCA (Anvil file read)
+    /// checking the same block. RCON is always available; MCA requires a host-mounted world
+    /// save directory. When WorldSaveDirectory is null, the MCA portion is gracefully skipped.
+    /// </summary>
+    [Fact]
+    public async Task Structure_Index0_DualVerification_RconAndMca()
+    {
+        var (x, y, z) = VillageLayout.GetStructureOrigin(0);
+
+        // Method 1: RCON — always works, queries the live server
+        await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "minecraft:mossy_stone_bricks");
+
+        // Method 2: MCA — reads the Anvil region file directly.
+        // Sends "save-all flush" first, then opens the .mca file.
+        // Gracefully skips if WorldSaveDirectory is null (no bind mount configured).
+        await AnvilTestHelper.VerifyBlockAsync(fixture, x, y, z, "mossy_stone_bricks");
+    }
 }
