@@ -217,3 +217,24 @@ This avoids the 6hr hang by running each project's tests independently (Integrat
 **Branch status:** Pushed to origin/village-redesign (commit 40f02aa). Ready for PR review.
 
 📌 Team update (2026-02-18): Village redesign branch with grand consolidation, neighborhood layout engine, canal/rail routing, and CI test split fixes staged and pushed to origin/village-redesign — decided by Wong
+
+### Pre-baked Docker Image — Turnkey Minecraft Server (2026-02-17)
+
+**Changes:**
+- **Rebuilt `docker/Dockerfile`** — Full turnkey image extending `itzg/minecraft-server:latest`. All server properties from `MinecraftServerBuilderExtensions.cs` baked in as ENV defaults: EULA, TYPE=PAPER, ONLINE_MODE=FALSE, MODE=creative, LEVEL_TYPE=flat, ENABLE_RCON, RCON_PORT, SPAWN_PROTECTION=0, VIEW_DISTANCE=12, SIMULATION_DISTANCE=8, GENERATE_STRUCTURES=false, SPAWN_ANIMALS/MONSTERS/NPCS=FALSE, MAX_WORLD_SIZE=29999984. BlueMap plugin via MODRINTH_PROJECTS. BlueMap `core.conf` (accept-download: true) COPYed to `/plugins/BlueMap/core.conf`. EXPOSE 25565/25575/8100.
+- **Created `docker/bluemap/core.conf`** — BlueMap config in the Docker build context for COPY into image.
+- **Updated `docker/README.md`** — Full configuration table, baked-in env vars, runtime-only vars (RCON_PASSWORD, SEED), standalone Docker and Aspire usage, local build/test instructions.
+
+**Key decisions:**
+- RCON_PASSWORD and SEED intentionally excluded from image — security and project-specificity.
+- All baked-in env vars are overridable at runtime (itzg convention: ENV sets defaults, `-e` overrides).
+- GENERATOR_SETTINGS not baked in — empty string in hosting code, not useful as a default.
+
+**Smoke test results (local, Windows Docker Desktop):**
+- Image size: 868 MB (dominated by itzg base image + JRE + Paper)
+- Startup time: ~33 seconds to "Done" (Paper 1.21.11, flat world)
+- All three ports verified: 25565 (game), 25575 (RCON), 8100 (BlueMap web UI)
+- RCON listener confirmed running
+- BlueMap WebServer confirmed started
+
+📌 Team update (2026-02-17): Pre-baked Docker image completed — turnkey Minecraft server with all server properties, RCON, BlueMap plugin + config baked in. Image: 868 MB, startup: ~33s. Tested locally on Windows Docker Desktop — decided by Wong

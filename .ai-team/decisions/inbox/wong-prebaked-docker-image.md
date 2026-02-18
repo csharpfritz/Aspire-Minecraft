@@ -1,0 +1,4 @@
+### 2026-02-17: Pre-baked Docker image is a turnkey server, not just a CI optimization
+**By:** Wong
+**What:** The `docker/Dockerfile` now bakes in ALL server properties from `MinecraftServerBuilderExtensions.cs` (EULA, TYPE, MODE, flat world, RCON, spawn settings, etc.), BlueMap plugin, and BlueMap `core.conf`. A user can `docker run` with only `-e RCON_PASSWORD=...` and get a fully configured Minecraft server. RCON_PASSWORD and SEED are intentionally excluded — security and project-specificity.
+**Why:** Jeff clarified this isn't a CI optimization — it's a turnkey image. Anyone should be able to pull and run it without understanding the Aspire hosting extension's env var setup. All baked-in values use the itzg convention (ENV defaults, overridable at runtime), so the hosting extension can still customize anything it needs to.
