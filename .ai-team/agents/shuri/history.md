@@ -268,3 +268,6 @@
 - Build: 0 errors, 0 warnings.
 
  Team update (2026-02-17): Never chain .WithHttpEndpoint() after AddSpringApp() / AddJavaApp()  these methods auto-register named HTTP endpoints via JavaAppContainerResourceOptions.Port and TargetPort. Adding .WithHttpEndpoint() creates duplicate endpoints, causing runtime allocation errors. Configure host-side port via options instead.  decided by Shuri
+
+ Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
+

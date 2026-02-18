@@ -117,3 +117,6 @@
 📌 Integration test file inventory: VillageFenceTests (2 tests: corners + edge midpoints), VillagePathTests (2 tests: center + near-structure), VillageStructureTests (2 tests: base plinth + wall material), HealthIndicatorTests (1 test: glow block above door), BlueMapSmokeTests (2 tests: root page + settings.json). All have [Trait("Category", "Integration")].
 📌 CI integration-tests job added: Separate job in build.yml, runs only on push to main (not PRs), ubuntu-only, 10-minute timeout, depends on unit test build job. Uploads TRX results as artifact. Does NOT block PR CI — unit tests remain the fast gate.
 
+
+ Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
+
