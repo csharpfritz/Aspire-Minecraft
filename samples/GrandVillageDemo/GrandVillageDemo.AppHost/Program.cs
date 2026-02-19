@@ -67,6 +67,7 @@ var javaApi = builder.AddSpringApp("java-api",
     new JavaAppContainerResourceOptions
     {
         ContainerImageName = "aliencube/aspire-spring-maven-sample",
+        OtelAgentPath = "/agents",
         Port = 5500,
     });
 

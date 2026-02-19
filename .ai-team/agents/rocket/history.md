@@ -555,3 +555,5 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 - Canal junction pattern: air fill to remove wall, blue_ice floor, water to connect  three RCON commands per junction
 - Bridge elevation needs to be at least SurfaceY + 1 (one above wall tops) with fence railings at +2 for visual walkway effect
 - Detour routing must reset to original Z after passing each blocker to avoid permanent drift toward detour Z
+- `CommunityToolkit.Aspire.Hosting.Java` AddSpringApp injects `JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar` by default. If the container image stores the OTEL agent at a different path (e.g. `/agents/opentelemetry-javaagent.jar`), you MUST set `OtelAgentPath` in `JavaAppContainerResourceOptions` to match the image layout — otherwise the JVM fails on startup with "Error opening zip file or JAR manifest missing"
+- The `aliencube/aspire-spring-maven-sample` image bundles its OTEL agent at `/agents/opentelemetry-javaagent.jar`, not at the root path the CommunityToolkit defaults to
