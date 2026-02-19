@@ -78,6 +78,9 @@ internal sealed class CanalService(
 
         await BuildTrunkCanalAsync(trunkX, trunkMinZ, trunkMaxZ, ct);
 
+        // Open junctions where branch canals meet the trunk's west wall
+        await OpenBranchJunctionsAsync(orderedNames, trunkX, ct);
+
         // Build the lake
         await BuildLakeAsync(resourceCount, ct);
     }
@@ -153,7 +156,7 @@ internal sealed class CanalService(
             var detourZ = bMaxZ + waterWidth / 2 + 3;
             segments.Add((currentX, detourZ, bMaxX + 2));
             currentX = bMaxX + 2;
-            currentZ = detourZ;
+            currentZ = z; // Return to original Z after passing blocker for clean U-shaped routing
         }
 
         return segments;
@@ -262,10 +265,16 @@ internal sealed class CanalService(
             for (var zz = minZ; zz <= maxZ; zz++)
                 CanalPositions.Add((xx, zz));
 
-        // Place walkway bridge over the connector (oak planks at surface + 1)
-        var bridgeY = VillageLayout.SurfaceY;
+        // Place elevated walkway bridge over the connector with fence railings
+        var bridgeY = VillageLayout.SurfaceY + 1;
         await rcon.SendCommandAsync(
             $"fill {wallXMin} {bridgeY} {minZ} {wallXMax} {bridgeY} {maxZ} minecraft:oak_planks",
+            CommandPriority.Normal, ct);
+        await rcon.SendCommandAsync(
+            $"fill {wallXMin} {bridgeY + 1} {minZ} {wallXMin} {bridgeY + 1} {maxZ} minecraft:oak_fence",
+            CommandPriority.Normal, ct);
+        await rcon.SendCommandAsync(
+            $"fill {wallXMax} {bridgeY + 1} {minZ} {wallXMax} {bridgeY + 1} {maxZ} minecraft:oak_fence",
             CommandPriority.Normal, ct);
     }
 
@@ -310,6 +319,42 @@ internal sealed class CanalService(
             {
                 CanalPositions.Add((x, z));
             }
+        }
+    }
+
+    /// <summary>
+    /// Carves openings in the trunk canal's west wall where each branch canal arrives,
+    /// allowing water to flow from branches into the trunk.
+    /// Must be called AFTER BuildTrunkCanalAsync since the trunk walls overwrite branch endpoints.
+    /// </summary>
+    private async Task OpenBranchJunctionsAsync(IReadOnlyList<string> orderedNames, int trunkX,
+        CancellationToken ct)
+    {
+        var waterWidth = VillageLayout.CanalWaterWidth;
+        var canalY = VillageLayout.CanalY;
+        var depth = VillageLayout.CanalDepth;
+        var trunkWestWallX = trunkX - waterWidth / 2 - 1;
+
+        for (var i = 0; i < orderedNames.Count; i++)
+        {
+            var (_, _, ez) = VillageLayout.GetCanalEntrance(orderedNames[i], i);
+            var waterZMin = ez - waterWidth / 2;
+            var waterZMax = ez + waterWidth / 2;
+
+            // Carve opening in trunk's west wall at this branch's Z-level
+            await rcon.SendCommandAsync(
+                $"fill {trunkWestWallX} {canalY - depth + 1} {waterZMin} {trunkWestWallX} {VillageLayout.SurfaceY} {waterZMax} minecraft:air",
+                CommandPriority.Normal, ct);
+
+            // Restore floor at junction
+            await rcon.SendCommandAsync(
+                $"fill {trunkWestWallX} {canalY - 1} {waterZMin} {trunkWestWallX} {canalY - 1} {waterZMax} minecraft:blue_ice",
+                CommandPriority.Normal, ct);
+
+            // Place water at junction to connect branch and trunk
+            await rcon.SendCommandAsync(
+                $"fill {trunkWestWallX} {canalY} {waterZMin} {trunkWestWallX} {canalY} {waterZMax} minecraft:water",
+                CommandPriority.Normal, ct);
         }
     }
 

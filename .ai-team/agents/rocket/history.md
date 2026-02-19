@@ -539,3 +539,19 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 - 1.18+ section Y index for negative coords: use floor division `(worldY - 15) / 16` not truncation
 - Palette bit-packing: indices per long = `64 / bitsPerEntry` (integer division), unused bits are padding at the high end
 - `ZLibStream` (System.IO.Compression) handles the raw zlib format Minecraft uses — no need for third-party decompression
+
+### Canal System Bug Fixes (2026-02-19)
+
+**Three canal rendering bugs fixed in CanalService.cs:**
+
+1. **Branch-to-trunk junction connectivity:** Trunk canal walls (built AFTER branches) sealed off every branch canal connection. Added OpenBranchJunctionsAsync post-pass that carves openings in the trunk's west wall at each branch canal's Z-level  air to remove wall, blue_ice for floor continuity, water to connect flows.
+
+2. **Detour routing stays at original Z:** Branch canals that detoured south around blocking buildings never returned to their original Z-level, creating permanent southward drift. Fixed by resetting currentZ = z after each detour, producing clean U-shaped routes that return to the correct Z for trunk connection.
+
+3. **Bridge elevation:** Connector bridges were placed at SurfaceY (same height as canal walls), creating flat ground-level surfaces. Raised to SurfaceY + 1 with oak_fence railings at SurfaceY + 2 for proper elevated walkway appearance.
+
+## Learnings
+- Build-order matters for overlapping fill commands: when trunk overwrites branch endpoints, a post-pass junction-carving step is needed rather than trying to prevent the overlap
+- Canal junction pattern: air fill to remove wall, blue_ice floor, water to connect  three RCON commands per junction
+- Bridge elevation needs to be at least SurfaceY + 1 (one above wall tops) with fence railings at +2 for visual walkway effect
+- Detour routing must reset to original Z after passing each blocker to avoid permanent drift toward detour Z
