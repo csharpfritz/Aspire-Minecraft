@@ -4917,3 +4917,32 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 **Why:** User request — captured for team memory. Rhodey assessed feasibility and recommended RCON as MVP validation; Jeff agrees BlueMap browser tests are not a priority.
 
 
+
+
+---
+
+### Canal System Junction & Routing Fix
+**By:** Rocket
+**Date:** 2026-02-19
+**Files:** `src/Aspire.Hosting.Minecraft.Worker/Services/CanalService.cs`
+
+**Decision:** Canal trunk-to-branch connectivity uses a post-pass junction-carving approach.
+
+**Context:** The trunk canal is built AFTER all branch canals (to compute correct Z-range). This means the trunk's solid west wall overwrites branch canal endpoints. Rather than changing build order (which would require pre-computing the trunk Z-range), we added `OpenBranchJunctionsAsync` that runs after the trunk and carves openings at each branch's Z-level.
+
+**Key choices:**
+1. **Post-pass junction carving** (not build-order change): Simpler, doesn't require refactoring the trunk Z-range computation that depends on all branch canal entrances.
+2. **Detour Z-reset**: Branch canals now return to their original Z after detouring around blocking buildings, ensuring consistent junction Z-positions at the trunk.
+3. **Bridge elevation at SurfaceY + 1**: Connector bridges raised one block above canal wall tops with oak_fence railings at SurfaceY + 2.
+
+**Impact:** All canal-related services (ErrorBoatService, MinecartRailService bridge detection) should assume branch canals always arrive at the trunk at their original entrance Z, not a detoured Z.
+
+
+
+---
+
+### 2026-02-19: Fix Java Spring app OTEL agent path in GrandVillageDemo
+**By:** Rocket
+**What:** Added `OtelAgentPath = "/agents"` to the `JavaAppContainerResourceOptions` for the `java-api` resource in the GrandVillageDemo AppHost. The `aliencube/aspire-spring-maven-sample` image stores its OpenTelemetry Java agent at `/agents/opentelemetry-javaagent.jar`, not at the root path that `CommunityToolkit.Aspire.Hosting.Java` defaults to when `OtelAgentPath` is omitted.
+**Why:** Without this setting, the JVM picks up `JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar` (injected by the CommunityToolkit package), fails to find the JAR at `/`, and crashes immediately with exit code 1. The container never started. This one-line fix maps the agent path to the actual image layout.
+

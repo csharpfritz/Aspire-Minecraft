@@ -557,3 +557,6 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 - Detour routing must reset to original Z after passing each blocker to avoid permanent drift toward detour Z
 - `CommunityToolkit.Aspire.Hosting.Java` AddSpringApp injects `JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar` by default. If the container image stores the OTEL agent at a different path (e.g. `/agents/opentelemetry-javaagent.jar`), you MUST set `OtelAgentPath` in `JavaAppContainerResourceOptions` to match the image layout — otherwise the JVM fails on startup with "Error opening zip file or JAR manifest missing"
 - The `aliencube/aspire-spring-maven-sample` image bundles its OTEL agent at `/agents/opentelemetry-javaagent.jar`, not at the root path the CommunityToolkit defaults to
+
+
+ Team update (2026-02-19): Canal system junction fix  post-pass carving for branch-trunk connections, detour Z-reset for consistent junctions, bridge elevation to SurfaceY+1 with fence railings. ErrorBoatService and MinecartRailService should assume branch canals arrive at original entrance Z.  decided by Rocket

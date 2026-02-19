@@ -303,3 +303,6 @@
 
 Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
  Team update (2026-02-18): WithExternalAccess() extension method implements annotation-mutation pattern to fix port exposure bug (#102)  modifies existing EndpointAnnotation instances by name instead of adding duplicate endpoints via .WithEndpoint()  decided by Shuri
+
+
+ Team update (2026-02-19): Java Spring app OTEL agent path in GrandVillageDemo now requires OtelAgentPath = "/agents" for aliencube/aspire-spring-maven-sample image (JAR at /agents/opentelemetry-javaagent.jar, not root path).  decided by Rocket
