@@ -42,7 +42,7 @@
 ### Phase 3: Canal System (Depends on Phase 1)
 **Duration:** 5–7 days | **Owner:** Rocket
 - New `CanalService.cs` — builds water channels from each building to the lake
-- Canal routing: straight Z-axis from each building toward lake, merging into trunk canal
+- **Canal routing (refined 2026-02-19):** One straight back canal (E-W) along the north side of all buildings, connecting to one side trunk canal (N-S) on the east side that flows to the lake. See decision "2026-02-19: Canal routing redesign — back canal + side trunk" for technical details.
 - Lake construction at village Z-max
 - Water source block placement for proper flow
 
@@ -4945,4 +4945,26 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 **By:** Rocket
 **What:** Added `OtelAgentPath = "/agents"` to the `JavaAppContainerResourceOptions` for the `java-api` resource in the GrandVillageDemo AppHost. The `aliencube/aspire-spring-maven-sample` image stores its OpenTelemetry Java agent at `/agents/opentelemetry-javaagent.jar`, not at the root path that `CommunityToolkit.Aspire.Hosting.Java` defaults to when `OtelAgentPath` is omitted.
 **Why:** Without this setting, the JVM picks up `JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar` (injected by the CommunityToolkit package), fails to find the JAR at `/`, and crashes immediately with exit code 1. The container never started. This one-line fix maps the agent path to the actual image layout.
+
+
+
+---
+
+### 2026-02-19: Canal routing redesign — back canal + side trunk
+
+**By:** Rocket
+
+**What:** Redesigned the canal system from per-building zigzag branches to a simpler two-canal layout: one straight back canal (E-W) along the north side of all buildings, connecting to one side trunk canal (N-S) on the east side that flows to the lake.
+
+**Why:** The original zigzag design was visually confusing and architecturally complex. Each building had its own branch canal with collision detection and detour logic, creating a messy pattern that didn't match the intuitive mental model of "water flows from the back of town to a lake." The new design is cleaner, easier to understand, and matches Jeff's vision: "just have a canal that goes along the back of them all the way to the side of town... the main canal on the side of town needs to connect to the main lake."
+
+**Technical details:**
+- Back canal positioned at Z = maxZ + 5 (5 blocks north of northernmost building)
+- Side trunk positioned at X = maxX + CanalTotalWidth + 2 (east of all structures)
+- T-junction where back canal meets trunk opens the trunk's west wall
+- Lake junction opens the lake's north wall where trunk arrives
+- Removed ~200 lines of collision detection and routing code
+- CanalPositions tracking preserved for MinecartRailService bridge detection
+
+**Impact:** Simpler code, fewer RCON commands, cleaner visual layout, better alignment with village grid structure.
 

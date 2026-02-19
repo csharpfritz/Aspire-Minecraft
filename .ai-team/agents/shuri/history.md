@@ -306,3 +306,6 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 
 
  Team update (2026-02-19): Java Spring app OTEL agent path in GrandVillageDemo now requires OtelAgentPath = "/agents" for aliencube/aspire-spring-maven-sample image (JAR at /agents/opentelemetry-javaagent.jar, not root path).  decided by Rocket
+
+ Team update (2026-02-19): Canal system redesigned  single back canal + side trunk replaces per-building branches  decided by Rocket
+

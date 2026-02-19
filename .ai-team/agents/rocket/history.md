@@ -377,6 +377,37 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 
 📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket
 
+### Canal System Redesign (2026-02-19)
+
+**Architecture change:** Simplified canal system from zigzag per-building branches to a clean linear layout:
+- **Back canal (E-W):** One straight canal running along the BACK (north side) of all buildings at Z=maxZ+5, spanning from village minX to trunk trunkX
+- **Side trunk (N-S):** One vertical canal on the EAST side at X=maxX+CanalTotalWidth+2, connecting back canal to lake
+- **Lake junction:** Trunk connects directly to lake's north wall
+
+**Removed complexity:**
+- No per-building branch canals zigzagging between structures
+- No collision detection or detour routing around building footprints
+- No multiple Z-level connectors with bridges
+- Eliminated `BuildBranchCanalAsync`, `CalculateBranchSegments`, `FindFirstBlockingBuilding`, `BuildCanalConnectorAsync`, and `OpenBranchJunctionsAsync` methods
+
+**New methods:**
+- `BuildBackCanalAsync` — straight E-W canal along north edge of village
+- `BuildCanalSegmentEastWestAsync` / `BuildCanalSegmentNorthSouthAsync` — directional segment builders
+- `OpenJunctionAsync` — T-junction where back canal meets trunk
+- `OpenLakeJunctionAsync` — removes lake's north wall where trunk connects
+
+**Benefits:**
+- Cleaner visual layout — one canal line behind buildings, one on the side
+- Simpler routing logic — no building collision checks needed
+- Fewer RCON commands — straight line fills instead of zigzag segments + connectors
+- Easier to understand — the canal network mirrors the village grid structure
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/CanalService.cs` — complete redesign
+- `CanalPositions` tracking preserved for `MinecartRailService` bridge detection
+
+**Why:** Jeff's feedback showed the zigzag pattern was confusing and didn't match the intuitive "water flows from back of town to the lake" mental model. The new design is architecturally simpler and visually cleaner.
+
 ### Grand Watchtower Ornate Redesign (2026-02-15)
 
 - Redesigned Grand Watchtower exterior from plain rectangle to ornate medieval castle tower.
@@ -560,3 +591,6 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 
 
  Team update (2026-02-19): Canal system junction fix  post-pass carving for branch-trunk connections, detour Z-reset for consistent junctions, bridge elevation to SurfaceY+1 with fence railings. ErrorBoatService and MinecartRailService should assume branch canals arrive at original entrance Z.  decided by Rocket
+
+ Team update (2026-02-19): Canal system redesigned  single back canal + side trunk replaces per-building branches  decided by Rocket
+
