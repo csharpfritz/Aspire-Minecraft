@@ -594,3 +594,13 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 
  Team update (2026-02-19): Canal system redesigned  single back canal + side trunk replaces per-building branches  decided by Rocket
 
+
+
+## Learnings
+- Village layout flattened from 2x2 zone quadrants to single horizontal row  all buildings now at BaseZ, incrementing X by Spacing
+- Zone placement changed from NW/NE/SW/SE 2-column grids to sequential single-row zones: [Zone1][gap][Zone2][gap][Zone3][gap][Zone4] all at same Z
+- GetStructureOrigin(int index) fallback simplified: x = BaseX + (index * Spacing), z = BaseZ (constant)  no more row/column math
+- GetVillageBounds fallback changed from 2D grid (rows  Columns) to single row: maxZ = BaseZ + StructureSize - 1 (only one structure deep)
+- Back canal now runs behind ALL buildings in single row instead of per-zone perimeters  simplified to one E-W canal + one N-S trunk
+- VillageLayout.Columns constant still exists (value=2) for backward compatibility, but layout logic ignores it in favor of single row
+- Team update (2026-02-19): Village layout flattened to single row  all zones placed sequentially along X axis at BaseZ, back canal runs behind all buildings  decided by Rocket

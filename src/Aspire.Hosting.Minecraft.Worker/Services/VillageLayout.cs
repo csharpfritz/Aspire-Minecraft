@@ -55,10 +55,10 @@ internal record NeighborhoodPlan(
 /// <para><b>Village Grid Layout (X/Z plane):</b></para>
 /// <list type="bullet">
 /// <item>Origin: (BaseX=10, BaseZ=0) — southwest corner of first structure</item>
-/// <item>2 columns (Columns=2), infinite rows</item>
+/// <item>Single row layout: all buildings at same Z level, extending along X axis</item>
 /// <item>Spacing=36 blocks center-to-center</item>
 /// <item>Each structure footprint: 15×15 blocks</item>
-/// <item>Index 0 → (10, -60, 0), Index 1 → (46, -60, 0), Index 2 → (10, -60, 36), etc.</item>
+/// <item>Index 0 → (10, -60, 0), Index 1 → (46, -60, 0), Index 2 → (82, -60, 0), etc.</item>
 /// </list>
 /// 
 /// <para><b>Z-Coordinate Conventions:</b></para>
@@ -71,10 +71,11 @@ internal record NeighborhoodPlan(
 /// 
 /// <para><b>Neighborhood Zones (when enabled via ASPIRE_FEATURE_NEIGHBORHOODS):</b></para>
 /// <list type="bullet">
-/// <item>NW quadrant: .NET projects</item>
-/// <item>NE quadrant: Azure services</item>
-/// <item>SW quadrant: Containers and databases</item>
-/// <item>SE quadrant: Executables (Python, Node.js)</item>
+/// <item>Single row layout: all zones placed sequentially along X axis at BaseZ</item>
+/// <item>Zone 1: .NET projects</item>
+/// <item>Zone 2: Azure services</item>
+/// <item>Zone 3: Containers and databases</item>
+/// <item>Zone 4: Executables (Python, Node.js)</item>
 /// </list>
 /// </summary>
 internal static class VillageLayout
@@ -203,36 +204,35 @@ internal static class VillageLayout
             groups[cat] = ordered;
         }
 
-        // Merge "Other" into Executable zone (SE quadrant)
+        // Merge "Other" into Executable zone
         if (groups[ResourceCategory.Other].Count > 0)
         {
             groups[ResourceCategory.Executable].AddRange(groups[ResourceCategory.Other]);
             groups[ResourceCategory.Other].Clear();
         }
 
-        // Calculate zone origins. Layout:
-        //   NW (.NET)      NE (Azure)
-        //   SW (Container)  SE (Executable)
-        // Each zone is sized to fit its resources in a 2-column sub-grid.
-        var nwCount = groups[ResourceCategory.DotNetProject].Count;
-        var neCount = groups[ResourceCategory.Azure].Count;
-        var swCount = groups[ResourceCategory.ContainerOrDatabase].Count;
-        var seCount = groups[ResourceCategory.Executable].Count;
+        // Calculate zone origins for SINGLE ROW layout:
+        // All zones at same Z level (BaseZ), placed sequentially along X axis
+        // [Zone1: buildings...] [gap] [Zone2: buildings...] [gap] [Zone3...] [gap] [Zone4...]
+        var zone1Count = groups[ResourceCategory.DotNetProject].Count;
+        var zone2Count = groups[ResourceCategory.Azure].Count;
+        var zone3Count = groups[ResourceCategory.ContainerOrDatabase].Count;
+        var zone4Count = groups[ResourceCategory.Executable].Count;
 
-        // Zone widths: 2 columns × Spacing + margin. Height: ceil(count/2) rows × Spacing.
-        var zoneWidth = Spacing + StructureSize; // width of a 2-column sub-grid
-        var northZoneDepth = Math.Max(ZoneRows(nwCount), ZoneRows(neCount)) * Spacing;
-        if (northZoneDepth == 0) northZoneDepth = Spacing; // minimum one row height for gap calc
+        // Zone widths: number of buildings × Spacing
+        var zone1Width = zone1Count * Spacing;
+        var zone2Width = zone2Count * Spacing;
+        var zone3Width = zone3Count * Spacing;
 
-        // Zone origins (southwest corner of each zone)
-        var nwOriginX = BaseX;
-        var nwOriginZ = BaseZ;
-        var neOriginX = BaseX + zoneWidth + ZoneGap;
-        var neOriginZ = BaseZ;
-        var swOriginX = BaseX;
-        var swOriginZ = BaseZ + northZoneDepth + ZoneGap;
-        var seOriginX = BaseX + zoneWidth + ZoneGap;
-        var seOriginZ = BaseZ + northZoneDepth + ZoneGap;
+        // Zone origins (southwest corner of each zone) — all at BaseZ
+        var zone1OriginX = BaseX;
+        var zone1OriginZ = BaseZ;
+        var zone2OriginX = zone1OriginX + zone1Width + (zone1Count > 0 ? ZoneGap : 0);
+        var zone2OriginZ = BaseZ;
+        var zone3OriginX = zone2OriginX + zone2Width + (zone2Count > 0 ? ZoneGap : 0);
+        var zone3OriginZ = BaseZ;
+        var zone4OriginX = zone3OriginX + zone3Width + (zone3Count > 0 ? ZoneGap : 0);
+        var zone4OriginZ = BaseZ;
 
         var neighborhoods = new List<Neighborhood>();
         var positions = new Dictionary<string, (int x, int z)>(StringComparer.OrdinalIgnoreCase);
@@ -242,44 +242,39 @@ internal static class VillageLayout
             if (names.Count == 0) return;
             var hood = new Neighborhood(cat, originX, originZ, names);
             neighborhoods.Add(hood);
+            // Single row layout: all buildings at same Z (originZ), incrementing X by Spacing
             for (var i = 0; i < names.Count; i++)
             {
-                var col = i % Columns;
-                var row = i / Columns;
-                var x = originX + (col * Spacing);
-                var z = originZ + (row * Spacing);
+                var x = originX + (i * Spacing);
+                var z = originZ; // All in same row
                 positions[names[i]] = (x, z);
             }
         }
 
-        AddZone(ResourceCategory.DotNetProject, nwOriginX, nwOriginZ, groups[ResourceCategory.DotNetProject]);
-        AddZone(ResourceCategory.Azure, neOriginX, neOriginZ, groups[ResourceCategory.Azure]);
-        AddZone(ResourceCategory.ContainerOrDatabase, swOriginX, swOriginZ, groups[ResourceCategory.ContainerOrDatabase]);
-        AddZone(ResourceCategory.Executable, seOriginX, seOriginZ, groups[ResourceCategory.Executable]);
+        AddZone(ResourceCategory.DotNetProject, zone1OriginX, zone1OriginZ, groups[ResourceCategory.DotNetProject]);
+        AddZone(ResourceCategory.Azure, zone2OriginX, zone2OriginZ, groups[ResourceCategory.Azure]);
+        AddZone(ResourceCategory.ContainerOrDatabase, zone3OriginX, zone3OriginZ, groups[ResourceCategory.ContainerOrDatabase]);
+        AddZone(ResourceCategory.Executable, zone4OriginX, zone4OriginZ, groups[ResourceCategory.Executable]);
 
         var plan = new NeighborhoodPlan(neighborhoods, positions);
         ActiveNeighborhoodPlan = plan;
         return plan;
-
-        static int ZoneRows(int count) => count == 0 ? 0 : (count + Columns - 1) / Columns;
     }
 
     /// <summary>
     /// Gets the origin (southwest corner) position for a structure at the given resource index.
-    /// Layout is a 2-column grid: index 0 → col 0 row 0, index 1 → col 1 row 0, index 2 → col 0 row 1, etc.
+    /// Single row layout: all buildings at BaseZ, extending along X axis.
     /// 
-    /// <para>Calculation: col = index % 2, row = index / 2</para>
-    /// <para>X = BaseX + (col × Spacing) → 10, 34, 10, 34, ...</para>
-    /// <para>Z = BaseZ + (row × Spacing) → 0, 0, 24, 24, 48, 48, ...</para>
+    /// <para>Calculation: all at row 0 (Z=BaseZ), incrementing X by Spacing</para>
+    /// <para>X = BaseX + (index × Spacing) → 10, 46, 82, 118, ...</para>
+    /// <para>Z = BaseZ (always 0) — single row</para>
     /// <para>Y is always SurfaceY + 1 (one block above detected terrain height)</para>
     /// </summary>
     public static (int x, int y, int z) GetStructureOrigin(int index)
     {
-        var col = index % Columns;
-        var row = index / Columns;
-        var x = BaseX + (col * Spacing);
+        var x = BaseX + (index * Spacing);
         var y = SurfaceY + 1;
-        var z = BaseZ + (row * Spacing);
+        var z = BaseZ; // All buildings in single row at BaseZ
         return (x, y, z);
     }
 
@@ -390,13 +385,11 @@ internal static class VillageLayout
             return GetVillageBoundsFromPlan(ActiveNeighborhoodPlan);
         }
 
-        var rows = (resourceCount + Columns - 1) / Columns;
-        var cols = resourceCount >= Columns ? Columns : resourceCount;
-
+        // Single row layout: all buildings at BaseZ, extending along X
         var minX = BaseX;
         var minZ = BaseZ;
-        var maxX = BaseX + ((cols - 1) * Spacing) + StructureSize - 1;
-        var maxZ = BaseZ + ((rows - 1) * Spacing) + StructureSize - 1;
+        var maxX = BaseX + ((resourceCount - 1) * Spacing) + StructureSize - 1;
+        var maxZ = BaseZ + StructureSize - 1; // Single row, so only one structure deep
 
         return (minX, minZ, maxX, maxZ);
     }
