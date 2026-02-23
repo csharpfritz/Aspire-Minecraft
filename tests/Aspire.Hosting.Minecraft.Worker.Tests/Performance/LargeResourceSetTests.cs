@@ -175,9 +175,9 @@ public class LargeResourceSetTests : IAsyncLifetime
         Assert.Equal(VillageLayout.BaseX, first.x);
         Assert.Equal(VillageLayout.BaseZ, first.z);
 
-        // Last (index 24): single row, all at BaseZ
-        Assert.Equal(VillageLayout.BaseX + 24 * VillageLayout.Spacing, last.x);
-        Assert.Equal(VillageLayout.BaseZ, last.z);
+        // Last (index 24): col=0, row=12 → (BaseX, BaseZ + 12 * Spacing)
+        Assert.Equal(VillageLayout.BaseX, last.x);
+        Assert.Equal(VillageLayout.BaseZ + 12 * VillageLayout.Spacing, last.z);
     }
 
     [Fact]

@@ -11,12 +11,12 @@ public class VillageLayoutTests
     [InlineData(2, 1, new[] { 46, -59, 0 })]
     [InlineData(4, 0, new[] { 10, -59, 0 })]
     [InlineData(4, 1, new[] { 46, -59, 0 })]
-    [InlineData(4, 2, new[] { 82, -59, 0 })]
-    [InlineData(4, 3, new[] { 118, -59, 0 })]
+    [InlineData(4, 2, new[] { 10, -59, 36 })]
+    [InlineData(4, 3, new[] { 46, -59, 36 })]
     [InlineData(8, 0, new[] { 10, -59, 0 })]
-    [InlineData(8, 7, new[] { 262, -59, 0 })]
+    [InlineData(8, 7, new[] { 46, -59, 108 })]
     [InlineData(10, 0, new[] { 10, -59, 0 })]
-    [InlineData(10, 9, new[] { 334, -59, 0 })]
+    [InlineData(10, 9, new[] { 46, -59, 144 })]
     public void GetStructureOrigin_ReturnsCorrectCoordinates(int totalResources, int index, int[] expected)
     {
         var (x, y, z) = VillageLayout.GetStructureOrigin(index);
@@ -29,8 +29,8 @@ public class VillageLayoutTests
     [Theory]
     [InlineData(0, 17, -59, 7)]
     [InlineData(1, 53, -59, 7)]
-    [InlineData(2, 89, -59, 7)]
-    [InlineData(3, 125, -59, 7)]
+    [InlineData(2, 17, -59, 43)]
+    [InlineData(3, 53, -59, 43)]
     public void GetStructureCenter_ReturnsCorrectOffset(int index, int expectedX, int expectedY, int expectedZ)
     {
         var (x, y, z) = VillageLayout.GetStructureCenter(index);
@@ -43,9 +43,9 @@ public class VillageLayoutTests
     [Theory]
     [InlineData(1, 10, 0, 24, 14)]
     [InlineData(2, 10, 0, 60, 14)]
-    [InlineData(4, 10, 0, 132, 14)]
-    [InlineData(8, 10, 0, 276, 14)]
-    [InlineData(10, 10, 0, 348, 14)]
+    [InlineData(4, 10, 0, 60, 50)]
+    [InlineData(8, 10, 0, 60, 122)]
+    [InlineData(10, 10, 0, 60, 158)]
     public void GetVillageBounds_ReturnsCorrectBoundingBox(int resourceCount, int expectedMinX, int expectedMinZ, int expectedMaxX, int expectedMaxZ)
     {
         var (minX, minZ, maxX, maxZ) = VillageLayout.GetVillageBounds(resourceCount);
@@ -59,9 +59,9 @@ public class VillageLayoutTests
     [Theory]
     [InlineData(1, 0, -10, 34, 24)]
     [InlineData(2, 0, -10, 70, 24)]
-    [InlineData(4, 0, -10, 142, 24)]
-    [InlineData(8, 0, -10, 286, 24)]
-    [InlineData(10, 0, -10, 358, 24)]
+    [InlineData(4, 0, -10, 70, 60)]
+    [InlineData(8, 0, -10, 70, 132)]
+    [InlineData(10, 0, -10, 70, 168)]
     public void GetFencePerimeter_ReturnsCorrectPerimeterWithGap(int resourceCount, int expectedMinX, int expectedMinZ, int expectedMaxX, int expectedMaxZ)
     {
         var (minX, minZ, maxX, maxZ) = VillageLayout.GetFencePerimeter(resourceCount);

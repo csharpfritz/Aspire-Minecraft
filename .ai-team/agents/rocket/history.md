@@ -104,6 +104,14 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 
 ## Learnings
 
+### Village 2D Grid Layout (2026-02-23)
+- VillageLayout uses a 2-column grid (Columns=2): buildings arranged col=index%2, row=index/2 on a single Y-plane.
+- `PlanNeighborhoods` uses a 2×2 quadrant layout: NW=DotNetProject, NE=Azure, SW=ContainerOrDatabase, SE=Executable. Each zone has its own 2-column sub-grid.
+- Zone origins calculated via `ZoneExtentX`/`ZoneExtentZ` helpers + `ZoneGap` between quadrants.
+- `GetVillageBounds` fallback accounts for multiple rows: maxZ = BaseZ + (rows-1)*Spacing + StructureSize - 1.
+- CanalService reads bounds from `GetVillageBounds` / `GetLakePosition` — no changes needed when layout changes.
+- Key files: `VillageLayout.cs`, `VillageLayoutTests.cs`, `LargeResourceSetTests.cs`.
+
 ### Village Grid Ordering Convention
 - ALL services that place elements on the village grid MUST use `VillageLayout.ReorderByDependency(monitor.Resources)` for index-to-position mapping, not raw `monitor.Resources` dictionary order.
 - Dictionary iteration order is non-deterministic with respect to dependency relationships. Services that used different orderings would place features (beacons, guardians, particles, levers, wires, rails) at wrong buildings.
