@@ -34,6 +34,7 @@ Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource t
 
 ### Team Updates
 
+- 📌 Team update (2026-02-26): Gate centered on village midpoint, 5-wide cobblestone walkway with stone brick walls and lanterns built between tower and fence, tower entrance upgraded to decorative stone brick arch (5-wide opening with 7-block arch and chiseled keystone). All 81 tower tests pass. — decided by Rocket
 - NuGet packages blocked — floating deps fixed in Sprint 1 — decided by Shuri
 - 3-sprint roadmap adopted — decided by Rhodey
 - All sprint work tracked as GitHub issues with labels — decided by Jeffrey T. Fritz
