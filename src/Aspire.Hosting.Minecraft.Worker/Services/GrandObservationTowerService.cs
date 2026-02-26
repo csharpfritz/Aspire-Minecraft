@@ -358,187 +358,220 @@ internal sealed class GrandObservationTowerService(
     }
 
     /// <summary>
-    /// Flight 1: Along SOUTH wall (z1+2), ascending EAST.
-    /// Steps from y+1 to y+7, x from x1+3 to x1+9.
-    /// facing=east means the stairs ascend when walking east.
+    /// Flight 1: Along SOUTH wall (z1+2/z1+3), ascending EAST.
+    /// Steps from y+1 to y+7, x from x1+7 to x1+13 (centered on midX).
+    /// 2 blocks wide for comfortable walking. facing=east.
     /// </summary>
     private async Task BuildFlight1Async(int x1, int y, int z1, CancellationToken ct)
     {
-        var z = z1 + 2;
+        // 2-wide staircase: row 1 at z1+2, row 2 at z1+3
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 1 + i} {z} minecraft:oak_stairs[facing=east]", ct);
+                $"setblock {x1 + 7 + i} {y + 1 + i} {z1 + 2} minecraft:oak_stairs[facing=east]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x1 + 7 + i} {y + 1 + i} {z1 + 3} minecraft:oak_stairs[facing=east]", ct);
         }
+        // Landing platform at top (y+7, arrival to Floor 2)
+        await rcon.SendCommandAsync(
+            $"fill {x1 + 13} {y + 7} {z1 + 2} {x1 + 14} {y + 7} {z1 + 4} minecraft:oak_planks", ct);
     }
 
     /// <summary>
-    /// Flight 2: Along EAST wall (x2-2), ascending NORTH (increasing Z).
-    /// Steps from y+8 to y+12, z from z1+3 to z1+7.
-    /// facing=south means the stairs ascend when walking south (increasing Z).
+    /// Flight 2: Along EAST wall (x2-2/x2-3), ascending NORTH (increasing Z).
+    /// Steps from y+8 to y+12, z from z1+8 to z1+12 (centered on midZ).
+    /// 2 blocks wide. facing=south.
     /// </summary>
     private async Task BuildFlight2Async(int x2, int y, int z1, CancellationToken ct)
     {
-        var x = x2 - 2;
+        // 2-wide staircase: row 1 at x2-2, row 2 at x2-3
         for (var i = 0; i < 5; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x} {y + 8 + i} {z1 + 3 + i} minecraft:oak_stairs[facing=south]", ct);
+                $"setblock {x2 - 2} {y + 8 + i} {z1 + 8 + i} minecraft:oak_stairs[facing=south]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x2 - 3} {y + 8 + i} {z1 + 8 + i} minecraft:oak_stairs[facing=south]", ct);
         }
+        // Landing platform at top (y+12, arrival to Floor 3)
+        await rcon.SendCommandAsync(
+            $"fill {x2 - 4} {y + 12} {z1 + 12} {x2 - 2} {y + 12} {z1 + 13} minecraft:oak_planks", ct);
     }
 
     /// <summary>
-    /// Flight 3: Along NORTH wall (z2-2), ascending WEST (decreasing X).
-    /// Steps from y+13 to y+17, x from x2-3 to x2-7 (moving west).
-    /// facing=west means the stairs ascend when walking west.
+    /// Flight 3: Along NORTH wall (z2-2/z2-3), ascending WEST (decreasing X).
+    /// Steps from y+13 to y+17, x from x2-8 to x2-12 (centered on midX, walking west).
+    /// 2 blocks wide. facing=west.
     /// </summary>
     private async Task BuildFlight3Async(int x1, int y, int z2, CancellationToken ct)
     {
-        var z = z2 - 2;
         var x2 = TowerMaxX;
+        // 2-wide staircase: row 1 at z2-2, row 2 at z2-3
         for (var i = 0; i < 5; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x2 - 3 - i} {y + 13 + i} {z} minecraft:oak_stairs[facing=west]", ct);
+                $"setblock {x2 - 8 - i} {y + 13 + i} {z2 - 2} minecraft:oak_stairs[facing=west]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x2 - 8 - i} {y + 13 + i} {z2 - 3} minecraft:oak_stairs[facing=west]", ct);
         }
+        // Landing platform at top (y+17, arrival to Floor 4)
+        await rcon.SendCommandAsync(
+            $"fill {x2 - 13} {y + 17} {z2 - 4} {x2 - 12} {y + 17} {z2 - 2} minecraft:deepslate_tiles", ct);
     }
 
     /// <summary>
-    /// Flight 4: Along WEST wall (x1+2), ascending SOUTH (decreasing Z).
-    /// Steps from y+18 to y+24, z from z2-3 to z2-9 (moving south / decreasing Z).
-    /// facing=north means the stairs ascend when walking north (decreasing Z direction).
+    /// Flight 4: Along WEST wall (x1+2/x1+3), ascending SOUTH (decreasing Z).
+    /// Steps from y+18 to y+24, z from z2-7 to z2-13 (centered on midZ, walking south/decreasing Z).
+    /// 2 blocks wide. facing=north.
     /// </summary>
     private async Task BuildFlight4Async(int x1, int y, int z1, CancellationToken ct)
     {
-        var x = x1 + 2;
         var z2 = TowerMaxZ;
+        // 2-wide staircase: row 1 at x1+2, row 2 at x1+3
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x} {y + 18 + i} {z2 - 3 - i} minecraft:oak_stairs[facing=north]", ct);
+                $"setblock {x1 + 2} {y + 18 + i} {z2 - 7 - i} minecraft:oak_stairs[facing=north]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x1 + 3} {y + 18 + i} {z2 - 7 - i} minecraft:oak_stairs[facing=north]", ct);
         }
+        // Landing platform at top (y+24, arrival to Floor 5)
+        await rcon.SendCommandAsync(
+            $"fill {x1 + 2} {y + 24} {z2 - 14} {x1 + 4} {y + 24} {z2 - 13} minecraft:oak_planks", ct);
     }
 
     /// <summary>
-    /// Flight 5: Along SOUTH wall again (z1+2), ascending EAST to roof.
-    /// Steps from y+25 to y+31, x from x1+3 to x1+9.
+    /// Flight 5: Along SOUTH wall again (z1+2/z1+3), ascending EAST to roof.
+    /// Steps from y+25 to y+31, x from x1+7 to x1+13 (centered on midX).
+    /// 2 blocks wide. facing=east.
     /// </summary>
     private async Task BuildFlight5Async(int x1, int y, int z1, CancellationToken ct)
     {
-        var z = z1 + 2;
+        // 2-wide staircase: row 1 at z1+2, row 2 at z1+3 (same as Flight 1)
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 25 + i} {z} minecraft:oak_stairs[facing=east]", ct);
+                $"setblock {x1 + 7 + i} {y + 25 + i} {z1 + 2} minecraft:oak_stairs[facing=east]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {x1 + 7 + i} {y + 25 + i} {z1 + 3} minecraft:oak_stairs[facing=east]", ct);
         }
+        // Landing platform at top (y+31, arrival to rooftop)
+        await rcon.SendCommandAsync(
+            $"fill {x1 + 13} {y + 31} {z1 + 2} {x1 + 14} {y + 31} {z1 + 4} minecraft:stone_bricks", ct);
     }
 
     /// <summary>
     /// Clear stairwell holes in floor platforms so stairs pass through.
+    /// Wider holes (5×4 minimum) to accommodate 2-wide stairs and landing platforms.
     /// </summary>
     private async Task ClearStairwellHolesAsync(int x1, int y, int z1, int x2, int z2, CancellationToken ct)
     {
-        // Hole in Floor 2 (y+7) for Flight 1 arrival / Flight 2 departure (east side)
+        // Hole in Floor 2 (y+7) for Flight 1 arrival / Flight 2 departure
+        // Flight 1 arrives at x1+13, z1+2-3; Flight 2 departs from x2-2 to x2-3, z1+8
+        // Clear a 5×5 opening around the corner
         await rcon.SendCommandAsync(
-            $"fill {x2 - 4} {y + 7} {z1 + 2} {x2 - 2} {y + 7} {z1 + 5} minecraft:air", ct);
+            $"fill {x1 + 12} {y + 7} {z1 + 2} {x1 + 16} {y + 7} {z1 + 6} minecraft:air", ct);
 
-        // Hole in Floor 3 (y+12) for Flight 2 arrival / Flight 3 departure (north side)
+        // Hole in Floor 3 (y+12) for Flight 2 arrival / Flight 3 departure
+        // Flight 2 arrives at x2-2 to x2-3, z1+12; Flight 3 departs from x2-8, z2-2 to z2-3
         await rcon.SendCommandAsync(
-            $"fill {x2 - 5} {y + 12} {z2 - 4} {x2 - 2} {y + 12} {z2 - 2} minecraft:air", ct);
+            $"fill {x2 - 6} {y + 12} {z1 + 11} {x2 - 2} {y + 12} {z1 + 15} minecraft:air", ct);
 
-        // Hole in Floor 4 (y+17) for Flight 3 arrival / Flight 4 departure (west side)
+        // Hole in Floor 4 (y+17) for Flight 3 arrival / Flight 4 departure
+        // Flight 3 arrives at x2-12, z2-2 to z2-3; Flight 4 departs from x1+2 to x1+3, z2-7
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 17} {z2 - 5} {x1 + 4} {y + 17} {z2 - 2} minecraft:air", ct);
+            $"fill {x2 - 14} {y + 17} {z2 - 6} {x2 - 10} {y + 17} {z2 - 2} minecraft:air", ct);
 
-        // Hole in Floor 5 (y+24) for Flight 4 arrival / Flight 5 departure (south side)
+        // Hole in Floor 5 (y+24) for Flight 4 arrival / Flight 5 departure
+        // Flight 4 arrives at x1+2 to x1+3, z2-13; Flight 5 departs from x1+7, z1+2 to z1+3
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 24} {z1 + 2} {x1 + 5} {y + 24} {z1 + 5} minecraft:air", ct);
+            $"fill {x1 + 2} {y + 24} {z2 - 15} {x1 + 6} {y + 24} {z2 - 11} minecraft:air", ct);
 
         // Hole in roof (y+31) for Flight 5 arrival
+        // Flight 5 arrives at x1+13, z1+2 to z1+3
         await rcon.SendCommandAsync(
-            $"fill {x1 + 8} {y + 31} {z1 + 1} {x1 + 10} {y + 31} {z1 + 3} minecraft:air", ct);
+            $"fill {x1 + 12} {y + 31} {z1 + 1} {x1 + 16} {y + 31} {z1 + 5} minecraft:air", ct);
     }
 
     /// <summary>
     /// Safety fences on the inside edge of each staircase flight (prevent falling into central shaft).
+    /// Fences run along the open side (toward tower center) of the 2-wide stairs.
     /// </summary>
     private async Task BuildStairFencesAsync(int x1, int y, int z1, int x2, int z2, CancellationToken ct)
     {
-        // Flight 1 fence: south wall stairs, fence on north side (z1+3)
+        // Flight 1 fence: south wall stairs (z1+2 and z1+3), fence on inside edge (z1+4)
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 2 + i} {z1 + 3} minecraft:oak_fence", ct);
+                $"setblock {x1 + 7 + i} {y + 2 + i} {z1 + 4} minecraft:oak_fence", ct);
         }
 
-        // Flight 2 fence: east wall stairs, fence on west side (x2-3)
+        // Flight 2 fence: east wall stairs (x2-2 and x2-3), fence on inside edge (x2-4)
         for (var i = 0; i < 5; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x2 - 3} {y + 9 + i} {z1 + 3 + i} minecraft:oak_fence", ct);
+                $"setblock {x2 - 4} {y + 9 + i} {z1 + 8 + i} minecraft:oak_fence", ct);
         }
 
-        // Flight 3 fence: north wall stairs, fence on south side (z2-3)
+        // Flight 3 fence: north wall stairs (z2-2 and z2-3), fence on inside edge (z2-4)
         for (var i = 0; i < 5; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x2 - 3 - i} {y + 14 + i} {z2 - 3} minecraft:oak_fence", ct);
+                $"setblock {x2 - 8 - i} {y + 14 + i} {z2 - 4} minecraft:oak_fence", ct);
         }
 
-        // Flight 4 fence: west wall stairs, fence on east side (x1+3)
+        // Flight 4 fence: west wall stairs (x1+2 and x1+3), fence on inside edge (x1+4)
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3} {y + 19 + i} {z2 - 3 - i} minecraft:oak_fence", ct);
+                $"setblock {x1 + 4} {y + 19 + i} {z2 - 7 - i} minecraft:oak_fence", ct);
         }
 
-        // Flight 5 fence: south wall stairs again, fence on north side (z1+3)
+        // Flight 5 fence: south wall stairs again (z1+2 and z1+3), fence on inside edge (z1+4)
         for (var i = 0; i < 7; i++)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 26 + i} {z1 + 3} minecraft:oak_fence", ct);
+                $"setblock {x1 + 7 + i} {y + 26 + i} {z1 + 4} minecraft:oak_fence", ct);
         }
     }
 
     /// <summary>
-    /// Lighting along staircase — lanterns every other step.
+    /// Lighting along staircase — wall torches every other step.
     /// </summary>
     private async Task BuildStaircaseLightingAsync(int x1, int y, int z1, int x2, int z2, CancellationToken ct)
     {
-        // Lanterns on wall side of each flight (every 2 steps)
-        // Flight 1: wall torches on south wall
+        // Flight 1: wall torches on south wall (behind stairs at z1+2)
         for (var i = 0; i < 7; i += 2)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 3 + i} {z1 + 1} minecraft:wall_torch[facing=north]", ct);
+                $"setblock {x1 + 7 + i} {y + 3 + i} {z1 + 1} minecraft:wall_torch[facing=north]", ct);
         }
 
-        // Flight 2: wall torches on east wall
+        // Flight 2: wall torches on east wall (behind stairs at x2-2)
         for (var i = 0; i < 5; i += 2)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x2 - 1} {y + 10 + i} {z1 + 3 + i} minecraft:wall_torch[facing=west]", ct);
+                $"setblock {x2 - 1} {y + 10 + i} {z1 + 8 + i} minecraft:wall_torch[facing=west]", ct);
         }
 
-        // Flight 3: wall torches on north wall
+        // Flight 3: wall torches on north wall (behind stairs at z2-2)
         for (var i = 0; i < 5; i += 2)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x2 - 3 - i} {y + 15 + i} {z2 - 1} minecraft:wall_torch[facing=south]", ct);
+                $"setblock {x2 - 8 - i} {y + 15 + i} {z2 - 1} minecraft:wall_torch[facing=south]", ct);
         }
 
-        // Flight 4: wall torches on west wall
+        // Flight 4: wall torches on west wall (behind stairs at x1+2)
         for (var i = 0; i < 7; i += 2)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 1} {y + 20 + i} {z2 - 3 - i} minecraft:wall_torch[facing=east]", ct);
+                $"setblock {x1 + 1} {y + 20 + i} {z2 - 7 - i} minecraft:wall_torch[facing=east]", ct);
         }
 
-        // Flight 5: wall torches on south wall
+        // Flight 5: wall torches on south wall (behind stairs at z1+2)
         for (var i = 0; i < 7; i += 2)
         {
             await rcon.SendCommandAsync(
-                $"setblock {x1 + 3 + i} {y + 27 + i} {z1 + 1} minecraft:wall_torch[facing=north]", ct);
+                $"setblock {x1 + 7 + i} {y + 27 + i} {z1 + 1} minecraft:wall_torch[facing=north]", ct);
         }
     }
 

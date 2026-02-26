@@ -756,3 +756,17 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Tower entrance:** Upgraded from single oak door to double doors (hinge=right + hinge=left side by side). Added stone brick threshold at `z2 + 1` outside the door. Entrance lanterns moved to walkway level at `z2 + 1`. Door placement moved from `BuildFloor1EntranceHallAsync` to `BuildExteriorAsync` for correct ordering (clear air → place doors before interior fills).
 **Coordinate references:** `_villageCenterX` and `_fenceMinZ` are stored in `SetPosition` and reused by walkway logic. Walkway Z range: `[TowerMaxZ + 1, fenceMinZ - 1]`. Gate width = `VillageLayout.GateWidth` (5 blocks).
 **Files:** `StructureBuilder.cs` (line ~270), `GrandObservationTowerService.cs`, `GrandObservationTowerTests.cs`
+
+### Spiral Staircase Redesign — Centered, Wide, Accessible (2026-02-26)
+**Problem:** Original spiral stairs were cramped in corners (starting at x1+3, right against buttresses at x1-x1+2), 1 block wide, with small 3×4 stairwell holes. Players had difficulty navigating tight corners and narrow passages.
+**Solution:** Redesigned all 5 flights to be 2 blocks wide, centered on each wall (using midX=x1+10 and midZ=z1+10), with 5×5 stairwell holes and 2×3 landing platforms at each floor transition.
+**Coordinates:**
+- Flight 1 (South→East): x1+7 to x1+13, z1+2-3, y+1→y+7, facing=east. Landing at x1+13-14, z1+2-4.
+- Flight 2 (East→North): x2-2-3, z1+8 to z1+12, y+8→y+12, facing=south. Landing at x2-4-2, z1+12-13.
+- Flight 3 (North→West): x2-8 to x2-12, z2-2-3, y+13→y+17, facing=west. Landing at x2-13-12, z2-4-2.
+- Flight 4 (West→South): x1+2-3, z2-7 to z2-13, y+18→y+24, facing=north. Landing at x1+2-4, z2-14-13.
+- Flight 5 (South→Roof): x1+7 to x1+13, z1+2-3, y+25→y+31, facing=east. Landing at x1+13-14, z1+2-4.
+**Safety fences:** Placed on the inside edge of each 2-wide flight (z1+4, x2-4, z2-4, x1+4) at y+2, y+9, y+14, y+19, y+26.
+**Wall torches:** Every other step along the back wall of each flight (z1+1, x2-1, z2-1, x1+1) for lighting.
+**Key insight:** Centering on midX/midZ moves stairs away from 3×3 corner buttresses, creating clear approach paths. 2-wide stairs allow comfortable walking without precision jumps. Large stairwell holes (5×4-5) enable easy ascent/descent without head bumps.
+**Files:** `GrandObservationTowerService.cs` — `BuildFlight[1-5]Async`, `ClearStairwellHolesAsync`, `BuildStairFencesAsync`, `BuildStaircaseLightingAsync`
