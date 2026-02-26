@@ -155,6 +155,12 @@ internal sealed class GrandObservationTowerService(
         await rcon.SendCommandAsync(
             $"fill {x1} {y + 1} {z1} {x2} {y + 31} {z2} minecraft:stone_bricks hollow", ct);
 
+        // Clear the interior floor at y+1 so ground floor is at ground level (y)
+        // The 'hollow' fill creates a stone_bricks bottom face at y+1; removing it
+        // makes the mossy stone brick plinth at y the walkable floor — flush with the walkway.
+        await rcon.SendCommandAsync(
+            $"fill {x1 + 1} {y + 1} {z1 + 1} {x2 - 1} {y + 1} {z2 - 1} minecraft:air", ct);
+
         // Corner buttresses: deepslate brick pillars (3×3, rise to y+33)
         await rcon.SendCommandAsync(
             $"fill {x1} {y + 1} {z1} {x1 + 2} {y + 33} {z1 + 2} minecraft:deepslate_bricks", ct);
@@ -813,9 +819,9 @@ internal sealed class GrandObservationTowerService(
         var walkX2 = walkX1 + gateWidth - 1;
 
         // Walkway runs from just outside the tower entrance (TowerMaxZ + 1)
-        // to just outside the fence gate (fenceMinZ - 1)
+        // through the fence gate and one block inside town (fenceMinZ + 1)
         var walkZStart = TowerMaxZ + 1;
-        var walkZEnd = _fenceMinZ - 1;
+        var walkZEnd = _fenceMinZ + 1;
 
         if (walkZEnd <= walkZStart) return; // No gap to fill
 

@@ -717,9 +717,9 @@ public partial class GrandObservationTowerTests : IAsyncLifetime
         int bufferMaxZ = TowerMaxZ + 1;
 
         // Walkway and entrance elements extend beyond the tower footprint on Z+
-        // so we allow blocks south of the tower up to the fence line
+        // so we allow blocks south of the tower through the gate and one block inside town
         var (fMinX, fMinZ, fMaxX, _) = VillageLayout.GetFencePerimeter(TestResourceCount);
-        var walkwayMaxZ = fMinZ - 1;
+        var walkwayMaxZ = fMinZ + 1;
 
         foreach (var sb in setblocks)
         {
