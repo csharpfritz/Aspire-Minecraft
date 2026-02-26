@@ -12,7 +12,8 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 internal sealed class MinecartRailService(
     RconService rcon,
     AspireResourceMonitor monitor,
-    ILogger<MinecartRailService> logger)
+    ILogger<MinecartRailService> logger,
+    CanalService? canals = null)
 {
     private bool _railsBuilt;
     private readonly Dictionary<string, bool> _connectionState = new(StringComparer.OrdinalIgnoreCase);
@@ -39,6 +40,7 @@ internal sealed class MinecartRailService(
         if (_railsBuilt) return;
 
         logger.LogInformation("Minecart rail service initializing rails...");
+        using var burst = rcon.EnterBurstMode(40);
         await BuildRailNetworkAsync(ct);
         _railsBuilt = true;
         logger.LogInformation("Minecart rail service initialized");
@@ -67,6 +69,8 @@ internal sealed class MinecartRailService(
         for (var i = 0; i < orderedNames.Count; i++)
             nameToIndex[orderedNames[i]] = i;
 
+        var footprints = VillageLayout.GetAllBuildingFootprints(orderedNames);
+
         foreach (var (name, info) in resources)
         {
             if (info.Dependencies.Count == 0) continue;
@@ -77,7 +81,7 @@ internal sealed class MinecartRailService(
                 var depLower = dep.ToLowerInvariant();
                 if (!nameToIndex.TryGetValue(depLower, out var parentIndex)) continue;
 
-                var connection = CalculateRailConnection(name, depLower, childIndex, parentIndex);
+                var connection = CalculateRailConnection(name, depLower, childIndex, parentIndex, footprints);
                 _connections.Add(connection);
                 _connectionState[$"{depLower}->{name}"] = true;
 
@@ -89,10 +93,12 @@ internal sealed class MinecartRailService(
         logger.LogInformation("Minecart rail network built with {Count} connections", _connections.Count);
     }
 
-    private static RailConnection CalculateRailConnection(string childName, string parentName, int childIndex, int parentIndex)
+    private static RailConnection CalculateRailConnection(string childName, string parentName,
+        int childIndex, int parentIndex,
+        IReadOnlyList<(int minX, int minZ, int maxX, int maxZ)> footprints)
     {
-        var (px, _, pz) = VillageLayout.GetStructureOrigin(parentIndex);
-        var (cx, _, cz) = VillageLayout.GetStructureOrigin(childIndex);
+        var (px, _, pz) = VillageLayout.GetStructureOrigin(parentName, parentIndex);
+        var (cx, _, cz) = VillageLayout.GetStructureOrigin(childName, childIndex);
 
         var railY = VillageLayout.SurfaceY + 1;
         var entranceOffset = VillageLayout.StructureSize / 2;
@@ -106,40 +112,70 @@ internal sealed class MinecartRailService(
         var startPos = (startX, railY, startZ);
         var endPos = (endX, railY, endZ);
 
-        // L-shaped path: X first, then Z
+        // Route rails in front of buildings (Z-min side) to avoid cutting through structures.
+        // Use "Z first, then X, then Z" for an S-shaped route through the gap corridors.
         var railPositions = new List<(int x, int y, int z)>();
         var poweredRailPositions = new List<(int x, int y, int z)>();
 
-        var dx = startX < endX ? 1 : -1;
-        var dz = startZ < endZ ? 1 : -1;
+        // Find a safe Z corridor to travel along X. Use the south-most Z of the two endpoints
+        // minus a buffer, or the front of the building row (whichever is more south).
+        var safeZ = Math.Min(startZ, endZ);
         var blockCount = 0;
 
-        // Phase 1: walk along X axis
-        var currentX = startX;
-        while (currentX != endX)
+        void AddRailPos(int x, int z2)
         {
-            var pos = (currentX, railY, startZ);
+            var pos = (x, railY, z2);
             railPositions.Add(pos);
-
             if (blockCount > 0 && blockCount % 8 == 0)
                 poweredRailPositions.Add(pos);
-
             blockCount++;
-            currentX += dx;
         }
 
-        // Phase 2: walk along Z axis
-        var currentZ = startZ;
-        while (currentZ != endZ)
+        if (startX == endX)
         {
-            var pos = (endX, railY, currentZ);
-            railPositions.Add(pos);
+            // Same column — straight Z path, no collision risk
+            var dz = startZ < endZ ? 1 : -1;
+            var currentZ = startZ;
+            while (currentZ != endZ)
+            {
+                AddRailPos(startX, currentZ);
+                currentZ += dz;
+            }
+        }
+        else
+        {
+            // Phase 1: walk Z from startZ to safeZ
+            if (startZ != safeZ)
+            {
+                var dz = startZ < safeZ ? 1 : -1;
+                var currentZ = startZ;
+                while (currentZ != safeZ)
+                {
+                    AddRailPos(startX, currentZ);
+                    currentZ += dz;
+                }
+            }
 
-            if (blockCount > 0 && blockCount % 8 == 0)
-                poweredRailPositions.Add(pos);
+            // Phase 2: walk X from startX to endX at safeZ
+            var dx = startX < endX ? 1 : -1;
+            var currentX = startX;
+            while (currentX != endX)
+            {
+                AddRailPos(currentX, safeZ);
+                currentX += dx;
+            }
 
-            blockCount++;
-            currentZ += dz;
+            // Phase 3: walk Z from safeZ to endZ
+            if (safeZ != endZ)
+            {
+                var dz = safeZ < endZ ? 1 : -1;
+                var currentZ = safeZ;
+                while (currentZ != endZ)
+                {
+                    AddRailPos(endX, currentZ);
+                    currentZ += dz;
+                }
+            }
         }
 
         // Add the final position
@@ -151,6 +187,9 @@ internal sealed class MinecartRailService(
     private async Task PlaceRailConnectionAsync(RailConnection connection, CancellationToken ct)
     {
         var railY = connection.StartPos.y;
+
+        // Compute elevation offsets for canal bridge crossings (0 = ground, 1 = ramp, 2 = bridge deck)
+        var elevations = ComputeRailElevations(connection);
 
         // Place station at start: detector_rail → powered_rail → detector_rail
         await PlaceStationAsync(connection.StartPos.x, railY, connection.StartPos.z, ct);
@@ -167,28 +206,98 @@ internal sealed class MinecartRailService(
             if (IsStationPosition(x, y, z, connection))
                 continue;
 
+            var elevation = elevations[i];
+            var adjustedY = y + elevation;
+
+            // Build support structure for elevated rail positions (bridges over canals)
+            if (elevation > 0)
+            {
+                // Support block directly under the rail
+                await rcon.SendCommandAsync(
+                    $"setblock {x} {adjustedY - 1} {z} minecraft:stone_bricks",
+                    CommandPriority.Normal, ct);
+
+                // For bridge deck positions (elevation == 2), use fence for lowest support
+                // so boats can pass through the canal underneath
+                if (elevation == 2)
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {adjustedY - 2} {z} minecraft:oak_fence",
+                        CommandPriority.Normal, ct);
+                }
+            }
+
             if (connection.PoweredRailPositions.Contains((x, y, z)))
             {
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {y} {z} minecraft:powered_rail",
-                    CommandPriority.Low, ct);
-                // Redstone torch underneath to power the rail
-                await rcon.SendCommandAsync(
-                    $"setblock {x} {y - 1} {z} minecraft:redstone_torch",
-                    CommandPriority.Low, ct);
+                    $"setblock {x} {adjustedY} {z} minecraft:powered_rail",
+                    CommandPriority.Normal, ct);
+                // Use redstone_block under powered rails on bridges (torch won't work on support column)
+                if (elevation > 0)
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {adjustedY - 1} {z} minecraft:redstone_block",
+                        CommandPriority.Normal, ct);
+                }
+                else
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {adjustedY - 1} {z} minecraft:redstone_torch",
+                        CommandPriority.Normal, ct);
+                }
             }
             else
             {
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {y} {z} minecraft:rail",
-                    CommandPriority.Low, ct);
+                    $"setblock {x} {adjustedY} {z} minecraft:rail",
+                    CommandPriority.Normal, ct);
             }
         }
 
         // Spawn a chest minecart at the start position
         await rcon.SendCommandAsync(
             $"summon minecraft:chest_minecart {connection.StartPos.x} {railY} {connection.StartPos.z}",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
+    }
+
+    /// <summary>
+    /// Computes per-position elevation offsets for canal bridge crossings.
+    /// Returns an array where 0 = ground level, 1 = ramp, 2 = bridge deck.
+    /// Rails auto-slope between 1-block height differences for smooth minecart travel.
+    /// Bridge deck is 2 blocks above normal rail height, giving boats 2 blocks of clearance.
+    /// </summary>
+    private int[] ComputeRailElevations(RailConnection connection)
+    {
+        var count = connection.RailPositions.Count;
+        var elevations = new int[count];
+
+        if (canals is null) return elevations;
+
+        // Mark positions over canals as needing full bridge height (+2)
+        for (var i = 0; i < count; i++)
+        {
+            var (x, _, z) = connection.RailPositions[i];
+            if (canals.CanalPositions.Contains((x, z)))
+                elevations[i] = 2;
+        }
+
+        // Smooth ramps: ensure no adjacent positions differ by more than 1 block.
+        // Two passes guarantee smooth transitions on both sides of each bridge span.
+        for (var pass = 0; pass < 2; pass++)
+        {
+            for (var i = 1; i < count; i++)
+            {
+                if (elevations[i] - elevations[i - 1] > 1)
+                    elevations[i - 1] = elevations[i] - 1;
+            }
+            for (var i = count - 2; i >= 0; i--)
+            {
+                if (elevations[i] - elevations[i + 1] > 1)
+                    elevations[i + 1] = elevations[i] - 1;
+            }
+        }
+
+        return elevations;
     }
 
     private async Task PlaceStationAsync(int x, int y, int z, CancellationToken ct)
@@ -196,16 +305,16 @@ internal sealed class MinecartRailService(
         // Station: detector_rail, powered_rail, detector_rail (along Z)
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z} minecraft:detector_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z + 1} minecraft:powered_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y - 1} {z + 1} minecraft:redstone_torch",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
             $"setblock {x} {y} {z + 2} minecraft:detector_rail",
-            CommandPriority.Low, ct);
+            CommandPriority.Normal, ct);
     }
 
     private static bool IsStationPosition(int x, int y, int z, RailConnection connection)

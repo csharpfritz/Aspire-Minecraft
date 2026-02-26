@@ -65,19 +65,41 @@ public static class MinecraftServerBuilderExtensions
             .WithEnvironment("RCON_PORT", "25575")
             // Startup performance: skip unnecessary work
             .WithEnvironment("SPAWN_PROTECTION", "0")
-            .WithEnvironment("VIEW_DISTANCE", "6")
-            .WithEnvironment("SIMULATION_DISTANCE", "4")
+            .WithEnvironment("VIEW_DISTANCE", "12")
+            .WithEnvironment("SIMULATION_DISTANCE", "8")
             .WithEnvironment("GENERATE_STRUCTURES", "false")
             .WithEnvironment("SPAWN_ANIMALS", "FALSE")
             .WithEnvironment("SPAWN_MONSTERS", "FALSE")
             .WithEnvironment("SPAWN_NPCS", "FALSE")
-            .WithEnvironment("MAX_WORLD_SIZE", "512")
+            .WithEnvironment("MAX_WORLD_SIZE", "29999984")
             .WithEnvironment(context =>
             {
                 context.EnvironmentVariables["RCON_PASSWORD"] = rconPassword.Resource;
             })
             .WithHealthCheck(healthCheckKey)
             .WithLifetime(ContainerLifetime.Session);
+    }
+
+    /// <summary>
+    /// Switches the Minecraft server to use a pre-baked Docker image that already contains
+    /// BlueMap, DecentHolograms, the OTEL agent, and other plugins.
+    /// When this is set, methods like <see cref="WithBlueMap"/> skip redundant bind-mounts
+    /// (e.g., <c>core.conf</c>) because the files are already in the image.
+    /// The default env vars (EULA, TYPE, etc.) are still applied — they're harmless overrides.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <param name="imageName">The Docker image name. Defaults to <c>"aspire-minecraft-server"</c>.</param>
+    /// <param name="tag">The image tag. Defaults to <c>"latest"</c>.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithPrebakedImage(
+        this IResourceBuilder<MinecraftServerResource> builder,
+        string imageName = "aspire-minecraft-server",
+        string tag = "latest")
+    {
+        return builder
+            .WithImage(imageName, tag)
+            .WithEnvironment("ASPIRE_MINECRAFT_PREBAKED", "true")
+            .WithAnnotation(new PrebakedImageAnnotation());
     }
 
     /// <summary>
@@ -90,6 +112,34 @@ public static class MinecraftServerBuilderExtensions
         this IResourceBuilder<MinecraftServerResource> builder)
     {
         return builder.WithVolume($"{builder.Resource.Name}-data", "/data");
+    }
+
+    /// <summary>
+    /// Marks all existing Minecraft server endpoints as externally accessible so that remote
+    /// machines can connect. This modifies the game and RCON endpoints (and BlueMap, if present)
+    /// rather than adding duplicate endpoints.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    public static IResourceBuilder<MinecraftServerResource> WithExternalAccess(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var externalEndpointNames = new HashSet<string>
+        {
+            MinecraftServerResource.GameEndpointName,
+            MinecraftServerResource.RconEndpointName,
+            MinecraftServerResource.BlueMapEndpointName
+        };
+
+        foreach (var annotation in builder.Resource.Annotations.OfType<EndpointAnnotation>())
+        {
+            if (externalEndpointNames.Contains(annotation.Name))
+            {
+                annotation.IsExternal = true;
+            }
+        }
+
+        return builder;
     }
 
     /// <summary>
@@ -118,7 +168,9 @@ public static class MinecraftServerBuilderExtensions
         // Bind-mount the core.conf into /plugins/BlueMap/ so itzg copies it to
         // /data/plugins/BlueMap/core.conf before the server starts.
         // This ensures accept-download: true is set on first boot.
-        if (File.Exists(coreConfPath))
+        // Skip when using a pre-baked image — the file is already in the image.
+        var isPrebaked = builder.Resource.Annotations.OfType<PrebakedImageAnnotation>().Any();
+        if (!isPrebaked && File.Exists(coreConfPath))
         {
             result = result.WithBindMount(coreConfPath, "/plugins/BlueMap/core.conf", isReadOnly: true);
         }
@@ -296,6 +348,7 @@ public static class MinecraftServerBuilderExtensions
         var isExecutable = resourceType.Contains("PythonApp", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("NodeApp", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("JavaScriptApp", StringComparison.OrdinalIgnoreCase)
+            || resourceType.Contains("JavaAppExecutable", StringComparison.OrdinalIgnoreCase)
             || resourceType.Contains("Executable", StringComparison.OrdinalIgnoreCase);
 
         if (!isExecutable)
@@ -745,26 +798,6 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
-    /// Enables the Grand Village layout with enlarged, walkable buildings.
-    /// Replaces the standard 7×7 village layout with 15×15 structures
-    /// that have furnished interiors, proper lighting, and multiple floors.
-    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
-    /// </summary>
-    /// <param name="builder">The Minecraft server resource builder.</param>
-    /// <returns>The resource builder for chaining.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
-    public static IResourceBuilder<MinecraftServerResource> WithGrandVillage(
-        this IResourceBuilder<MinecraftServerResource> builder)
-    {
-        var workerBuilder = builder.Resource.WorkerBuilder
-            ?? throw new InvalidOperationException(
-                "WithGrandVillage() requires WithAspireWorldDisplay() to be called first.");
-
-        workerBuilder.WithEnvironment("ASPIRE_FEATURE_GRAND_VILLAGE", "true");
-        return builder;
-    }
-
-    /// <summary>
     /// Enables the minecart rail network connecting dependent resources.
     /// Powered rails with automated chest minecarts run between buildings
     /// that have dependency relationships. Complementary to redstone wiring.
@@ -785,15 +818,73 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Enables the error boat visualization system.
+    /// When a resource becomes unhealthy, a boat carrying a creeper spawns at its canal entrance
+    /// and floats toward the shared lake, providing a visual error indicator.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithErrorBoats(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithErrorBoats() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_ERROR_BOATS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables water canal network connecting buildings to a shared lake.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithCanals(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithCanals() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_CANALS", "true");
+        return builder;
+    }
+
+    /// <summary>
+    /// Enables neighborhood-based layout grouping. Resources of the same type (Azure, .NET, containers,
+    /// executables) are grouped into distinct zones within the village, creating neighborhood clusters.
+    /// Groups of 4+ resources of the same type will eventually form town squares with fountains (Phase 2).
+    /// Requires <see cref="WithAspireWorldDisplay{TWorker}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithNeighborhoods(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithNeighborhoods() requires WithAspireWorldDisplay() to be called first.");
+
+        workerBuilder.WithEnvironment("ASPIRE_FEATURE_NEIGHBORHOODS", "true");
+        return builder;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
     /// <see cref="WithBossBar"/>, <see cref="WithSoundEffects"/>, <see cref="WithActionBarTicker"/>,
     /// <see cref="WithBeaconTowers"/>, <see cref="WithFireworks"/>, <see cref="WithGuardianMobs"/>,
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
-    /// <see cref="WithHeartbeat"/>, <see cref="WithRedstoneDependencyGraph"/>, <see cref="WithServiceSwitches"/>,
+    /// <see cref="WithHeartbeat"/>, <see cref="WithServiceSwitches"/>,
     /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
-    /// <see cref="WithGrandVillage"/>, and <see cref="WithMinecartRails"/>.
+    /// <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, <see cref="WithCanals"/>, and <see cref="WithNeighborhoods"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -820,13 +911,14 @@ public static class MinecraftServerBuilderExtensions
             .WithWorldBorderPulse()
             .WithAchievements()
             .WithHeartbeat()
-            .WithRedstoneDependencyGraph()
             .WithServiceSwitches()
             .WithPeacefulMode()
             .WithRedstoneDashboard()
             .WithRconDebugLogging()
-            .WithGrandVillage()
-            .WithMinecartRails();
+            .WithMinecartRails()
+            .WithErrorBoats()
+            .WithCanals()
+            .WithNeighborhoods();
     }
 
     /// <summary>
@@ -1091,3 +1183,10 @@ internal class ModrinthPluginAnnotation(string slug) : IResourceAnnotation
 /// Annotation indicating the Aspire world display worker should connect to this server.
 /// </summary>
 internal class AspireWorldDisplayAnnotation : IResourceAnnotation;
+
+/// <summary>
+/// Annotation indicating this server uses a pre-baked Docker image with plugins already installed.
+/// Methods like <see cref="MinecraftServerBuilderExtensions.WithBlueMap"/> check for this to skip
+/// redundant bind-mounts.
+/// </summary>
+internal class PrebakedImageAnnotation : IResourceAnnotation;

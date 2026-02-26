@@ -133,7 +133,7 @@ public class MinecraftAppFixture : IAsyncLifetime
     {
         // 1. Build the Aspire app host
         var builder = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.MinecraftAspireDemo_AppHost>();
+            .CreateAsync<Projects.GrandVillageDemo_AppHost>();
 
         App = await builder.BuildAsync();
         await App.StartAsync();
@@ -371,7 +371,7 @@ tests/
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\samples\MinecraftAspireDemo\MinecraftAspireDemo.AppHost\MinecraftAspireDemo.AppHost.csproj" />
+    <ProjectReference Include="..\..\samples\GrandVillageDemo\GrandVillageDemo.AppHost\GrandVillageDemo.AppHost.csproj" />
     <ProjectReference Include="..\..\src\Aspire.Hosting.Minecraft.Rcon\Aspire.Hosting.Minecraft.Rcon.csproj" />
   </ItemGroup>
 </Project>

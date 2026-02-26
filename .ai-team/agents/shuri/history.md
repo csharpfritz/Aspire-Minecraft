@@ -12,10 +12,35 @@
 - Deterministic builds, EnablePackageValidation enabled in Directory.Build.props (SourceLink removed per Jeff's request)
 - All deps pinned to exact versions (no floating Version="*")
 - Content files: bluemap/core.conf and otel/opentelemetry-javaagent.jar bundled with hosting package
+- Grand Village is now the default and only village layout — small village removed
 
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Grand Village Becomes Default (2026-02-17)
+
+- Removed `WithGrandVillage()` extension method entirely from `MinecraftServerBuilderExtensions.cs` — grand village (15×15 buildings) is now always-on, no feature flag needed.
+- Removed `.WithGrandVillage()` from `WithAllFeatures()` method chain in `MinecraftServerBuilderExtensions.cs`.
+- Updated `WithAllFeatures_SetsAllFeatureEnvVars` test — reduced count from 21 to 20 feature env vars, removed `ASPIRE_FEATURE_GRAND_VILLAGE` from expected list.
+- Deleted entire `samples/MinecraftAspireDemo/` directory — GrandVillageDemo is now the only sample.
+- Updated `Aspire-Minecraft.slnx` — removed all MinecraftAspireDemo project entries.
+- Updated integration test fixture (`MinecraftAppFixture.cs`) — changed from `Projects.MinecraftAspireDemo_AppHost` to `Projects.GrandVillageDemo_AppHost`.
+- Updated integration test `.csproj` — changed ProjectReference from MinecraftAspireDemo.AppHost to GrandVillageDemo.AppHost.
+- Updated README.md — removed WithGrandVillage references, updated demo instructions to use GrandVillageDemo, clarified that Grand Village buildings are now the default.
+
+📌 Team update (2026-02-18): Test improvement triage assigned — Shuri to implement #94 (WorldSaveDirectory + AnvilTestHelper), 2-3 days effort after Rocket completes #93. Add WorldSaveDirectory property to MinecraftAppFixture, ensure Docker volume mount is wired, create AnvilTestHelper static class with LoadRegionAsync()/GetBlockAsync() convenience wrappers. Depends on #93 (AnvilRegionReader) completion — decided by Rhodey
+- Updated CONTRIBUTING.md — changed sample reference from MinecraftAspireDemo to GrandVillageDemo.
+- Updated docs/ files — replaced MinecraftAspireDemo references with GrandVillageDemo in blog posts and design docs.
+- Key insight: Grand village was always intended as the production experience — small village was scaffolding during development.
+
+### WithExternalAccess Pattern (2026-02-18)
+
+- Added `WithExternalAccess()` to `MinecraftServerBuilderExtensions.cs` — modifies existing `EndpointAnnotation` instances by name rather than adding new endpoints. This avoids the duplicate endpoint conflict Sayed hit when trying `.WithEndpoint()` with the same target port.
+- Pattern: iterate `builder.Resource.Annotations.OfType<EndpointAnnotation>()`, match by `Name`, set `IsExternal = true`. Same approach Aspire uses in `WithExternalHttpEndpoints()`.
+- Placed after `WithPersistentWorld()` and before `WithBlueMap()` — it's infrastructure-level, not feature-specific.
+- BlueMap endpoint is included in the check set even if not yet added; the HashSet lookup simply won't match anything, so call order doesn't matter for game/RCON but `WithBlueMap()` should come before `WithExternalAccess()` if you want the map endpoint externalized too.
+
 
 ### Consolidated Summary: Sprints 1-3 (2026-02-10)
 
@@ -55,12 +80,30 @@
 - CI/CD pipeline created (build.yml + release.yml) — decided by Wong
 - Test infrastructure created — InternalsVisibleTo, 62 tests passing — decided by Nebula
 - FluentAssertions fully removed — decided by Jeffrey T. Fritz, Nebula
+
+### VillagerService Easter Egg (2026-02-26)
+
+- Created `src/Aspire.Hosting.Minecraft.Worker/Services/VillagerService.cs` — standalone service following HorseSpawnService pattern (primary constructor, idempotent `_villagersSpawned` flag).
+- Three named villagers: Maddy (farmer), Damien (butcher), Fowler (fisherman) — all with `PersistenceRequired:1b`, `CustomNameVisible:1b`, `level:5` (master).
+- Fruit stand: 5×3 spruce plank floor, oak slab counter, four spruce fence corner posts, orange wool awning, three barrels, hanging lantern, "Fresh Fruit!" sign.
+- Stand positioned at `BaseX + 12, BaseZ - 8` — east of horse spawn area, in the south clearance zone inside the fence perimeter.
+- Sign uses two-step pattern from StructureBuilder: `setblock` to place, `data merge block` to set text.
+- Villager NBT: `VillagerData:{profession:"minecraft:farmer",level:5,type:"minecraft:plains"}` — level 5 locks profession so they won't change trades.
+- **Not yet wired into Program.cs** — documented integration steps in XML doc comment on the class. Needs `AddSingleton<VillagerService>()` and call from BackgroundService init path.
 - Release workflow extracts version from git tag — decided by Wong
 - Sprint 2 API review complete — 5 recommendations for Sprint 3 — decided by Rhodey
 - Beacon tower colors match Aspire dashboard palette — decided by Rocket
 - Hologram line-add bug fixed — decided by Rocket
 - Azure RG epic designed — Shuri owns Phases 1 and 3 (ARM client, auth, options, NuGet scaffold) — decided by Rhodey
 - Azure monitoring ships as separate NuGet package — decided by Rhodey, Shuri
+
+### Pre-baked Docker Image Hosting Support (2026-02-18)
+
+- Added `WithPrebakedImage(string imageName, string tag)` extension method to `MinecraftServerBuilderExtensions.cs`. Defaults to image `aspire-minecraft-server:latest`. Sets `ASPIRE_MINECRAFT_PREBAKED=true` env var and attaches a `PrebakedImageAnnotation` to the resource.
+- `WithBlueMap()` now checks for `PrebakedImageAnnotation` on the resource. When present, the `core.conf` bind-mount is skipped — the file is already in the pre-baked image. MODRINTH_PROJECTS env var and endpoint setup still apply regardless.
+- Design choice: Used an annotation (`PrebakedImageAnnotation`) rather than inspecting env vars at build time. Annotations are the idiomatic Aspire mechanism for resource metadata and are available synchronously during the builder chain, unlike env var callbacks which run later.
+- The existing `AddMinecraftServer()` flow is completely unchanged — `WithPrebakedImage()` is purely additive.
+- Users who prefer manual control can call `.WithImage(...)` and `.WithEnvironment("ASPIRE_MINECRAFT_PREBAKED", "true")` themselves, but won't get the annotation-based bind-mount skip unless they also add the annotation. `WithPrebakedImage()` is the recommended path.
 
 ### Structure Build Validation (2026-02-10)
 
@@ -204,3 +247,79 @@
 - **Tests added:** 5 new tests in `StructureBuilderTypeTests.cs` + 3 new `InlineData` entries in `StructureBuilderTests.cs`. All pass.
 
  Team update (2026-02-16): Grid ordering unificationall services placing elements on village grid must use VillageLayout.ReorderByDependency(). Affects StructureBuilder, BeaconTowerService, GuardianMobService, ParticleEffectService, ServiceSwitchService, RedstoneDependencyService, MinecartRailService  decided by Rocket
+
+### Village Redesign Phase 1: Spacing, Canal/Lake Infrastructure (2026-02-16)
+
+- **ConfigureGrandLayout()** now sets `Spacing = 36` (was 24) and `FenceClearance = 10` (was 6) to accommodate canals between structures and lake outlet space.
+- **ResetLayout()** already correctly resets Spacing to 24 — no change needed there.
+- Added canal constants: `CanalTotalWidth` (5), `CanalWaterWidth` (3), `CanalDepth` (2), `CanalY` (SurfaceY - 1).
+- Added lake constants: `LakeWidth` (20), `LakeLength` (12), `LakeBlockDepth` (3), `LakeGap` (20).
+- Added `GetCanalEntrance(int index)` — returns position on east side of building at CanalY.
+- Added `GetLakePosition(int resourceCount)` — returns lake northwest corner, centered on village X-axis, placed LakeGap blocks beyond last row.
+- **MAX_WORLD_SIZE** bumped from 512 to 768 in `MinecraftServerBuilderExtensions.cs` to support the expanded village footprint.
+- XML doc comments updated to reflect 36-block grand spacing and 10-block grand fence clearance.
+- Tests updated: `ConfigureGrandLayout_SetsGrandValues`, `ConfigureGrandLayout_SetsCorrectPropertyValues`, `GetStructureOrigin_GrandLayout_ReturnsCorrectCoordinates`, `GetFencePerimeter_GrandLayout` — all 59 VillageLayout tests pass, 19 hosting tests pass.
+- Standard (non-grand) layout is completely unaffected — Spacing stays 24, FenceClearance stays 10.
+
+📌 Team update (2026-02-17): Village Redesign Phase 1 implementation complete — Grand spacing 24→36, canal/lake infrastructure methods added, integrated with CanalService and ErrorBoatService — decided by Shuri
+
+### Village Redesign Phase 2: World Expansion & Feature Adjustments (2026-02-17)
+
+- **MAX_WORLD_SIZE** changed from 768 to 29999984 (Minecraft's maximum) in `MinecraftServerBuilderExtensions.cs` — eliminates the invisible wall Jeff was hitting.
+- **VIEW_DISTANCE** increased from 6 to 12, **SIMULATION_DISTANCE** from 4 to 8 — better visibility in the expanded world.
+- **WorldBorderService** diameters increased: NormalDiameter 200→2000, CriticalDiameter 100→1000. Updated XML docs to match.
+- **Sample app** (`MinecraftAspireDemo.AppHost/Program.cs`): Removed `.WithRedstoneDependencyGraph()` from the main feature chain. Added `.WithCanals()` and `.WithErrorBoats()` to the `useGrandVillage` block.
+- **WithAllFeatures()**: Removed `.WithRedstoneDependencyGraph()` from the chained method list. Updated XML doc `<see cref>` list. The extension method and `RedstoneDependencyService.cs` are preserved for manual opt-in.
+- **Test update**: `WithAllFeatures_SetsAllFeatureEnvVars` count adjusted from 21→20 ASPIRE_FEATURE_ env vars. Removed `ASPIRE_FEATURE_REDSTONE_GRAPH` from expected list.
+- Build: 0 errors, pre-existing warnings only (CS8604 nullable, xUnit1026 unused param).
+
+📌 Team update (2026-02-17): Redstone Dependency Graph removed from defaults — decided by Shuri
+
+### Fix: Canal/Rail Forceload and Command Priority (2026-02-17)
+
+- **BUG 1 — Forceload coverage:** Village forceload at line 197 only covered `GetFencePerimeter(10)`, but canals extend east (trunk canal at `maxX + CanalTotalWidth + 2`) and the lake extends south (`maxZ + LakeGap`). Added two additional `forceload add` commands after `DiscoverResources()` that cover: (1) the canal corridor from village edge to trunk canal + width, and (2) the lake area with 5-block margin. Only runs when `canals is not null` and resources exist.
+- **BUG 2 — CommandPriority.Low drop:** The RCON queue (bounded Channel<T>, DropOldest) was silently dropping canal/rail commands. Changed all build commands in `CanalService.BuildBranchCanalAsync`, `BuildTrunkCanalAsync`, `BuildLakeAsync` from `CommandPriority.Low` to `CommandPriority.Normal`. Same fix in `MinecartRailService.PlaceRailConnectionAsync` and `PlaceStationAsync`. Added `rcon.EnterBurstMode(40)` to `MinecartRailService.InitializeAsync` (CanalService already had it).
+- **Queue capacity:** Increased `BoundedChannelOptions` capacity from 100 to 500 in `RconService.cs` constructor to provide headroom for legitimate Low-priority commands from other features.
+- **Key insight:** Normal-priority commands wait briefly (100ms) for a rate token instead of being queued; combined with burst mode (40 cmd/s during init), this ensures all commands execute. Low priority is only appropriate for fire-and-forget commands where dropping is acceptable.
+- **Files changed:** `Program.cs`, `CanalService.cs`, `MinecraftRailService.cs`, `RconService.cs`
+- Build: 0 errors. All 134 relevant tests pass (45 Rcon + 19 Hosting + 70 Worker). One pre-existing failure in StructureBuilderTests is unrelated.
+
+### Fix: Duplicate HTTP Endpoint on Java Spring Container Resources (2026-02-17)
+
+- **Root cause:** `AddSpringApp()` (from CommunityToolkit.Aspire.Hosting.Java) internally calls `AddJavaApp()`, which chains `.WithHttpEndpoint(port: options.Port, targetPort: options.TargetPort, name: JavaAppContainerResource.HttpEndpointName)`. Both demo AppHost `Program.cs` files then called `.WithHttpEndpoint(targetPort: 8080, port: 5500)` on the result, creating a **second** unnamed HTTP endpoint — causing a duplicate endpoint allocation error at runtime.
+- **Fix:** Removed the explicit `.WithHttpEndpoint()` call from both `GrandVillageDemo.AppHost/Program.cs` and `MinecraftAspireDemo.AppHost/Program.cs`. Instead, set `Port = 5500` directly in the `JavaAppContainerResourceOptions` object passed to `AddSpringApp()`. The `TargetPort` defaults to 8080 (matching the Spring Boot container), so only `Port` needs to be overridden.
+- **Port audit:** Verified no within-app port conflicts exist. MinecraftAspireDemo uses Python=5100, Node=5200, Java=5500. GrandVillageDemo uses Python=5300, Node=5400, Java=5500. Both share Java port 5500 but are separate Aspire apps.
+- **Key insight:** `AddSpringApp`/`AddJavaApp` always auto-registers a named HTTP endpoint (`JavaAppContainerResource.HttpEndpointName`). Never chain `.WithHttpEndpoint()` after `AddSpringApp()` for port configuration — use `JavaAppContainerResourceOptions.Port` and `.TargetPort` instead.
+- Build: 0 errors, 0 warnings.
+
+ Team update (2026-02-17): Never chain .WithHttpEndpoint() after AddSpringApp() / AddJavaApp()  these methods auto-register named HTTP endpoints via JavaAppContainerResourceOptions.Port and TargetPort. Adding .WithHttpEndpoint() creates duplicate endpoints, causing runtime allocation errors. Configure host-side port via options instead.  decided by Shuri
+
+### Issue #94: WorldSaveDirectory + AnvilTestHelper (2026-02-18)
+
+- **WorldSaveDirectory property** added to `MinecraftAppFixture` — resolves the host-side path to the Minecraft world save by inspecting `ContainerMountAnnotation` on the "minecraft" resource via `DistributedApplicationModel` from DI.
+- Only bind mounts to `/data` are resolved; named Docker volumes are skipped because their host paths are platform-specific (WSL2 on Windows, `/var/lib/docker` on Linux) and fragile to resolve. Property is null when no mount exists (ephemeral storage default).
+- Access `DistributedApplicationModel` via `App.Services.GetRequiredService<DistributedApplicationModel>()` — `DistributedApplication` does not expose `Resources` directly. Use `ResourceExtensions.TryGetContainerMounts()` for mount annotations.
+- **AnvilTestHelper** static class created at `tests/.../Helpers/AnvilTestHelper.cs` — wraps RCON `save-all flush` + `AnvilRegionReader` into `GetBlockAsync`, `VerifyBlockAsync`, `VerifyBlockRangeAsync`. All methods return early (graceful skip) when `WorldSaveDirectory` is null.
+- `NormalizeBlockName()` helper ensures `minecraft:` prefix is always present, so callers can pass "stone_bricks" or "minecraft:stone_bricks".
+- `VerifyBlockRangeAsync` flushes once, then iterates the bounding box — avoids redundant RCON save commands.
+- Dual-verification test pattern added to `VillageStructureTests.cs` — RCON asserts always run; MCA asserts gracefully skip when world files aren't host-mounted.
+- Key file paths:
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Fixtures/MinecraftAppFixture.cs` — fixture with WorldSaveDirectory
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilTestHelper.cs` — convenience wrapper
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` — low-level MCA reader (Rocket's code, read-only)
+  - `tests/Aspire.Hosting.Minecraft.Integration.Tests/Village/VillageStructureTests.cs` — dual-verification test
+
+ Team update (2026-02-18): AnvilRegionReader placed in integration test project (#93)  Uses fNbt 1.0.0, custom MCA binary I/O, returns BlockState records. Unblocks #94 (WorldSaveDirectory fixture) and enables block verification tests without RCON.  decided by Rocket
+
+Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
+ Team update (2026-02-18): WithExternalAccess() extension method implements annotation-mutation pattern to fix port exposure bug (#102)  modifies existing EndpointAnnotation instances by name instead of adding duplicate endpoints via .WithEndpoint()  decided by Shuri
+
+
+ Team update (2026-02-19): Java Spring app OTEL agent path in GrandVillageDemo now requires OtelAgentPath = "/agents" for aliencube/aspire-spring-maven-sample image (JAR at /agents/opentelemetry-javaagent.jar, not root path).  decided by Rocket
+
+ Team update (2026-02-19): Canal system redesigned  single back canal + side trunk replaces per-building branches  decided by Rocket
+
+
+ **Team update (2026-02-26):**
+- VillagerService integration requirements documented  three NPC villagers (Maddy, Damien, Fowler) spawned as easter egg fruit stand; requires Program.cs wiring: DI registration, constructor parameter, async initialization call
+

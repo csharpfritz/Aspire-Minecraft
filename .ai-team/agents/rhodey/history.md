@@ -148,6 +148,37 @@
 - **Three non-blocking observations for future work:** (1) Add `[Trait("Category", "Integration")]` to integration tests. (2) Fix CS8604 nullable warning. (3) Confirm CI sets correct version from git tag.
 - **Release decision:** APPROVED — written to `.ai-team/decisions/inbox/rhodey-v050-release-ready.md`.
 
+### 2026-02-17: BlueMap + Playwright Testing Feasibility Assessment
+
+- **Jeff's question:** "Is there a path to having Playwright tests built that use BlueMap to browse around the generated map to validate what was built?"
+- **Feasibility analysis completed.** Full assessment written to `.ai-team/decisions/inbox/rhodey-bluemap-playwright-feasibility.md`.
+
+**Key learnings:**
+
+- **BlueMap has no block-level REST API.** Serves only pre-rendered tile files (`/maps/{id}/{lod}/{x}_{z}.json` geometry, `.png` textures). No endpoint to query "what block at X,Y,Z?" The Java API exists but requires a server-side plugin — not callable from .NET tests. Tile format is undocumented binary/compressed and version-dependent.
+
+- **RCON `execute if block` remains the right primary approach.** Returns empty string on match, exact coordinates, deterministic, immediate (no render delay), uses existing RconClient. Combined with VillageLayout constants, provides 100% confidence in block placement.
+
+- **BlueMap render timing is a hidden constraint (30-60s).** After `/fill` commands complete (blocks exist in <1ms), BlueMap's server-side renderer waits for chunk change notifications (~5-10s), then re-renders affected tiles (~30-60s depending on CPU and region size). No public API to check render status — polling HTTP tile endpoints is heuristic-based.
+
+- **Playwright CAN navigate BlueMap, but visual validation is non-deterministic.** WebGL rendering varies by driver, lighting, anti-aliasing. Screenshot comparison requires reference images + pixel tolerance tuning. Fragile across BlueMap version updates. Good for visual regression testing (post-MVP), poor for correctness assertions.
+
+- **Three.js scene-graph is not accessible from JavaScript.** The canvas is a locked pixel bitmap. Cannot extract "render structure X at position Y" data without parsing pixels — not viable.
+
+- **WebGL in headless Chromium works on Ubuntu CI but is fragile.** GitHub Actions ubuntu-latest supports it (hardware acceleration). Windows runners lack GPU (would need `--disable-gpu` with software rendering). Docker containers need extra flags (`--no-sandbox`, libc deps). Additional ~200MB Chromium binary download per CI run.
+
+**Recommended phasing:**
+
+1. **Ship now (Sprint 5):** RCON block tests (already designed + partially implemented) + HTTP smoke tests (already implemented). High confidence, zero flakiness, <1 minute CI time.
+
+2. **Consider for Sprint 6:** Playwright smoke test (page load + canvas renders + no JS errors). Low-risk, optional enhancement. Adds ~1 minute CI time.
+
+3. **Defer to Sprint 7+:** Visual regression with reference images. Requires image diff library, baseline management, BlueMap version pinning. High implementation effort, medium-high flakiness, adds ~90 seconds CI time for render wait.
+
+**Bottom line:** Don't oversell Playwright for data validation — it's a rendering tool. RCON + HTTP is the right stack for MVP. Playwright screenshots can enhance visual polish later without blocking correctness tests.
+
+**Decision logged:** `.ai-team/decisions/inbox/rhodey-bluemap-playwright-feasibility.md`.
+
 📌 Team update (2026-02-13): v0.5.0 release readiness APPROVED — 35 public methods, 434 tests pass, build clean, package verified, 3 non-blocking observations documented — decided by Rhodey
 
 📌 Team update (2026-02-15): Grand Watchtower exterior redesigned with ornate medieval aesthetics (deepslate buttresses, iron bar arrow slits, taller turrets with pinnacles, portcullis gatehouse, string courses) — stays under 100 RCON command budget — decided by Rocket
@@ -174,6 +205,43 @@
 - **Feasibility analysis:** Request flow = Medium risk (minecart spawning + hitbox counting). Health checks = Hard (pathfinding). Queue depth = Medium (metric polling + spawn/despawn logic). All others = Hard or Very Hard (new data sources or complex routing).
 - **Key MinecartRailService files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs` (L-shaped path calculation, station placement, health-reactive rail disable). `VillageLayout.cs` (structure positioning, dependency ordering). `AspireResourceMonitor.cs` (health polling source). Extension method: `WithMinecartRails()` in main package.
 
+### 2026-02-17: Village Redesign Architecture — Canals, Tracks, Docker Image
+
+- **Comprehensive architecture proposal written** at `.ai-team/decisions/inbox/rhodey-village-redesign-architecture.md` covering Jeff's village redesign vision: custom Docker image, wider village spacing, canal system, error boats, and track/canal bridge interactions.
+- **6-phase implementation plan:** (1) Layout expansion (spacing 24→36), (2) Custom Docker image (parallel), (3) Canal system, (4) Error boats, (5) Track/canal bridges, (6) Tests/docs. ~3 weeks with parallel execution.
+- **VillageLayout.Spacing increases to 36 for Grand layout.** 15 (building) + 21 (corridor: 3 path + 3 rail + 5 canal + 10 buffer). MAX_WORLD_SIZE increases to 768.
+- **Canal architecture: blue ice floor + water layer.** Blue ice gives boats 72.73 blocks/sec speed without needing slope engineering. 3-block-wide channels, 2 blocks deep, stone_brick walls. Branch canals per building merge into trunk canal feeding a shared lake at Z-max + 20.
+- **Error boat lifecycle uses 3-layer anti-pileup:** (1) Location-based despawn in lake zone every update cycle, (2) Per-resource cap of 3 active boats, (3) Global cap of 20 boats + 5-second spawn cooldown. Boats spawned via `summon` with `Motion` tag for initial velocity, creeper passengers have `NoAI:1b` to prevent explosion.
+- **Bridge design for track/canal crossings:** `stone_brick_slab` deck at SurfaceY + 1 spanning canal width + 2. Rails on top, water underneath. CanalService exposes canal positions as HashSet for O(1) bridge detection.
+- **Docker image strategy:** Extend `itzg/minecraft-server:latest` with pre-baked BlueMap, DecentHolograms, OTEL agent. Publish to `ghcr.io`. Keep MODRINTH_PROJECTS as fallback. Marker env var `ASPIRE_PREBAKED` for extension method detection.
+- **6 open questions for Jeff:** Canal floor material (blue ice vs stone), error trigger (health vs OTLP logs), boat wood type, Docker registry, canal wall material, lake decorations.
+- **Key files impacted:** `VillageLayout.cs` (spacing + new methods), `MinecartRailService.cs` (bridge detection), `MinecraftServerBuilderExtensions.cs` (new extension methods + Docker image), `MinecraftWorldWorker.cs` (new service wiring).
+- **New files needed:** `CanalService.cs`, `ErrorBoatService.cs`, `LakeBuilder.cs`, `docker/Dockerfile`, `.github/workflows/docker.yml`.
+
+📌 Team update (2026-02-17): Village redesign architecture proposed — 6-phase plan covering canals, error boats, Docker image, track/canal bridges, spacing increase to 36 blocks — decided by Rhodey
+
+### 2026-02-26: Watchtower Feature Plan — Grand Observation Tower
+
+- **Jeff's vision:** A climbable observation tower at the front of the town, 2–3× building height, with spiral staircases and ornate interior designs so players can overlook their Aspire town.
+- **Architecture plan written** at `.ai-team/decisions/inbox/rhodey-watchtower-plan.md` with complete implementation roadmap for Rocket.
+- **Placement: South side entrance (z=-11 to z=10), x=20 to x=40, y=-59 to y=-27.** 21×21 footprint, 32 blocks tall. Positioned directly in front of the gate, creates a natural focal point for town entrance. Independent of resource grid (not in the 2×N layout).
+- **Five-floor interior design:**
+  - **Floor 1 (y+1–6):** Entrance hall with decorative arch and resource name sign
+  - **Floor 2 (y+7–11):** Library/cartography (bookshelves, lecterns, enchanting table, maps)
+  - **Floor 3 (y+12–16):** Armory/beacon chamber (armor stands, beacon monument, banners)
+  - **Floor 4 (y+17–23):** Observation gallery (large glass windows on all sides, benches, deepslate tiles)
+  - **Floor 5 (y+24–32):** Rooftop crowning chamber (crenellated parapet, compass markers, signal beacon, pinnacle flag)
+- **Spiral staircase design:** Left-handed spiral (counter-clockwise), 5 continuous flights using oak stairs, 100–120 individual setblocks. Each stair block must be contiguous (no jumping). Landing platforms at each floor (oak planks). Safety rails on inside of stairwell.
+- **Exterior:** Stone brick walls with decorative deepslate corner buttresses, weathered lower walls, string courses, machicolations, crenellated battlements with merlons, glass pane observation windows (y+9–10, y+15–16), four corner turrets with pinnacle posts and standing banners.
+- **Implementation approach:** Separate `GrandObservationTowerService` (not part of StructureBuilder, which handles per-resource buildings). Service responsible for: computing placement, forceloading area before building, protecting zone from canals/rails, executing ~280–320 RCON commands in burst mode (~7–8 seconds).
+- **RCON budget breakdown:** Base + walls (1 fill), corner buttresses (4 fill), decorative details (12 fill), parapet/battlements (3 fill), windows (8–10 fill), 4 floor platforms (4 fill), spiral staircases (100–120 setblock), landing guards (8 fill), furniture (30–40 setblock), torches/lanterns (25–30 setblock), roof details (5–8 fill). Total: 280–320 commands, manageable in burst mode.
+- **Phase 1 (Rocket's work):** Foundation service setup, exterior building (walls, buttresses, windows, roof), basic spiral staircase with torches, test build, verify placement, check no overlaps.
+- **Phase 2 (Future):** Interior thematic decoration (maps, bookshelves, armor stands, beacon, benches, compass markers, pinnacle flag).
+- **Phase 3 (Optional):** Redstone features (animated beacon, telescopes with directional indicators, informational plaques).
+- **Key architectural decisions:** Tower is independent, not a resource. Uses separate service to keep StructureBuilder focused. Forceload required before build. Protection zone prevents canals/rails from intersecting. Coordinates chosen to be visible from south gate and frame town entrance.
+
+📌 Team update (2026-02-26): Grand Observation Tower feature plan finalized — ready for Rocket to implement as separate service — decided by Rhodey
+
 ## Learnings
 
 ### MinecartRailService Architecture Insights
@@ -187,6 +255,18 @@
 4. **RCON cost scales with rail length, not minecart count.** Building a 50-block rail = ~50 setblock commands (one-time cost). Spawning 5 minecarts = 5 summon commands. The visual density problem isn't RCON; it's entity performance. Paper can handle ~50 minecarts server-wide before TPS drops, so limiting to 5 per rail and ~20 total active is safe.
 
 5. **Minecart respawning logic is trivial but needs debounce.** Spawn on demand (when request count increases), despawn when not needed (request count decreases). Use a `RequestCountTracker` polling the health endpoints every 5s, comparing desired count to actual minecarts via `execute as @e[type=chest_minecart]` count query. Avoid rapid spawn/despawn thrashing with 10s hysteresis.
+
+### Canal & Error Boat Architecture Insights
+
+1. **Blue ice is the key enabler for autonomous boat movement.** Boats on blue ice travel at 72.73 blocks/sec without player input. Combined with a `Motion` NBT tag on summon, boats self-propel from building to lake. No slope engineering, no water current blocks, no redstone. This is dramatically simpler than flowing water canals.
+
+2. **Entity lifecycle is the hardest part of error boats.** Minecraft boats don't have an Age tag, so you can't use vanilla despawn timers. Location-based despawn (`kill @e[type=boat,distance=..N]` near lake) is the most reliable approach. Must run every update cycle to prevent accumulation.
+
+3. **Per-resource spawn throttling prevents visual noise.** Without caps, a flapping health check could spawn dozens of boats per minute. Three-layer defense: 5s cooldown per resource, 3 max per resource, 20 max globally.
+
+4. **Canal RCON cost is trivially low.** `/fill` for the channel walls + floor + water = ~3 commands per canal. For 10 resources: ~45 total commands. Compare to a single Grand Watchtower at ~100 commands. Canals are the cheapest major feature we've proposed.
+
+5. **Bridge detection must be cooperative.** `MinecartRailService` and `CanalService` must share coordinate data. CanalService should build first (Phase 3) and expose canal positions. MinecartRailService (already Phase 1 feature) then checks for crossings during rail placement. Service initialization order in `MinecraftWorldWorker` must reflect this dependency.
 
 ### MCA Inspector Architecture Decisions
 
@@ -213,3 +293,56 @@
 3. **Complementary, not competitive.** The milestone plan explicitly frames MCA as a complement to RCON, not a replacement. This is important for adoption: teams will use both methods in the same test suite, each for what it's best at.
 
 4. **Risk mitigation table is underrated.** The milestone includes a risk table; this forces us to think about what could go wrong (unmaintained library, parsing errors, format changes) and what we'll do about each. Makes sprint planning more realistic.
+
+### Town Square & Ornate Building Architecture
+
+1. **Resource-type grouping and dependency ordering are fundamentally in tension.** The current `ReorderByDependency` topological sort places related services together, but type grouping puts same-type services together — splitting dependency relationships apart. The solution is zone-based layout: group by type into neighborhoods, apply dependency ordering within each zone, and rely on minecart rails for cross-zone visual dependency representation.
+
+2. **Multi-directional door placement is the highest-risk change.** Six services (health indicators, signs, service switches, rails, canals, holograms) derive positions from `DoorPosition`, which assumes south-facing doors. Town squares require N/S/E/W facing. A `Facing` enum on `DoorPosition` is the cleanest single-point fix, but all downstream services must be updated.
+
+3. **Town square footprint is substantial.** A single 4-building town square is ~75×75 blocks (15 building + 4 gap + 21 plaza + 4 gap + 15 building per axis). Two town squares plus a boulevard and support area fits within current MAX_WORLD_SIZE (768) at ~216 blocks per axis, but it's worth monitoring.
+
+4. **Ornate building upgrades are orthogonal to layout changes.** Each building type gets 16-22 additional RCON commands for decorative enhancements. These can ship independently of the neighborhood/town-square work, enabling parallel development tracks.
+
+5. **Honey blocks for the beer fountain create a gameplay easter egg.** Players who step into the fountain experience reduced movement speed and can't jump — simulating "getting tipsy." This is a fun discovery moment, but needs Jeff's sign-off in case it annoys players.
+
+6. **Phase 1 (neighborhoods without town squares) is the minimum viable change.** Type-grouping alone creates distinct neighborhoods — Azure buildings clustered together, .NET projects clustered together. Town squares and fountains are Phase 2, ornate upgrades Phase 3. This lets us ship incrementally and validate the zone-aware positioning before adding rotational complexity.
+
+### 2026-02-17: Village Bug Triage — 8 Issues
+
+1. **Canal routing is fundamentally broken with neighborhoods enabled.** The CanalService assumes a linear 2-column layout — single trunk canal east of all buildings, branch canals running east from each building. With neighborhood zones (NW/NE/SW/SE), branch canals from NW/SW buildings cross through NE/SE building footprints to reach the trunk. The trunk Z-range is calculated from first/last entrance positions, which aren't monotonic across zones. Needs a full routing rewrite — either per-zone canals or collision-aware pathfinding.
+
+2. **Rail/canal init ordering is backwards.** Program.cs initializes rails BEFORE canals (line 306-309), but `MinecartRailService` reads `CanalPositions` for bridge detection — which is empty until canals are built. Bridges are never placed. Fix is trivial: swap the init order.
+
+3. **`GetResourceCategory()` is missing Java detection.** `IsExecutableResource()` in StructureBuilder correctly checks for `javaapp`/`springapp`, but `GetResourceCategory()` in VillageLayout does not. Java containers fall through to `ContainerOrDatabase` instead of `Executable`, causing misplacement in neighborhood zones.
+
+4. **Fountain code doesn't exist yet.** No `NeighborhoodService`, no fountain builder — this is still Phase 2 per the architecture plan. The neighborhood zone layout (Phase 1) is implemented and working.
+
+5. **Canal-to-lake connection is missing.** Trunk canal ends at lake Z but at a different X than the lake. No connecting water segment bridges the gap. Likely a simple fix once the trunk routing is corrected.
+
+6. **GrandVillageDemo sample is adequate (13 resources) but could use 1-2 more per category** to hit the 4+ threshold needed for future fountain triggers.
+
+7. **Three sprints estimated:** Sprint A (canal routing + rail fix + Java detection, ~1 week), Sprint B (bridges + sample, ~1 week), Sprint C (fountains, ~1 week). Canal issues (#1, #3, #5) are the same root cause and should be one PR.
+
+### 2026-02-18: Test Improvement Issue Triage — 5 Issues Sequenced
+
+- **Comprehensive triage created** at `.ai-team/decisions/inbox/rhodey-test-improvement-triage.md` — analyzed 5 testing-related GitHub issues (#48, #91, #93, #94, #95), mapped dependency chain, assigned team members, and sequenced work.
+- **Two parallel streams identified:** (1) Integration Testing Infrastructure (critical path for Sprint 5) and (2) Startup Performance (independent optimization). Issues #91, #93, #94, #95 are sequentially dependent; #48 is independent.
+- **Critical path: #95 → #93 + #94 → #91 (then #48 optional).** #95 (NBT library evaluation) is the pure blocker — 1–2 days of research + decision. Unblocks #93 (AnvilRegionReader implementation, 3–4 days). #94 (fixture enhancement, 2–3 days) depends on #93. #91 (integration test infrastructure, 4–5 days) is mostly ready but benefits from #93/#94 for advanced scenarios. #48 (Docker image, 2–3 days) has no blockers and can run in parallel.
+- **Team assignments:** Rocket → #95 research + #93 implementation (5–6 days total). Shuri → #94 fixture enhancement (2–3 days after #93). Nebula → #91 integration infrastructure (4–5 days, can start immediately). Wong → #48 Docker image (2–3 days, lower priority, can start week 2). **Parallelization:** Nebula starts #91 on day 1; Rocket starts #95 same day. #93/#94 start after #95 decision, no wait time.
+- **Why #91 is the immediate priority:** Design doc (bluemap-integration-tests.md) is complete. Hybrid RCON + BlueMap approach is proven (RCON is immediate, BlueMap is secondary smoke test). Integration test project structure (fixtures, helpers, directories) already exists. CI hanging issue was just fixed; now is the moment to wire integration tests into build.yml before new work accumulates.
+- **Why #95 must happen first:** Pure research task with zero dependencies. Output is a clear recommendation (which NBT library). 1–2 days of spiking saves months of regret if the initial choice doesn't work. Decision unblocks #93 API design immediately.
+- **Why #48 is deferred but not blocked:** Shared Aspire test fixture already reduces integration test startup by amortizing the 45–60s server init across all tests in a run. Pre-baked Docker image is a nice-to-have optimization (saves 1–2 min per CI run) but doesn't improve test correctness. Good candidate for post-release work or parallel execution if Wong has capacity.
+- **Key files and structure:** Integration test project at `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with Fixtures/, Helpers/, Village/, BlueMap/ directories. Design complete in `docs/designs/bluemap-integration-tests.md`. CI job needs to be added to `build.yml` as a separate job (Linux only, 8-min timeout, after unit tests). build.yml on `main` still has old test command; village-redesign branch has the fix — must merge before #91 ships.
+- **Success criteria by phase:** #95 → decision doc + test harness. #91 → fixture complete, RconAssertions helper, 5 tests passing, CI integration job added. #93 → AnvilRegionReader reads .mca files, block lookups work. #94 → WorldSaveDirectory exposed, AnvilTestHelper convenience wrapper. #48 → custom Docker image in registry, startup time <1 min.
+- **Risks mitigated:** BlueMap render timing (RCON primary, BlueMap secondary). Port conflicts (Aspire auto-assignment). Shared fixture flakiness (poll-based readiness, deterministic RCON). NBT library choice (spike validates before committing). World file timing (gate on RCON readiness first).
+- **Triage written to:** `.ai-team/decisions/inbox/rhodey-test-improvement-triage.md` (17.4 KB document with full dependency graph, individual issue analysis, sequencing table, success criteria, strategic notes).
+
+Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's implementation (turnkey image with all properties baked in, 868MB, 33s startup), Shuri's integration (WithPrebakedImage() extension, PrebakedImageAnnotation, async detection), and Jeff's scope clarification (deployment experience, not just CI optimization) merged into single decision  decided by Wong, Shuri, Jeff
+
+Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  Comprehensive analysis recommending RCON + HTTP hybrid approach as MVP (deterministic, stable, fast), Playwright screenshots deferred to Sprint 6+ (visual regression, non-deterministic). Supersedes earlier 2026-02-12 decision.  decided by Rhodey (lead)
+ Team update (2026-02-18): User directive to skip BlueMap Playwright tests for now  Jeff agrees RCON block verification + HTTP smoke tests are sufficient MVP validation, Playwright visual regression deferred to future  decided by Jeff
+
+ **Team update (2026-02-26):**
+- Grand Observation Tower architecture plan merged into team decisions  detailed specifications for tower implementation (2121, 32 blocks, 5-floor spiral staircase, ~280320 RCON commands)
+

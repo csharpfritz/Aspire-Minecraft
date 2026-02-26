@@ -26,6 +26,8 @@
 
 **Grand Village foundation:** Spacing doubled to 24 blocks with 10-block fence clearance. Structure size bumped to 15×15 (13×13 usable interior) supporting ~20 resources before world border issues at 512 MAX_WORLD_SIZE. Grand variants branch on `StructureSize >= 15`. Shared placement methods (health lamp, azure banner, sign) now use `StructureSize / 2` for adaptive positioning. Minecart rails coexist with redstone wires (1-block X offset) — both visual systems coexist. Easter egg: 3 named horses (Charmer/Dancer/Toby) with variants and tameness. All 7 building types (Watchtower, Warehouse, Workshop, Cottage, Cylinder, AzureThemed, + Grand variants) follow consistent placement/health indicator patterns.
 
+📌 Team update (2026-02-18): NBT library evaluation for #95 complete — recommended fNbt 1.0.0 (most actively maintained v1.0.0 Jul 2025, broadest .NET compatibility via netstandard2.0, largest community adoption 200+ stars). Documented requirement for custom 80-line AnvilRegionReader to parse MCA file header, sector offsets, and per-chunk decompression. Designed block lookup API with 1.18+ bit-packed palette decoding. Unblocks #93 (AnvilRegionReader implementation) and #94 (WorldSaveDirectory fixture) — decided by Rocket
+
 ### Azure Resource Visualization Design (2026-02-10)
 
 Design doc (`docs/epics/azure-minecraft-visuals.md`) mapping 15 Azure resource types to Minecraft structures. Two-universe separation: Aspire village (warm wood/stone) vs Azure citadel (cool prismarine/quartz/end stone) at X=60. 3-column tiered layout by functional tier. Azure beacon colors: Compute=cyan, Data=blue, Networking=purple, Security=black, Messaging=orange, Observability=magenta. Rich health states: Stopped=cobwebs, Deallocated=soul sand, Failed=netherrack fire. Scale: 3x5 grid for <=15, multiple Z-offset planes for 50+.
@@ -101,6 +103,14 @@ Multiple iterative fixes to village rendering, consolidated here. Final state of
 **RCON learning:** `setblock X Y Z block keep` returns "Changed the block at X, Y, Z" when air (placed), or error when solid. This is the cleanest non-destructive block probe mechanism — no world modification if you clean up immediately after successful placement.
 
 ## Learnings
+
+### Village 2D Grid Layout (2026-02-23)
+- VillageLayout uses a 2-column grid (Columns=2): buildings arranged col=index%2, row=index/2 on a single Y-plane.
+- `PlanNeighborhoods` uses a 2×2 quadrant layout: NW=DotNetProject, NE=Azure, SW=ContainerOrDatabase, SE=Executable. Each zone has its own 2-column sub-grid.
+- Zone origins calculated via `ZoneExtentX`/`ZoneExtentZ` helpers + `ZoneGap` between quadrants.
+- `GetVillageBounds` fallback accounts for multiple rows: maxZ = BaseZ + (rows-1)*Spacing + StructureSize - 1.
+- CanalService reads bounds from `GetVillageBounds` / `GetLakePosition` — no changes needed when layout changes.
+- Key files: `VillageLayout.cs`, `VillageLayoutTests.cs`, `LargeResourceSetTests.cs`.
 
 ### Village Grid Ordering Convention
 - ALL services that place elements on the village grid MUST use `VillageLayout.ReorderByDependency(monitor.Resources)` for index-to-position mapping, not raw `monitor.Resources` dictionary order.
@@ -375,6 +385,37 @@ Added grand variants for the two remaining building types: Azure Pavilion and Co
 
 📌 Team update (2026-02-12): RCON Burst Mode API (#85) — EnterBurstMode(int=40) returns IDisposable, thread-safe single burst per SemaphoreSlim, logs on enter/exit, rate limit auto-restores — decided by Rocket
 
+### Canal System Redesign (2026-02-19)
+
+**Architecture change:** Simplified canal system from zigzag per-building branches to a clean linear layout:
+- **Back canal (E-W):** One straight canal running along the BACK (north side) of all buildings at Z=maxZ+5, spanning from village minX to trunk trunkX
+- **Side trunk (N-S):** One vertical canal on the EAST side at X=maxX+CanalTotalWidth+2, connecting back canal to lake
+- **Lake junction:** Trunk connects directly to lake's north wall
+
+**Removed complexity:**
+- No per-building branch canals zigzagging between structures
+- No collision detection or detour routing around building footprints
+- No multiple Z-level connectors with bridges
+- Eliminated `BuildBranchCanalAsync`, `CalculateBranchSegments`, `FindFirstBlockingBuilding`, `BuildCanalConnectorAsync`, and `OpenBranchJunctionsAsync` methods
+
+**New methods:**
+- `BuildBackCanalAsync` — straight E-W canal along north edge of village
+- `BuildCanalSegmentEastWestAsync` / `BuildCanalSegmentNorthSouthAsync` — directional segment builders
+- `OpenJunctionAsync` — T-junction where back canal meets trunk
+- `OpenLakeJunctionAsync` — removes lake's north wall where trunk connects
+
+**Benefits:**
+- Cleaner visual layout — one canal line behind buildings, one on the side
+- Simpler routing logic — no building collision checks needed
+- Fewer RCON commands — straight line fills instead of zigzag segments + connectors
+- Easier to understand — the canal network mirrors the village grid structure
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/CanalService.cs` — complete redesign
+- `CanalPositions` tracking preserved for `MinecartRailService` bridge detection
+
+**Why:** Jeff's feedback showed the zigzag pattern was confusing and didn't match the intuitive "water flows from back of town to the lake" mental model. The new design is architecturally simpler and visually cleaner.
+
 ### Grand Watchtower Ornate Redesign (2026-02-15)
 
 - Redesigned Grand Watchtower exterior from plain rectangle to ornate medieval castle tower.
@@ -482,3 +523,214 @@ Updated the `GetLanguageColor` method in StructureBuilder.cs to modernize tech s
 .NET Project = purple | JavaScript/Node = yellow | Python = yellow + blue secondary | Rust = red | Go = light_blue | Java/Spring = orange | Docker Container = cyan | PHP = magenta | Ruby = pink | Elixir/Erlang = lime | Default = white
 
 📌 Team update (2026-02-16): Tech branding color system updated — Rust→red, Go→light_blue, Container→cyan, +3 new languages (PHP/Ruby/Elixir). Warehouse buildings now have language-colored stripes and banners matching Workshop aesthetic. — decided by Rocket
+
+### Grand Village is Now the Only Option (2026-02-17)
+- Removed small village structures entirely  no more conditional dispatch
+- Grand layout values are now permanent defaults:
+  - StructureSize = 15 (was 7 default)
+  - Spacing = 36 (was 24 default)
+  - GateWidth = 5 (was 3 default)
+  - FenceClearance = 10 (unchanged)
+- Removed ConfigureGrandLayout() method from VillageLayout.cs
+- Removed ResetLayout() method from VillageLayout.cs
+- Removed IsGrandLayout property from VillageLayout.cs
+- Removed ASPIRE_FEATURE_GRAND_VILLAGE environment variable check from Program.cs
+- All Build*Async methods in StructureBuilder.cs now directly call their BuildGrand*Async variants
+- Central boulevard is always built now (removed IsGrandLayout guard, kept rows > 0 check)
+- Rationale: Jeff's directive to focus on the grand design only. Simplifies codebase by removing two code paths for every structure type.
+
+### NBT Library Evaluation for MCA Inspector (2026-02-18)
+
+Evaluated 3 NBT library candidates (fNbt, SharpNBT, Unmined.Minecraft.Nbt) for issue #95 — prerequisite for AnvilRegionReader (#93) and fixture integration (#94).
+
+**Decision:** Recommended **fNbt 1.0.0** (BSD-3-Clause, .NET Standard 2.0, most actively maintained, largest community).
+
+**Key findings:**
+- All 3 libraries are NBT-only parsers — none handle Anvil region (.mca) file format directly
+- We must write our own AnvilRegionReader (~80 lines) for the MCA header/chunk offset/decompression layer
+- Block state extraction from chunk NBT requires custom bit-unpacking logic for the 1.18+ palette format
+- fNbt wins on maintenance (v1.0.0 Jul 2025), community adoption, NuGet availability, and .NET Standard 2.0 breadth
+- SharpNBT viable but stale (last release Sep 2023, targets .NET 7 only)
+- Unmined.Minecraft.Nbt too niche (pre-release, GitHub Packages only, 10 stars)
+- Full evaluation with comparison table and conceptual API code written to `.ai-team/decisions/inbox/rocket-nbt-library-evaluation.md`
+
+### AnvilRegionReader Implementation (Issue #93)
+
+Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` for reading Minecraft Anvil (.mca) region files. Used for test verification of in-world block placement.
+
+**Key files:**
+- `tests/Aspire.Hosting.Minecraft.Integration.Tests/Helpers/AnvilRegionReader.cs` — Full MCA reader with `GetBlockAt(worldX, worldY, worldZ)` API
+- `tests/Aspire.Hosting.Minecraft.Integration.Tests/Aspire.Hosting.Minecraft.Integration.Tests.csproj` — Added fNbt 1.0.0 package reference
+
+**Implementation details:**
+- `AnvilRegionReader.Open(filePath)` parses `r.{x}.{z}.mca` filename and reads 4KB offset header
+- `GetBlockAt()` converts world coords → region/chunk/section/block offsets, handles negative Y (1.18+ format, -64 to 319)
+- Chunk decompression supports zlib (type 2), gzip (type 1), and uncompressed (type 3)
+- Block state extraction navigates sections list → block_states compound → palette + packed long array
+- Bit-unpacking uses 1.18+ format: indices don't span long boundaries, minimum 4 bits per entry
+- `BlockState` record holds name + properties dictionary with human-readable `ToString()`
+- Static helpers: `WorldToRegion()` and `GetRegionFilePath()` for coordinate/path lookups
+- Edge cases: out-of-bounds Y returns null, missing chunks return null, wrong region returns null
+
+## Learnings
+- fNbt `NbtFile.LoadFromStream()` with `NbtCompression.None` works after manual decompression — don't double-decompress
+- MCA sector offsets are 3-byte big-endian integers (shift+OR, not BitConverter) — Java heritage means all binary is big-endian
+- 1.18+ section Y index for negative coords: use floor division `(worldY - 15) / 16` not truncation
+- Palette bit-packing: indices per long = `64 / bitsPerEntry` (integer division), unused bits are padding at the high end
+- `ZLibStream` (System.IO.Compression) handles the raw zlib format Minecraft uses — no need for third-party decompression
+
+### Canal System Bug Fixes (2026-02-19)
+
+**Three canal rendering bugs fixed in CanalService.cs:**
+
+1. **Branch-to-trunk junction connectivity:** Trunk canal walls (built AFTER branches) sealed off every branch canal connection. Added OpenBranchJunctionsAsync post-pass that carves openings in the trunk's west wall at each branch canal's Z-level  air to remove wall, blue_ice for floor continuity, water to connect flows.
+
+2. **Detour routing stays at original Z:** Branch canals that detoured south around blocking buildings never returned to their original Z-level, creating permanent southward drift. Fixed by resetting currentZ = z after each detour, producing clean U-shaped routes that return to the correct Z for trunk connection.
+
+3. **Bridge elevation:** Connector bridges were placed at SurfaceY (same height as canal walls), creating flat ground-level surfaces. Raised to SurfaceY + 1 with oak_fence railings at SurfaceY + 2 for proper elevated walkway appearance.
+
+## Learnings
+- Build-order matters for overlapping fill commands: when trunk overwrites branch endpoints, a post-pass junction-carving step is needed rather than trying to prevent the overlap
+- Canal junction pattern: air fill to remove wall, blue_ice floor, water to connect  three RCON commands per junction
+- Bridge elevation needs to be at least SurfaceY + 1 (one above wall tops) with fence railings at +2 for visual walkway effect
+- Detour routing must reset to original Z after passing each blocker to avoid permanent drift toward detour Z
+- `CommunityToolkit.Aspire.Hosting.Java` AddSpringApp injects `JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar` by default. If the container image stores the OTEL agent at a different path (e.g. `/agents/opentelemetry-javaagent.jar`), you MUST set `OtelAgentPath` in `JavaAppContainerResourceOptions` to match the image layout — otherwise the JVM fails on startup with "Error opening zip file or JAR manifest missing"
+- The `aliencube/aspire-spring-maven-sample` image bundles its OTEL agent at `/agents/opentelemetry-javaagent.jar`, not at the root path the CommunityToolkit defaults to
+
+
+ Team update (2026-02-19): Canal system junction fix  post-pass carving for branch-trunk connections, detour Z-reset for consistent junctions, bridge elevation to SurfaceY+1 with fence railings. ErrorBoatService and MinecartRailService should assume branch canals arrive at original entrance Z.  decided by Rocket
+
+ Team update (2026-02-19): Canal system redesigned  single back canal + side trunk replaces per-building branches  decided by Rocket
+
+
+
+## Learnings
+- Village layout flattened from 2x2 zone quadrants to single horizontal row  all buildings now at BaseZ, incrementing X by Spacing
+- Zone placement changed from NW/NE/SW/SE 2-column grids to sequential single-row zones: [Zone1][gap][Zone2][gap][Zone3][gap][Zone4] all at same Z
+- GetStructureOrigin(int index) fallback simplified: x = BaseX + (index * Spacing), z = BaseZ (constant)  no more row/column math
+- GetVillageBounds fallback changed from 2D grid (rows  Columns) to single row: maxZ = BaseZ + StructureSize - 1 (only one structure deep)
+- Back canal now runs behind ALL buildings in single row instead of per-zone perimeters  simplified to one E-W canal + one N-S trunk
+- VillageLayout.Columns constant still exists (value=2) for backward compatibility, but layout logic ignores it in favor of single row
+- Team update (2026-02-19): Village layout flattened to single row  all zones placed sequentially along X axis at BaseZ, back canal runs behind all buildings  decided by Rocket
+
+### Per-Building Canal System Rework (2026-02-23)
+
+**Architecture change:** Replaced single shared back canal with individual per-building canals:
+- Each building gets its own E-W canal running along its BACK (Z-max / north) side
+- Short individual canals: start at building's west edge, run east to the trunk
+- Single N-S trunk canal on the EAST side collects all per-building canals
+- Trunk connects to a massive 8040 block lake (vs old 2012) at the south end
+- Lake sized for creeper boat ErrorBoatService landings
+
+**Key changes:**
+- VillageLayout.LakeWidth: 20  80 blocks (town-width)
+- VillageLayout.LakeLength: 12  40 blocks (deep landing zone)
+- CanalService.BuildCanalNetworkAsync: builds per-building canals in a loop, not one shared canal
+- CanalService.BuildPerBuildingCanalAsync: new method  canal at uilding.oz + StructureSize + 2 (behind building)
+- CanalService.OpenPerBuildingJunctionAsync: opens trunk's west wall where each building canal arrives
+- Program.cs forceload area expanded to cover larger lake (lakeX - 10 to lakeX + LakeWidth + 10)
+
+**Canal positioning formula:**
+- Building back Z: oz + StructureSize + 2 (2 blocks north of building's Z-max edge)
+- Canal runs E-W from building's ox to trunk at maxX + CanalTotalWidth + 2
+- Junction opened by removing trunk's west wall section where building canal arrives
+
+**Key files:**
+- src/Aspire.Hosting.Minecraft.Worker/Services/CanalService.cs  per-building canal logic
+- src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs  lake size constants
+- src/Aspire.Hosting.Minecraft.Worker/Program.cs  expanded forceload area
+
+**Design rationale:** Per-building canals are visually cleaner, better match the 2-column grid layout, and provide dedicated "addresses" for each resource. The massive lake gives ErrorBoatService plenty of room for creeper boat spawns and dramatic arrivals.
+
+### Canal/Beacon/Health Rework (2026-02-24)
+
+**Canal layout flipped from east-side to west-side trunk:**
+- Trunk canal X: changed from `maxX + CanalTotalWidth + 2` (east) to `minX - CanalTotalWidth - 2` (west)
+- Per-building canals still run behind buildings (Z-max), but now extend WESTWARD to the trunk
+- Junction logic: opens trunk's EAST wall (not west) where building canals arrive from the east
+- Trunk Z range: now spans from southernmost building canal to the lake (was only covering northernmost to lake)
+- Program.cs forceload updated to cover west-side trunk area instead of east
+
+**Beacon towers moved from behind buildings to right (east/+X) side:**
+- GetBeaconOrigin: `(sx, sy, sz + StructureSize + 1)` → `(sx + StructureSize + 1, sy, sz)`
+- Keeps beacons clear of the west-side canal network
+- Both overloads updated (index-based and resourceName-based)
+
+**Health detection diagnostic logging added to AspireResourceMonitor:**
+- DiscoverResources: logs URL, TcpHost, TcpPort for each resource at Debug level
+- PollHealthAsync: logs every resource's health check result every cycle (not just changes)
+- CheckHttpHealthAsync: logs HTTP status code on success, exception type + message on failure
+- HttpClient "aspire-monitor" configured with SocketsHttpHandler: PooledConnectionLifetime=30s, SSL cert bypass
+- SSL bypass needed because dev certificates get rejected by default HttpClient validation
+
+## Learnings
+
+### Canal-Lake Junction Connection (2026-02-18)
+**Issue:** Trunk canal endpoint needed to visually connect to lake even after OpenLakeJunctionAsync removes the north wall.
+**Fix:** Extended trunk canal 2 blocks into the lake (lakeZ + 2) in BuildTrunkCanalAsync to ensure seamless water flow beyond the wall opening.
+**Why:** The lake north wall is at lakeZ, and trunk ending exactly at lakeZ created ambiguity about whether connection was complete. Extending into the lake interior ensures obvious visual continuity.
+**Files:** `CanalService.cs:201-214`
+
+
+### Grand Observation Tower Implementation (2026-02-26)
+
+**New file:** `src/Aspire.Hosting.Minecraft.Worker/Services/GrandObservationTowerService.cs`
+- Standalone service (not part of StructureBuilder) per Rhodey's architecture plan
+- 21x21 footprint, 32 blocks tall above SurfaceY, placed at x=20-40, z=-11 to 10
+- 5 themed floors: Entrance Hall, Library, Armory/Beacon, Observation Gallery, Rooftop
+- Continuous counter-clockwise spiral staircase (5 flights, individual setblock for facing)
+- Safety fences on inside edges, wall torches every 2 steps for lighting
+- Stairwell holes cut in floor platforms for continuous traversal
+- Constructor injection: RconService, BuildingProtectionService, ILogger
+- Three public methods: ForceloadAsync, RegisterProtection, BuildTowerAsync
+
+**Program.cs changes:**
+- DI registration: `AddSingleton<GrandObservationTowerService>()`
+- Constructor parameter added to MinecraftWorldWorker
+- Init sequence: forceload + protection + build, AFTER terrain probe/neighborhoods, BEFORE structures
+
+**Architecture decisions:**
+- Tower uses absolute coordinates (not relative to BaseX/BaseZ) since it's independent of village grid
+- Burst mode (40 cmd/s) for construction efficiency
+- Protection zone has 1-block X buffer and 2-block Z buffer matching StructureBuilder patterns
+- Corner buttresses extend 2 blocks above main walls (y+33) for dramatic silhouette
+- Compass markers use colored wool (N=red, S=blue, E=green, W=yellow)
+
+## Learnings
+
+### Spiral Staircase RCON Pattern (2026-02-26)
+**Key insight:** Individual `setblock` commands are required for stairs because each step needs a `facing` direction property. Cannot use `fill` for staircase runs.
+**Pattern:** Loop over step count, incrementing both position and Y per iteration. Facing direction matches the wall the flight runs along (east for south wall, south for east wall, west for north wall, north for west wall).
+**Safety:** Oak fences on the inside edge of each flight prevent players from falling into the central shaft. Fence Y is stair Y + 1 (one block above the step).
+**Files:** `GrandObservationTowerService.cs`
+
+### Bridge Geometry Over Canals (2026-02-26)
+**Canal clearance:** Water surface is at SurfaceY-1. Bridge deck at SurfaceY+2 gives 2 full air blocks (SurfaceY and SurfaceY+1) for boat passage underneath. This is the minimum the user requires.
+**Walkway bridge shape:** 2-step ramp (stairs at SurfaceY+1 then SurfaceY+2) → flat deck at SurfaceY+2 over the 5-block canal width → 2-step ramp down. Total bridge length = 9 blocks (2 ramp + 5 canal + 2 ramp).
+**Stair facing for ramps:** `facing=north` stairs at south approach → player walks north and steps up. `facing=south` stairs at north exit → symmetric descent. Works for both directions of travel.
+**Rail elevation smoothing:** Rails auto-slope between 1-block height changes. Use iterative smoothing passes to ensure no adjacent rail positions differ by more than 1 block of elevation. Two passes handle both approach and exit sides of each canal span.
+**Powered rails on bridges:** Use `redstone_block` instead of `redstone_torch` under powered rails on elevated bridge segments — torch placement conflicts with support column blocks.
+**Bridge locations:** Boulevard bridges (one per row at the central boulevard) and entrance bridges (one per building at the entrance center X). Both cross the E-W canals behind buildings. Bridges at the same canal Z deduplicate automatically.
+**Files:** `BridgeService.cs`, `MinecartRailService.cs`
+
+### Initialization Order: Canals → Bridges → Rails (2026-02-26)
+**Order matters:** CanalPositions must be populated before BridgeService runs (bridge locations derive from canal geometry). BridgeService must run before MinecartRailService so rail bridges don't interfere with walkway bridges. Both run AFTER StructureBuilder so building protection zones are registered.
+**Files:** `Program.cs` (MinecraftWorldWorker main loop)
+
+### BridgeService DI Registration Fix (2026-02-27)
+**Bug:** BridgeService was fully implemented and wired into MinecraftWorldWorker (optional constructor param, init/update calls), but never registered in DI. The `bridges` parameter was always null, so no walkway bridges were ever placed in-world.
+**Fix:** Added `builder.Services.AddSingleton<BridgeService>()` inside the canals feature flag block in Program.cs. Bridges only make sense over canals, so they share the `ASPIRE_FEATURE_CANALS` gate.
+**Files:** `src/Aspire.Hosting.Minecraft.Worker/Program.cs`
+
+### Rail Bridge Water-Level Blockage Fix (2026-02-27)
+**Bug:** In `PlaceRailConnectionAsync()`, when a rail crosses a canal at elevation 2, the lowest support block at `adjustedY - 2` (which lands at canal water level SurfaceY-1) was solid `stone_bricks`. This blocked boat passage through the canal underneath the bridge.
+**Fix:** Changed the lowest support block from `minecraft:stone_bricks` to `minecraft:oak_fence`. Fences have a narrow collision model that boats can pass through while still visually supporting the bridge deck. The `adjustedY - 1` support directly under the rail stays as stone_bricks for structural integrity.
+**Key insight:** When building over navigable waterways, always use fence-type blocks at the water level — they support weight visually without blocking entity passage.
+**Files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs`
+
+ **Team update (2026-02-26):** 
+- BridgeService enabled via DI registration in Program.cs  was implemented but never wired into the Worker's dependency injection container, causing walkway bridges to never build
+- Track bridge water-level fix  replaced stone_bricks at canal water level with oak_fence to allow boat passage under rail bridges
+- Walkway and rail bridges over canals implemented  both bridge types arch 2 blocks above canal water for boat clearance
+- Grand Observation Tower service implemented  standalone 2121, 32-block tall structure at south entrance with spiral staircases and themed floors
+

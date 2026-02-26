@@ -85,8 +85,8 @@ internal sealed class RedstoneDependencyService(
 
     private static WireSegment CalculateWireSegment(string childName, string parentName, int childIndex, int parentIndex)
     {
-        var (px, py, pz) = VillageLayout.GetStructureOrigin(parentIndex);
-        var (cx, cy, cz) = VillageLayout.GetStructureOrigin(childIndex);
+        var (px, py, pz) = VillageLayout.GetStructureOrigin(parentName, parentIndex);
+        var (cx, cy, cz) = VillageLayout.GetStructureOrigin(childName, childIndex);
         var half = VillageLayout.StructureSize / 2;
 
         // Wire runs at ground level (SurfaceY) offset by -1 in Z (in front of structures)

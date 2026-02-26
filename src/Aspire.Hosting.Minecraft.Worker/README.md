@@ -15,7 +15,7 @@ This package is typically consumed indirectly through `Aspire.Hosting.Minecraft`
 
 ```csharp
 var minecraft = builder.AddMinecraftServer("minecraft")
-    .WithAspireWorldDisplay<Projects.MinecraftAspireDemo_Worker>()
+    .WithAspireWorldDisplay<Projects.GrandVillageDemo_WorkerService>()
     .WithMonitoredResource(apiService)
     .WithMonitoredResource(webFrontend);
 ```

@@ -56,10 +56,10 @@ var anotherRedis = builder.AddRedis("another-cache");
 var pg = builder.AddPostgres("db-host");
 var db = pg.AddDatabase("db");
 
-var api = builder.AddProject<Projects.MinecraftAspireDemo_ApiService>("api")
+var api = builder.AddProject<Projects.GrandVillageDemo_ApiService>("api")
     .WithReference(redis);
 
-var web = builder.AddProject<Projects.MinecraftAspireDemo_Web>("web")
+var web = builder.AddProject<Projects.GrandVillageDemo_Web>("web")
     .WithReference(api)
     .WithExternalHttpEndpoints();
 

@@ -37,7 +37,7 @@ internal sealed class GuardianMobService(
     private async Task SpawnGuardianAsync(string resourceName, ResourceStatus status, int index, CancellationToken ct)
     {
         // Position guardian in front of the structure entrance, offset by -3 in Z
-        var (ox, _, oz) = VillageLayout.GetStructureOrigin(index);
+        var (ox, _, oz) = VillageLayout.GetStructureOrigin(resourceName, index);
         var x = ox + (VillageLayout.StructureSize / 2);
         var y = VillageLayout.SurfaceY + 2;
         var z = oz - 3;

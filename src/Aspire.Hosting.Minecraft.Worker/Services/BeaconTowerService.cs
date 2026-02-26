@@ -27,13 +27,19 @@ internal sealed class BeaconTowerService(
 
     /// <summary>
     /// Gets the beacon origin position for a given resource index.
-    /// Placed behind the structure (z + StructureSize + 1) to avoid overlapping
-    /// structure footprints and blocking the beacon's sky access.
+    /// Placed on the right (east / +X) side of the structure to avoid overlapping
+    /// canals behind buildings and blocking the beacon's sky access.
     /// </summary>
     internal static (int x, int y, int z) GetBeaconOrigin(int index)
     {
         var (sx, sy, sz) = VillageLayout.GetStructureOrigin(index);
-        return (sx, sy, sz + VillageLayout.StructureSize + 1);
+        return (sx + VillageLayout.StructureSize + 1, sy, sz);
+    }
+
+    internal static (int x, int y, int z) GetBeaconOrigin(string resourceName, int fallbackIndex)
+    {
+        var (sx, sy, sz) = VillageLayout.GetStructureOrigin(resourceName, fallbackIndex);
+        return (sx + VillageLayout.StructureSize + 1, sy, sz);
     }
 
     /// <summary>
@@ -65,7 +71,7 @@ internal sealed class BeaconTowerService(
 
     private async Task BuildBeaconTowerAsync(ResourceInfo info, int index, CancellationToken ct)
     {
-        var (x, y, z) = GetBeaconOrigin(index);
+        var (x, y, z) = GetBeaconOrigin(info.Name, index);
 
         // 3x3 iron block base (single layer)
         await rcon.SendCommandAsync(

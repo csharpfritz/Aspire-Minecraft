@@ -49,7 +49,7 @@ internal sealed class ServiceSwitchService(
             var name = orderedNames[i];
             if (!monitor.Resources.TryGetValue(name, out var info)) continue;
 
-            var (x, y, z) = VillageLayout.GetStructureOrigin(i);
+            var (x, y, z) = VillageLayout.GetStructureOrigin(name, i);
             var powered = info.Status == ResourceStatus.Healthy;
 
             var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);
@@ -74,7 +74,7 @@ internal sealed class ServiceSwitchService(
             var name = orderedNames[i];
             if (!monitor.Resources.TryGetValue(name, out var info)) continue;
 
-            var (x, y, z) = VillageLayout.GetStructureOrigin(i);
+            var (x, y, z) = VillageLayout.GetStructureOrigin(name, i);
             var powered = info.Status == ResourceStatus.Healthy;
 
             var (leverX, leverY, leverZ) = GetLeverPosition(name, x, y, z);

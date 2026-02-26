@@ -55,6 +55,7 @@ internal sealed class AspireResourceMonitor
                     : "(no endpoint)";
                 _logger.LogInformation("Discovered Aspire resource: {ResourceName} ({ResourceType}) at {Endpoint}",
                     name, type, endpoint);
+                _logger.LogDebug("  → URL={Url}, TcpHost={TcpHost}, TcpPort={TcpPort}", url, host, port);
             }
         }
     }
@@ -67,6 +68,7 @@ internal sealed class AspireResourceMonitor
     public async Task<List<ResourceStatusChange>> PollHealthAsync(CancellationToken ct = default)
     {
         var changes = new List<ResourceStatusChange>();
+        var updates = new List<(string name, ResourceInfo info)>();
 
         foreach (var (name, info) in _resources)
         {
@@ -86,13 +88,21 @@ internal sealed class AspireResourceMonitor
                 newStatus = ResourceStatus.Healthy;
             }
 
+            _logger.LogDebug("Health poll: {ResourceName} URL={Url} result={Status} (was {OldStatus})",
+                name, info.Url, newStatus, oldStatus);
+
             if (newStatus != oldStatus)
             {
-                _resources[name] = info with { Status = newStatus };
+                updates.Add((name, info with { Status = newStatus }));
                 changes.Add(new ResourceStatusChange(name, info.Type, oldStatus, newStatus));
                 _logger.LogInformation("Resource health changed: {ResourceName} {OldStatus} -> {NewStatus}",
                     name, oldStatus, newStatus);
             }
+        }
+
+        foreach (var (name, updatedInfo) in updates)
+        {
+            _resources[name] = updatedInfo;
         }
 
         return changes;
@@ -103,10 +113,13 @@ internal sealed class AspireResourceMonitor
         try
         {
             var response = await _http.GetAsync(url, ct);
+            _logger.LogDebug("HTTP health check {Url} → {StatusCode}", url, (int)response.StatusCode);
             return response.IsSuccessStatusCode ? ResourceStatus.Healthy : ResourceStatus.Unhealthy;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug("HTTP health check {Url} failed: {ExceptionType} — {Message}",
+                url, ex.GetType().Name, ex.Message);
             return ResourceStatus.Unhealthy;
         }
     }

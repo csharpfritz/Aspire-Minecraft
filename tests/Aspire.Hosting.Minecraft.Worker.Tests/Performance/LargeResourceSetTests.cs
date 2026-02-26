@@ -32,7 +32,9 @@ public class LargeResourceSetTests : IAsyncLifetime
             NullLogger<RconService>.Instance);
         _monitor = TestResourceMonitorFactory.Create();
 
-        _structures = new StructureBuilder(_rcon, _monitor, NullLogger<StructureBuilder>.Instance);
+        _structures = new StructureBuilder(_rcon, _monitor,
+            new BuildingProtectionService(NullLogger<BuildingProtectionService>.Instance),
+            NullLogger<StructureBuilder>.Instance);
         _beacons = new BeaconTowerService(_rcon, _monitor, NullLogger<BeaconTowerService>.Instance);
         _holograms = new HologramManager(_rcon, _monitor, NullLogger<HologramManager>.Instance);
         _bossBar = new BossBarService(_rcon, _monitor, NullLogger<BossBarService>.Instance);
@@ -175,7 +177,7 @@ public class LargeResourceSetTests : IAsyncLifetime
         Assert.Equal(VillageLayout.BaseX, first.x);
         Assert.Equal(VillageLayout.BaseZ, first.z);
 
-        // Last (index 24): col=0, row=12
+        // Last (index 24): col=0, row=12 → (BaseX, BaseZ + 12 * Spacing)
         Assert.Equal(VillageLayout.BaseX, last.x);
         Assert.Equal(VillageLayout.BaseZ + 12 * VillageLayout.Spacing, last.z);
     }
