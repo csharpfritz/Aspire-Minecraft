@@ -612,3 +612,62 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 - Back canal now runs behind ALL buildings in single row instead of per-zone perimeters  simplified to one E-W canal + one N-S trunk
 - VillageLayout.Columns constant still exists (value=2) for backward compatibility, but layout logic ignores it in favor of single row
 - Team update (2026-02-19): Village layout flattened to single row  all zones placed sequentially along X axis at BaseZ, back canal runs behind all buildings  decided by Rocket
+
+### Per-Building Canal System Rework (2026-02-23)
+
+**Architecture change:** Replaced single shared back canal with individual per-building canals:
+- Each building gets its own E-W canal running along its BACK (Z-max / north) side
+- Short individual canals: start at building's west edge, run east to the trunk
+- Single N-S trunk canal on the EAST side collects all per-building canals
+- Trunk connects to a massive 8040 block lake (vs old 2012) at the south end
+- Lake sized for creeper boat ErrorBoatService landings
+
+**Key changes:**
+- VillageLayout.LakeWidth: 20  80 blocks (town-width)
+- VillageLayout.LakeLength: 12  40 blocks (deep landing zone)
+- CanalService.BuildCanalNetworkAsync: builds per-building canals in a loop, not one shared canal
+- CanalService.BuildPerBuildingCanalAsync: new method  canal at uilding.oz + StructureSize + 2 (behind building)
+- CanalService.OpenPerBuildingJunctionAsync: opens trunk's west wall where each building canal arrives
+- Program.cs forceload area expanded to cover larger lake (lakeX - 10 to lakeX + LakeWidth + 10)
+
+**Canal positioning formula:**
+- Building back Z: oz + StructureSize + 2 (2 blocks north of building's Z-max edge)
+- Canal runs E-W from building's ox to trunk at maxX + CanalTotalWidth + 2
+- Junction opened by removing trunk's west wall section where building canal arrives
+
+**Key files:**
+- src/Aspire.Hosting.Minecraft.Worker/Services/CanalService.cs  per-building canal logic
+- src/Aspire.Hosting.Minecraft.Worker/Services/VillageLayout.cs  lake size constants
+- src/Aspire.Hosting.Minecraft.Worker/Program.cs  expanded forceload area
+
+**Design rationale:** Per-building canals are visually cleaner, better match the 2-column grid layout, and provide dedicated "addresses" for each resource. The massive lake gives ErrorBoatService plenty of room for creeper boat spawns and dramatic arrivals.
+
+### Canal/Beacon/Health Rework (2026-02-24)
+
+**Canal layout flipped from east-side to west-side trunk:**
+- Trunk canal X: changed from `maxX + CanalTotalWidth + 2` (east) to `minX - CanalTotalWidth - 2` (west)
+- Per-building canals still run behind buildings (Z-max), but now extend WESTWARD to the trunk
+- Junction logic: opens trunk's EAST wall (not west) where building canals arrive from the east
+- Trunk Z range: now spans from southernmost building canal to the lake (was only covering northernmost to lake)
+- Program.cs forceload updated to cover west-side trunk area instead of east
+
+**Beacon towers moved from behind buildings to right (east/+X) side:**
+- GetBeaconOrigin: `(sx, sy, sz + StructureSize + 1)` → `(sx + StructureSize + 1, sy, sz)`
+- Keeps beacons clear of the west-side canal network
+- Both overloads updated (index-based and resourceName-based)
+
+**Health detection diagnostic logging added to AspireResourceMonitor:**
+- DiscoverResources: logs URL, TcpHost, TcpPort for each resource at Debug level
+- PollHealthAsync: logs every resource's health check result every cycle (not just changes)
+- CheckHttpHealthAsync: logs HTTP status code on success, exception type + message on failure
+- HttpClient "aspire-monitor" configured with SocketsHttpHandler: PooledConnectionLifetime=30s, SSL cert bypass
+- SSL bypass needed because dev certificates get rejected by default HttpClient validation
+
+## Learnings
+
+### Canal-Lake Junction Connection (2026-02-18)
+**Issue:** Trunk canal endpoint needed to visually connect to lake even after OpenLakeJunctionAsync removes the north wall.
+**Fix:** Extended trunk canal 2 blocks into the lake (lakeZ + 2) in BuildTrunkCanalAsync to ensure seamless water flow beyond the wall opening.
+**Why:** The lake north wall is at lakeZ, and trunk ending exactly at lakeZ created ambiguity about whether connection was complete. Extending into the lake interior ensures obvious visual continuity.
+**Files:** `CanalService.cs:201-214`
+

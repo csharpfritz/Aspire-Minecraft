@@ -4968,3 +4968,135 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 **Impact:** Simpler code, fewer RCON commands, cleaner visual layout, better alignment with village grid structure.
 
+
+---
+### 2026-02-23: User directive — single-plane 2D grid with neighborhoods
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Village buildings must be arranged in a 2-dimensional grid (X and Z) on a single Y-plane. Similar resource types should be grouped into neighborhoods. There must NOT be buildings stacked vertically — only one horizontal plane of buildings in the town.
+**Why:** User request — captured for team memory. Jeff explicitly rejected the single-row layout and wants a proper 2D grid with neighborhood grouping.
+
+
+---
+### 2026-02-23: Village layout restored to 2D grid with neighborhood quadrants
+**By:** Rocket
+**What:** Replaced single-row village layout with a 2D grid on a single Y-plane. Buildings are now arranged in a 2-column × N-row grid (using existing Columns=2 constant). Neighborhood zones use a 2×2 quadrant layout: NW=DotNetProject, NE=Azure, SW=ContainerOrDatabase, SE=Executable. Each zone contains a 2-column sub-grid of its buildings, with ZoneGap=20 blocks between quadrants. The fallback `GetStructureOrigin(int index)` also uses the 2-column grid. All buildings remain on the same horizontal plane (SurfaceY + 1) — no vertical stacking.
+**Why:** Jeff explicitly rejected the single-row layout. A 2D grid with neighborhood grouping provides: (1) a compact, walkable village that doesn't stretch infinitely along one axis, (2) visual clustering of related services into quadrants for easy orientation, (3) compatibility with the canal system which reads bounds via GetVillageBounds/GetLakePosition, and (4) a natural town-like feel with streets and neighborhoods.
+
+
+---
+### 2026-02-24: Canal trunk moved from east to west side of village
+**By:** Rocket
+**What:** The N-S trunk canal now runs on the WEST side of town (minX - CanalTotalWidth - 2) instead of the east. Per-building canals extend westward from behind each building. Trunk Z range now spans from the southernmost building canal to the lake, fixing a gap where earlier rows had no trunk coverage.
+**Why:** Jeff wanted the canal network on the west side so beacons could move to the right (east) side without interference. Also fixed the trunk only covering northernmost-to-lake — it now covers ALL building canal connections.
+
+### 2026-02-24: Beacons moved to right (east/+X) side of buildings
+**By:** Rocket
+**What:** GetBeaconOrigin changed from (sx, sy, sz + StructureSize + 1) to (sx + StructureSize + 1, sy, sz). Both index-based and name-based overloads updated.
+**Why:** Beacons behind buildings sat directly over the canal network. Moving them east keeps them clear of water infrastructure and more visible from the village entrance.
+
+### 2026-02-24: HttpClient "aspire-monitor" configured with SSL bypass and connection pool rotation
+**By:** Rocket
+**What:** Program.cs now registers a named "aspire-monitor" HttpClient with SocketsHttpHandler using PooledConnectionLifetime=30s and SSL certificate validation bypass. Added diagnostic logging to DiscoverResources, PollHealthAsync, and CheckHttpHealthAsync.
+**Why:** API service health changes were not being detected. The default HttpClient may reject self-signed dev certificates, and stale pooled connections could mask service restarts. Diagnostic logging reveals exactly which resources have URLs set and what HTTP responses (or exceptions) each poll produces.
+
+
+---
+### 2026-02-18: Trunk canal extended into lake for visual continuity
+**By:** Rocket
+**What:** Modified BuildTrunkCanalAsync to extend trunk canal 2 blocks beyond the lake's north wall (lakeZ + 2 instead of lakeZ)
+**Why:** The trunk canal was ending at exactly lakeZ (the lake's north wall position), creating uncertainty about whether the junction was properly opened. OpenLakeJunctionAsync removes the wall, but extending the canal INTO the lake ensures players see an obvious water connection from trunk to lake interior, not just an opening in the wall.
+**Impact:** Minor visual improvement — trunk canal now clearly merges with lake water, making the canal network's endpoint unambiguous
+
+
+---
+### 2026-02-23: Per-Building Canal System Architecture
+
+**By:** Rocket
+
+**What:** Reworked the canal system from a single shared back canal to individual per-building canals, each connecting to a central trunk canal. Expanded the lake from 20×12 to 80×40 blocks to serve as a massive creeper boat landing zone for the ErrorBoatService.
+
+**Why:** The single shared back canal didn't scale well visually and created awkward connections. Per-building canals:
+- Give each resource its own "water address" — cleaner visual separation
+- Better match the 2-column grid layout (each building has its own infrastructure)
+- Simplify junction logic (each building canal connects independently to the trunk)
+- Provide a more impressive and functional destination (massive lake for boat spawns)
+
+The expanded lake (80×40) gives the ErrorBoatService plenty of room for dramatic creeper boat arrivals and makes the south end of the village feel like a proper waterfront district. The town-width lake also creates a more cohesive visual endpoint for the canal network.
+
+**Technical notes:**
+- Each building canal positioned at `building.oz + StructureSize + 2` (2 blocks behind the building's back wall)
+- Trunk canal collects all building canals and dumps into the lake
+- Forceload area in Program.cs expanded to cover the larger lake area
+- CanalPositions HashSet still tracks all canal blocks for MinecartRailService bridge detection
+
+
+---
+# Fix: AspireResourceMonitor Dictionary Iteration Bug
+
+**Date:** 2025-01-28  
+**Contributor:** Rocket (Integration Dev)  
+**Severity:** High (silent health change detection failure)
+
+## Problem
+The `PollHealthAsync()` method in `AspireResourceMonitor.cs` was modifying the `_resources` dictionary while iterating over it with `foreach`:
+
+```csharp
+foreach (var (name, info) in _resources)  // Line 71
+{
+    // ... health check logic ...
+    if (newStatus != oldStatus)
+    {
+        _resources[name] = info with { Status = newStatus };  // Line 91: modifies during iteration
+    }
+}
+```
+
+In C#, modifying a `Dictionary<TKey, TValue>` during `foreach` enumeration throws `InvalidOperationException` on the next `MoveNext()` call. This exception was being silently caught by the outer exception handler in `MinecraftWorldWorker.ExecuteAsync()`, causing:
+
+1. Health transition effects (particles, title alerts, sounds, error boats) to never trigger—`changes.Count` was always 0
+2. Weather transitions delayed by one cycle (weather reads `HealthyCount` directly, bypassing the changes list)
+3. On startup, resources initialized one-per-cycle, extending boot time
+
+## Solution
+Applied the standard C# pattern for dictionary modification during enumeration:
+
+1. Added `var updates = new List<(string name, ResourceInfo info)>();` to collect changes
+2. During iteration, added updates to the list instead of modifying the dictionary
+3. Applied all updates in a separate loop after enumeration completes
+
+This ensures the dictionary is not modified while the `foreach` enumerator is active, preventing the `InvalidOperationException` and allowing health changes to propagate correctly.
+
+## Changes
+- **File:** `src/Aspire.Hosting.Minecraft.Worker/Services/AspireResourceMonitor.cs`
+- **Lines:** 67–99 (PollHealthAsync method)
+- **Impact:** Health change detection now works reliably; all downstream effects trigger as intended
+
+## Verification
+- ✅ Compiles in Release mode
+- ✅ Follows idiomatic C# pattern for safe dictionary updates during enumeration
+- ✅ Preserves original logic and return values
+
+
+---
+### 2026-02-19: Village layout flattened to single row
+
+**By:** Rocket
+
+**What:** Changed VillageLayout from 2x2 zone quadrant grid (NW/NE/SW/SE) to single horizontal row layout. All buildings now placed at BaseZ (same Z level), extending along X axis with Spacing=36 increments. Zones placed sequentially: Zone1 (DotNetProject) → Zone2 (Azure) → Zone3 (ContainerOrDatabase) → Zone4 (Executable), all at same depth.
+
+**Why:** Jeff Fritz reported "TWO LEVELS to the town" when expecting a single row. The 2-column grid (Columns=2) caused buildings to wrap into multiple rows, and 4-zone quadrant layout created vertical stacking. Flattening to single row ensures:
+1. All buildings visible in one horizontal sweep (no Z-depth navigation needed)
+2. Back canal can run behind ALL buildings in one straight E-W line
+3. Clearer visual organization — zones laid out left-to-right like city blocks
+4. Scales horizontally (limited only by X dimension, not Z wrapping)
+
+**Changes:**
+- `PlanNeighborhoods`: Zones placed sequentially along X at BaseZ, not 2x2 quadrants
+- `AddZone` lambda: Single row per zone (all at originZ, x = originX + i*Spacing)
+- `GetStructureOrigin(int index)`: Simplified to x = BaseX + index*Spacing, z = BaseZ (constant)
+- `GetVillageBounds` fallback: maxZ = BaseZ + StructureSize - 1 (one structure deep)
+- Removed unused `ZoneRows` helper (no longer needed)
+- CanalService unchanged — `GetVillageBounds` automatically adjusts back canal to run behind new single row
+
+**Impact:** All existing services (StructureBuilder, MinecartRailService, FenceService, WorldBorderService) automatically adapt via VillageLayout API — no changes needed outside VillageLayout.cs. Canal system now correctly positions back canal behind entire single-row village.
+
