@@ -188,6 +188,9 @@ internal sealed class MinecartRailService(
     {
         var railY = connection.StartPos.y;
 
+        // Compute elevation offsets for canal bridge crossings (0 = ground, 1 = ramp, 2 = bridge deck)
+        var elevations = ComputeRailElevations(connection);
+
         // Place station at start: detector_rail → powered_rail → detector_rail
         await PlaceStationAsync(connection.StartPos.x, railY, connection.StartPos.z, ct);
 
@@ -203,34 +206,50 @@ internal sealed class MinecartRailService(
             if (IsStationPosition(x, y, z, connection))
                 continue;
 
-            // Bridge over canal: place stone brick slab and support pillar under the rail
-            if (canals?.CanalPositions.Contains((x, z)) == true)
+            var elevation = elevations[i];
+            var adjustedY = y + elevation;
+
+            // Build support structure for elevated rail positions (bridges over canals)
+            if (elevation > 0)
             {
+                // Support block directly under the rail
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {y - 1} {z} minecraft:stone_brick_slab[type=top]",
+                    $"setblock {x} {adjustedY - 1} {z} minecraft:stone_bricks",
                     CommandPriority.Normal, ct);
-                await rcon.SendCommandAsync(
-                    $"setblock {x} {y - 2} {z} minecraft:stone_bricks",
-                    CommandPriority.Normal, ct);
+
+                // For bridge deck positions (elevation == 2), use fence for lowest support
+                // so boats can pass through the canal underneath
+                if (elevation == 2)
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {adjustedY - 2} {z} minecraft:oak_fence",
+                        CommandPriority.Normal, ct);
+                }
             }
 
             if (connection.PoweredRailPositions.Contains((x, y, z)))
             {
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {y} {z} minecraft:powered_rail",
+                    $"setblock {x} {adjustedY} {z} minecraft:powered_rail",
                     CommandPriority.Normal, ct);
-                // Redstone torch underneath to power the rail
-                if (canals?.CanalPositions.Contains((x, z)) != true)
+                // Use redstone_block under powered rails on bridges (torch won't work on support column)
+                if (elevation > 0)
                 {
                     await rcon.SendCommandAsync(
-                        $"setblock {x} {y - 1} {z} minecraft:redstone_torch",
+                        $"setblock {x} {adjustedY - 1} {z} minecraft:redstone_block",
+                        CommandPriority.Normal, ct);
+                }
+                else
+                {
+                    await rcon.SendCommandAsync(
+                        $"setblock {x} {adjustedY - 1} {z} minecraft:redstone_torch",
                         CommandPriority.Normal, ct);
                 }
             }
             else
             {
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {y} {z} minecraft:rail",
+                    $"setblock {x} {adjustedY} {z} minecraft:rail",
                     CommandPriority.Normal, ct);
             }
         }
@@ -239,6 +258,46 @@ internal sealed class MinecartRailService(
         await rcon.SendCommandAsync(
             $"summon minecraft:chest_minecart {connection.StartPos.x} {railY} {connection.StartPos.z}",
             CommandPriority.Normal, ct);
+    }
+
+    /// <summary>
+    /// Computes per-position elevation offsets for canal bridge crossings.
+    /// Returns an array where 0 = ground level, 1 = ramp, 2 = bridge deck.
+    /// Rails auto-slope between 1-block height differences for smooth minecart travel.
+    /// Bridge deck is 2 blocks above normal rail height, giving boats 2 blocks of clearance.
+    /// </summary>
+    private int[] ComputeRailElevations(RailConnection connection)
+    {
+        var count = connection.RailPositions.Count;
+        var elevations = new int[count];
+
+        if (canals is null) return elevations;
+
+        // Mark positions over canals as needing full bridge height (+2)
+        for (var i = 0; i < count; i++)
+        {
+            var (x, _, z) = connection.RailPositions[i];
+            if (canals.CanalPositions.Contains((x, z)))
+                elevations[i] = 2;
+        }
+
+        // Smooth ramps: ensure no adjacent positions differ by more than 1 block.
+        // Two passes guarantee smooth transitions on both sides of each bridge span.
+        for (var pass = 0; pass < 2; pass++)
+        {
+            for (var i = 1; i < count; i++)
+            {
+                if (elevations[i] - elevations[i - 1] > 1)
+                    elevations[i - 1] = elevations[i] - 1;
+            }
+            for (var i = count - 2; i >= 0; i--)
+            {
+                if (elevations[i] - elevations[i + 1] > 1)
+                    elevations[i + 1] = elevations[i] - 1;
+            }
+        }
+
+        return elevations;
     }
 
     private async Task PlaceStationAsync(int x, int y, int z, CancellationToken ct)

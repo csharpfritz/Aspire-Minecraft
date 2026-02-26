@@ -65,6 +65,7 @@ if (builder.Configuration["ASPIRE_FEATURE_MINECART_RAILS"] == "true")
 if (builder.Configuration["ASPIRE_FEATURE_CANALS"] == "true")
 {
     builder.Services.AddSingleton<CanalService>();
+    builder.Services.AddSingleton<BridgeService>();
 }
 
 // Error boat visualization — register service when enabled
@@ -83,7 +84,9 @@ builder.Services.AddSingleton<ScoreboardManager>();
 builder.Services.AddSingleton<BuildingProtectionService>();
 builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
+builder.Services.AddSingleton<GrandObservationTowerService>();
 builder.Services.AddSingleton<HorseSpawnService>();
+builder.Services.AddSingleton<VillagerService>();
 
 // HealthHistoryTracker is always registered (cheap ring buffer used by dashboard if enabled)
 builder.Services.AddSingleton<HealthHistoryTracker>();
@@ -180,7 +183,10 @@ file sealed class MinecraftWorldWorker(
     RedstoneDashboardService? redstoneDashboard = null,
     MinecartRailService? minecartRails = null,
     CanalService? canals = null,
-    ErrorBoatService? errorBoats = null) : BackgroundService
+    BridgeService? bridges = null,
+    ErrorBoatService? errorBoats = null,
+    VillagerService? villagers = null,
+    GrandObservationTowerService? observationTower = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -259,6 +265,15 @@ file sealed class MinecraftWorldWorker(
             }
         }
 
+        // Grand Observation Tower: forceload, register protection, and build.
+        // Must happen AFTER terrain probe and neighborhoods, BEFORE structures.
+        if (observationTower is not null)
+        {
+            await observationTower.ForceloadAsync(stoppingToken);
+            observationTower.RegisterProtection();
+            await observationTower.BuildTowerAsync(stoppingToken);
+        }
+
         // Initialize opt-in features that need startup commands
         // NOTE: Rails and canals are initialized AFTER structures are built (see main loop)
         // to avoid being paved over by building foundations and paths.
@@ -321,11 +336,15 @@ file sealed class MinecraftWorldWorker(
                 await scoreboard.UpdateScoreboardAsync(stoppingToken);
                 await structures.UpdateStructuresAsync(stoppingToken);
                 await horseSpawn.SpawnHorsesAsync(stoppingToken);
+                if (villagers is not null)
+                    await villagers.SpawnVillagersAsync(stoppingToken);
 
-                // Build canals first so CanalPositions is populated for rail bridge detection,
-                // then rails. Both run AFTER structures so they aren't paved over.
+                // Build canals first so CanalPositions is populated for bridge and rail detection,
+                // then walkway bridges, then rails. All run AFTER structures so they aren't paved over.
                 if (canals is not null)
                     await canals.InitializeAsync(stoppingToken);
+                if (bridges is not null)
+                    await bridges.InitializeAsync(stoppingToken);
                 if (minecartRails is not null)
                     await minecartRails.InitializeAsync(stoppingToken);
 
@@ -354,6 +373,8 @@ file sealed class MinecraftWorldWorker(
                     await minecartRails.UpdateAsync(stoppingToken);
                 if (canals is not null)
                     await canals.UpdateAsync(stoppingToken);
+                if (bridges is not null)
+                    await bridges.UpdateAsync(stoppingToken);
                 if (errorBoats is not null)
                     await errorBoats.CleanupBoatsAsync(stoppingToken);
 

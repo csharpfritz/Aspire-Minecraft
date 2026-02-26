@@ -671,3 +671,59 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Why:** The lake north wall is at lakeZ, and trunk ending exactly at lakeZ created ambiguity about whether connection was complete. Extending into the lake interior ensures obvious visual continuity.
 **Files:** `CanalService.cs:201-214`
 
+
+### Grand Observation Tower Implementation (2026-02-26)
+
+**New file:** `src/Aspire.Hosting.Minecraft.Worker/Services/GrandObservationTowerService.cs`
+- Standalone service (not part of StructureBuilder) per Rhodey's architecture plan
+- 21x21 footprint, 32 blocks tall above SurfaceY, placed at x=20-40, z=-11 to 10
+- 5 themed floors: Entrance Hall, Library, Armory/Beacon, Observation Gallery, Rooftop
+- Continuous counter-clockwise spiral staircase (5 flights, individual setblock for facing)
+- Safety fences on inside edges, wall torches every 2 steps for lighting
+- Stairwell holes cut in floor platforms for continuous traversal
+- Constructor injection: RconService, BuildingProtectionService, ILogger
+- Three public methods: ForceloadAsync, RegisterProtection, BuildTowerAsync
+
+**Program.cs changes:**
+- DI registration: `AddSingleton<GrandObservationTowerService>()`
+- Constructor parameter added to MinecraftWorldWorker
+- Init sequence: forceload + protection + build, AFTER terrain probe/neighborhoods, BEFORE structures
+
+**Architecture decisions:**
+- Tower uses absolute coordinates (not relative to BaseX/BaseZ) since it's independent of village grid
+- Burst mode (40 cmd/s) for construction efficiency
+- Protection zone has 1-block X buffer and 2-block Z buffer matching StructureBuilder patterns
+- Corner buttresses extend 2 blocks above main walls (y+33) for dramatic silhouette
+- Compass markers use colored wool (N=red, S=blue, E=green, W=yellow)
+
+## Learnings
+
+### Spiral Staircase RCON Pattern (2026-02-26)
+**Key insight:** Individual `setblock` commands are required for stairs because each step needs a `facing` direction property. Cannot use `fill` for staircase runs.
+**Pattern:** Loop over step count, incrementing both position and Y per iteration. Facing direction matches the wall the flight runs along (east for south wall, south for east wall, west for north wall, north for west wall).
+**Safety:** Oak fences on the inside edge of each flight prevent players from falling into the central shaft. Fence Y is stair Y + 1 (one block above the step).
+**Files:** `GrandObservationTowerService.cs`
+
+### Bridge Geometry Over Canals (2026-02-26)
+**Canal clearance:** Water surface is at SurfaceY-1. Bridge deck at SurfaceY+2 gives 2 full air blocks (SurfaceY and SurfaceY+1) for boat passage underneath. This is the minimum the user requires.
+**Walkway bridge shape:** 2-step ramp (stairs at SurfaceY+1 then SurfaceY+2) → flat deck at SurfaceY+2 over the 5-block canal width → 2-step ramp down. Total bridge length = 9 blocks (2 ramp + 5 canal + 2 ramp).
+**Stair facing for ramps:** `facing=north` stairs at south approach → player walks north and steps up. `facing=south` stairs at north exit → symmetric descent. Works for both directions of travel.
+**Rail elevation smoothing:** Rails auto-slope between 1-block height changes. Use iterative smoothing passes to ensure no adjacent rail positions differ by more than 1 block of elevation. Two passes handle both approach and exit sides of each canal span.
+**Powered rails on bridges:** Use `redstone_block` instead of `redstone_torch` under powered rails on elevated bridge segments — torch placement conflicts with support column blocks.
+**Bridge locations:** Boulevard bridges (one per row at the central boulevard) and entrance bridges (one per building at the entrance center X). Both cross the E-W canals behind buildings. Bridges at the same canal Z deduplicate automatically.
+**Files:** `BridgeService.cs`, `MinecartRailService.cs`
+
+### Initialization Order: Canals → Bridges → Rails (2026-02-26)
+**Order matters:** CanalPositions must be populated before BridgeService runs (bridge locations derive from canal geometry). BridgeService must run before MinecartRailService so rail bridges don't interfere with walkway bridges. Both run AFTER StructureBuilder so building protection zones are registered.
+**Files:** `Program.cs` (MinecraftWorldWorker main loop)
+
+### BridgeService DI Registration Fix (2026-02-27)
+**Bug:** BridgeService was fully implemented and wired into MinecraftWorldWorker (optional constructor param, init/update calls), but never registered in DI. The `bridges` parameter was always null, so no walkway bridges were ever placed in-world.
+**Fix:** Added `builder.Services.AddSingleton<BridgeService>()` inside the canals feature flag block in Program.cs. Bridges only make sense over canals, so they share the `ASPIRE_FEATURE_CANALS` gate.
+**Files:** `src/Aspire.Hosting.Minecraft.Worker/Program.cs`
+
+### Rail Bridge Water-Level Blockage Fix (2026-02-27)
+**Bug:** In `PlaceRailConnectionAsync()`, when a rail crosses a canal at elevation 2, the lowest support block at `adjustedY - 2` (which lands at canal water level SurfaceY-1) was solid `stone_bricks`. This blocked boat passage through the canal underneath the bridge.
+**Fix:** Changed the lowest support block from `minecraft:stone_bricks` to `minecraft:oak_fence`. Fences have a narrow collision model that boats can pass through while still visually supporting the bridge deck. The `adjustedY - 1` support directly under the rail stays as stone_bricks for structural integrity.
+**Key insight:** When building over navigable waterways, always use fence-type blocks at the water level — they support weight visually without blocking entity passage.
+**Files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs`
