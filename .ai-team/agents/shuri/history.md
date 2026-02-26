@@ -80,6 +80,16 @@
 - CI/CD pipeline created (build.yml + release.yml) — decided by Wong
 - Test infrastructure created — InternalsVisibleTo, 62 tests passing — decided by Nebula
 - FluentAssertions fully removed — decided by Jeffrey T. Fritz, Nebula
+
+### VillagerService Easter Egg (2026-02-26)
+
+- Created `src/Aspire.Hosting.Minecraft.Worker/Services/VillagerService.cs` — standalone service following HorseSpawnService pattern (primary constructor, idempotent `_villagersSpawned` flag).
+- Three named villagers: Maddy (farmer), Damien (butcher), Fowler (fisherman) — all with `PersistenceRequired:1b`, `CustomNameVisible:1b`, `level:5` (master).
+- Fruit stand: 5×3 spruce plank floor, oak slab counter, four spruce fence corner posts, orange wool awning, three barrels, hanging lantern, "Fresh Fruit!" sign.
+- Stand positioned at `BaseX + 12, BaseZ - 8` — east of horse spawn area, in the south clearance zone inside the fence perimeter.
+- Sign uses two-step pattern from StructureBuilder: `setblock` to place, `data merge block` to set text.
+- Villager NBT: `VillagerData:{profession:"minecraft:farmer",level:5,type:"minecraft:plains"}` — level 5 locks profession so they won't change trades.
+- **Not yet wired into Program.cs** — documented integration steps in XML doc comment on the class. Needs `AddSingleton<VillagerService>()` and call from BackgroundService init path.
 - Release workflow extracts version from git tag — decided by Wong
 - Sprint 2 API review complete — 5 recommendations for Sprint 3 — decided by Rhodey
 - Beacon tower colors match Aspire dashboard palette — decided by Rocket

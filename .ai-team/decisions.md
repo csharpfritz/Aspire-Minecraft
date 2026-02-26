@@ -5100,3 +5100,550 @@ This ensures the dictionary is not modified while the `foreach` enumerator is ac
 
 **Impact:** All existing services (StructureBuilder, MinecartRailService, FenceService, WorldBorderService) automatically adapt via VillageLayout API — no changes needed outside VillageLayout.cs. Canal system now correctly positions back canal behind entire single-row village.
 
+---
+### 2026-02-27: BridgeService enabled via DI registration + rail bridge water-level fix
+**By:** Rocket
+**What:** Two fixes to get bridges working properly:
+1. Registered `BridgeService` as singleton inside the `ASPIRE_FEATURE_CANALS` feature flag block in Program.cs — it was implemented but never wired into DI, so the optional constructor parameter was always null.
+2. Changed the lowest rail bridge support block (at canal water level) from `minecraft:stone_bricks` to `minecraft:oak_fence` in MinecartRailService.cs — solid blocks were blocking boat passage through canals underneath elevated rail bridges.
+**Why:** BridgeService was dead code without the DI registration — walkway bridges never appeared in-world. The stone_bricks blockage was a functional bug reported by Nebula: boats couldn't pass under elevation-2 rail bridges because a solid block sat right at the water surface. Oak fences provide visual support while allowing entity passage, matching how Minecraft bridge builds work in practice.
+
+---
+### Bridge Test Update: Water-Level Blockage Tests Now Assert Fixed Behavior
+**By:** Nebula
+**Date:** 2026-02-26
+**What:** Updated `TrackBridge_NoBridgeBlockAtWaterLevel` from a soft known-issue placeholder to hard assertions matching Rocket's oak_fence fix. Added `TrackBridge_SupportStructure_HasCorrectMaterialLayers` test for the 3-layer bridge column (rail → stone_bricks → oak_fence).
+**Why:** The old test used `Assert.True(count >= 0)` which always passed — it documented the bug but never caught regressions. The updated test will fail if stone_bricks appear at water level and will require oak_fence to be present. The new support structure test validates the complete material stack at each bridge position.
+**Impact:** Rocket's MinecartRailService fix (changing `adjustedY - 2` from `stone_bricks` to `oak_fence`) is the expected implementation. Tests pass now (some via early return when rail paths don't cross canals in 2-resource configs) and will actively validate once Rocket's changes create canal-crossing rail geometry. 25 bridge tests total, all green.
+
+---
+---
+date: 2026-02-18
+author: Nebula
+status: informational
+---
+
+# Bridge Geometry Tests — Known Canal Blockage Issue
+
+## Context
+
+While writing proactive bridge geometry tests for Rocket's walkway/track bridge implementation, I discovered that the **existing** MinecartRailService bridge logic places support blocks at the canal water level (CanalY = SurfaceY - 1), which blocks boat passage through the canal.
+
+## Specifics
+
+In `MinecartRailService.PlaceRailConnectionAsync()`, when a rail crosses a canal:
+- `stone_brick_slab[type=top]` is placed at `Y-1` (= SurfaceY = grass level) ✓
+- `stone_bricks` support is placed at `Y-2` (= SurfaceY - 1 = CanalY = **water level**) ✗
+
+The water-level support blocks boat passage. The requirement states: "Bridges should NOT block the canal channel — the water below must remain passable for boats."
+
+## Recommendation
+
+Rocket's bridge redesign should either:
+1. Raise the bridge deck higher (rail at SurfaceY + 2, deck at SurfaceY + 1) so supports don't reach water
+2. Use open supports (fences/walls instead of solid blocks) that don't block boats
+3. Skip the Y-2 support entirely and rely on the slab at Y-1
+
+## Test Coverage
+
+24 tests in `BridgeGeometryTests.cs` document this behavior and will catch regressions. The `TrackBridge_NoBridgeBlockAtWaterLevel` test explicitly flags the known issue.
+
+---
+### 2026-02-26: Walkway and rail bridges over canals
+**By:** Rocket
+**What:** Added BridgeService for walkway bridges and updated MinecartRailService for proper rail bridges. Both bridge types arch 2 blocks above canal water (deck at SurfaceY+2) for boat clearance. Walkway bridges use stone brick deck with stair ramps and wall railings, placed at boulevard crossings and per-building entrances. Rail bridges use elevation smoothing so minecarts ramp smoothly up and over canals with stone brick support columns.
+**Why:** Streets run through the village and E-W canals cut across them — NPCs and horses can't cross water. Flat rail slabs at water level blocked boat traffic. Both issues solved by proper arch bridges with 2-block clearance. Initialization order: canals → bridges → rails ensures CanalPositions is available and walkway bridges don't get overwritten.
+
+---
+### 2026-02-26: Grand Observation Tower — Implementation Details
+**By:** Rocket
+**What:** Implemented `GrandObservationTowerService` as a standalone service following Rhodey's architecture plan. Tower is 21×21, 32 blocks tall, with 5 themed floors and continuous counter-clockwise spiral staircase. Integrated into Program.cs with forceload, protection registration, and build in the init sequence (after terrain probe, before structures).
+**Why:** Jeff wants a climbable observation tower at the south entrance where players can overlook the entire Aspire village. Standalone service keeps concerns separate from StructureBuilder (tower is not a resource structure). Tower uses absolute world coordinates (x=20-40, z=-11 to 10) independent of village grid. Init order ensures chunks are loaded and protection is registered before any building commands fire.
+
+**Key files:**
+- `src/Aspire.Hosting.Minecraft.Worker/Services/GrandObservationTowerService.cs` (new)
+- `src/Aspire.Hosting.Minecraft.Worker/Program.cs` (modified — DI, constructor, init sequence)
+
+**RCON budget:** ~280 commands at 40 cmd/s burst = ~7 seconds build time.
+
+**Staircase detail:** 5 flights × 5-7 steps each = ~31 individual `setblock` commands for stairs, plus ~31 fence posts and ~15 wall torches. Each stair uses `facing` property matching the wall direction.
+
+---
+# Decision: Grand Observation Tower Test Suite API Contract
+
+**By:** Nebula (Tester)  
+**Date:** 2026-02-26  
+**Status:** Active — waiting for Rocket's implementation
+
+## Decision
+
+The test suite for the Grand Observation Tower defines the following **expected public API** that Rocket must match:
+
+### Service Class
+- **Name:** `GrandObservationTowerService`
+- **Namespace:** `Aspire.Hosting.Minecraft.Worker.Services`
+- **Constructor:** `(RconService rcon, BuildingProtectionService protection, ILogger<GrandObservationTowerService> logger)`
+- **Method:** `Task BuildTowerAsync(CancellationToken cancellationToken)`
+
+### Expected Behaviors (tested)
+1. Issues `forceload add` before any `fill`/`setblock` commands
+2. Registers a protection zone with `BuildingProtectionService` (owner containing "Tower" or "Observation")
+3. Protection zone extends ≥1 block beyond footprint in X/Z, covers SurfaceY to SurfaceY+32
+4. Places oak_planks floor platforms at y+7, y+12, y+17, y+24
+5. Places stair blocks (oak_stairs) individually via setblock (100-120 expected)
+6. Stair facings include all 4 cardinal directions (east, north, west, south)
+7. All blocks within tower footprint ±1 buffer (X:19-41, Z:-12-10)
+8. Total command count in 200-400 range (spec target: 280-320)
+
+### Coordinate Constants
+- Origin: (20, SurfaceY, -11)
+- Side length: 21 (X: 20-40, Z: -11-9)
+- Height: 32 (Y: SurfaceY to SurfaceY+32)
+
+### Spec Discrepancy Noted
+Rhodey's plan text says "Z: -11 to 10 (21 blocks deep)" but that's 22 blocks. The code constants (`TowerSideLength=21`, `TowerOriginZ=-11`) yield Z: -11 to 9. Tests follow the code constants.
+
+## Rationale
+
+Writing proactive tests from the spec ensures Rocket's implementation matches architectural expectations. The test API is deliberately minimal — constructor DI + single build method — to give Rocket flexibility in internal design while enforcing external contracts.
+
+---
+# 2026-02-26: Watchtower Feature Plan — Grand Observation Tower
+
+**By:** Rhodey (Lead)  
+**What:** Architecture plan for the Grand Watchtower — a climbable observation tower at the town entrance  
+**Why:** Jeff wants players to climb to the top and overlook their Aspire town from 2–3× the normal building height, with ornate spiral staircases and interior designs throughout.
+
+---
+
+## Executive Summary
+
+The **Grand Watchtower** will be a standalone structure placed at the "front of town" (south side, main entrance area). It will:
+- **Height:** 32 blocks tall (BaseY to +31 = 32 blocks above surface)
+- **Footprint:** 21×21 blocks (extending beyond the standard 15×15 StructureSize)
+- **Interior:** Spiral staircase system connecting 5 floors, each with unique themed spaces
+- **Placement:** Positioned at the south entrance, outside the main village grid (independent placement, not a resource structure)
+- **RCON Budget:** ~280–320 fill/setblock commands (manageable in burst mode)
+
+---
+
+## Dimensions & Scale
+
+### Current Building Heights
+- **Standard buildings:** `y + 1` to `y + 18` = 18 blocks above surface (interior floors at y+7, y+13, y+18 roof)
+- **Watchtower (project resources):** Currently 20 blocks tall (y+1 to y+21 parapet, y+23 banners)
+
+### Grand Watchtower Dimensions
+- **Height above surface:** 32 blocks (`y + 1` through `y + 32`)
+  - 2× the current Watchtower's 20-block height
+  - Reaches y = -60 + 1 + 32 = -27 (comfortably above terrain variations)
+  - Player standing on top has clear sightline across all village buildings (~18 blocks below)
+- **Footprint:** 21×21 blocks (vs. standard 15×15)
+  - Placed as **independent structure** (not in the grid)
+  - Allows for extended decorative elements and wider spiral landings
+- **Interior clearance:** 17×17 (removing 2-block perimeter walls on each side)
+  - Spiral staircase loops around the perimeter, with 5×5–7×7 open center shaft
+
+### Placement: "Front of Town" Coordinates
+
+#### Village Layout Review
+- **Village baseline:** BaseX=10, BaseZ=0 (southwest corner of main grid)
+- **Grid spacing:** 36 blocks center-to-center, 2 columns
+- **Fence gate location:** South side (Z-min), centered at `x = BaseX + StructureSize = 10 + 15 = 25` (near entrance)
+- **Gate opening width:** 5 blocks (standard)
+- **South entrance:** Between the south fence line and the first row of buildings
+
+#### Watchtower Placement (South Side Entrance)
+```
+Coordinates: (x_origin, y_base, z_origin) = (20, -59, -11)
+
+Reasoning:
+- X-position: x=20 centers it south of the main village (BaseX=10, MainRow=25)
+  - Offset ensures it's visible from the gates without blocking passage
+  - Roughly centered on the "boulevard" between columns 0 and 1
+- Z-position: z=-11 places it well south of the fence perimeter
+  - Fence line is at z=min (BaseZ – FenceClearance = 0 – 10 = -10)
+  - Tower starts at z=-11, extends to z=10 (21 blocks deep)
+  - Creates a natural "approach vista" — tower visible from the south entry
+- Y-position: y=-59 (SurfaceY + 1, aligned with all other buildings)
+
+Final extents:
+- X: 20 to 40 (21 blocks wide)
+- Y: -59 to -27 (32 blocks tall)
+- Z: -11 to 10 (21 blocks deep)
+```
+
+This placement:
+- ✅ Directly in front of the town entrance (natural focal point)
+- ✅ Outside the main village grid (independent, won't interfere with layout)
+- ✅ Visible from player spawn/entrance gate
+- ✅ Doesn't overlap resource structures
+- ✅ Requires forceload expansion (covered below)
+
+---
+
+## Interior Design: Five-Floor Spiral Staircase
+
+### Floor Layout (Bottom to Top)
+
+#### **Ground Floor (y + 1 to y + 6) — Entrance Hall**
+- **Purpose:** Player entry point, orientation space
+- **Staircase entry:** South-facing wooden doors at y+1–y+4 (2-wide opening)
+- **Interior:**
+  - Central atrium with 5×5 open shaft (for sightlines between floors)
+  - Resource name sign above entrance (who built this town?)
+  - 4 lanterns/torches around entry for ambiance
+  - Decorative stone brick base: stone bricks + mossy stone for age
+- **Exit:** First flight of stairs begins at south wall, ascending northeast
+
+#### **Floor 2 (y + 7 to y + 11) — Library/Cartography Room**
+- **Purpose:** Knowledge and exploration theme
+- **Features:**
+  - Bookshelves lining walls (full-height stacks, 1 block inset from perimeter)
+  - Lecterns and writing desks (oak planks + oak stairs)
+  - Maps on the walls (item frames with maps)
+  - Enchanting table in the center (knowledge/magic theme)
+  - Landing platform: oak planks floor
+- **Staircase:** Second flight ascends along east wall, moving from south to north
+
+#### **Floor 3 (y + 12 to y + 16) — Armory/Beacon Chamber**
+- **Purpose:** Resources and power
+- **Features:**
+  - Armor stands displaying gear (weapons, shields)
+  - Beacon monument in center (4 iron blocks at y+12–y+14, beacon at y+15)
+  - Chest storage (double chests for supplies)
+  - Banners on walls (language colors from resource types)
+  - Stained glass accents (light blue or purple)
+- **Staircase:** Third flight ascends along west wall, moving from north to south
+
+#### **Floor 4 (y + 17 to y + 23) — Observation Gallery**
+- **Purpose:** Views of the town
+- **Features:**
+  - **Large windows on all four walls** (glass panes, y+19–y+21, 3-wide openings)
+  - Observation benches (stairs in corner positions, facing windows)
+  - Telescope lectern (optional: redstone contraption pointing north/south)
+  - Wool/banner decorations with town colors
+  - Landing platform: deepslate tiles (prestige floor)
+- **Staircase:** Fourth flight ascends along north wall, moving from west to east
+
+#### **Top Floor / Roof Level (y + 24 to y + 32) — Crowning Chamber**
+- **Purpose:** Ultimate view platform
+- **Features:**
+  - **Open roof platform with crenellated parapet** (battlements for safety)
+  - Merlons (2-wide stone blocks) at cardinal directions for climber safety
+  - Widened stairs at y+24–y+25 for a ceremonial final landing
+  - Compass markers (wool blocks) at cardinal directions (N red, S blue, E green, W yellow)
+  - Signal beacon or lantern at very top (y+32, single glowstone or sea lantern)
+  - Central flagpole (banner on a wooden post) with language color from main project
+- **Pinnacle:** Single standing banner at the absolute top (y+32 for silhouette)
+
+### Spiral Staircase Design
+
+#### Geometry & Flow
+```
+Direction pattern (viewed from above):
+Ground → Floor 2: Ascend along SOUTH WALL, moving EAST (left turn)
+Floor 2 → Floor 3: Ascend along EAST WALL, moving NORTH (left turn)
+Floor 3 → Floor 4: Ascend along NORTH WALL, moving WEST (left turn)
+Floor 4 → Top: Ascend along WEST WALL, moving SOUTH (left turn)
+
+Result: Continuous left-handed spiral (counter-clockwise viewed from above)
+Player walks up naturally, never has to backtrack or jump gaps.
+```
+
+#### Block Details
+- **Stair blocks:** Oak stairs (warm, inviting aesthetic, matches village)
+  - Alternative: Stone brick stairs (more formal, matches buildings)
+  - Decision: **Use oak stairs for contrast** with the stone exterior
+- **Landing platforms:** Oak planks (y+7, y+12, y+17, y+24)
+  - Prevents fall damage, provides resting spots
+  - Texturally distinct from stairs
+- **Perimeter guards:** 
+  - 1–2 block-high fences or walls on the "inside" of each staircase flight (safety rail)
+  - Prevents players from falling into the central shaft
+- **Lighting:** 
+  - Torches or lanterns on every other stair block
+  - Hanging lanterns from floor above (chains + lanterns)
+
+#### Staircase Continuity
+**Every player step is supported — no jumping required:**
+1. Ground floor → climb to landing at y+7 (oak stairs, each ascending 1 block)
+2. Land, turn, continue to y+11 (stay on floor platform, no gaps)
+3. Staircase flight 2 → climb to y+16 landing
+4. Repeat through y+21 observation platform
+5. Final flight → y+24 ceremonial landing
+6. Small climb to y+32 roof (stairs, not jump)
+
+---
+
+## Architecture Integration
+
+### Implementation Approach
+
+#### **Option A: Separate WatchtowerService (Recommended)**
+- Create `GrandObservationTowerService.cs` in `Services/`
+- **Responsibilities:**
+  - Compute tower placement at startup (or per configuration)
+  - Build the structure asynchronously via RCON
+  - Register forceload area before building
+  - Register protection zone (so canals/rails don't intersect)
+- **Initialization order:** Before `StructureBuilder` (so tower doesn't interfere with resource buildings)
+- **Rationale:**
+  - Tower is **not a resource structure** → separating it from `StructureBuilder` keeps that service focused
+  - Tower is a **one-time build** (not per-resource) → simpler than adding a resource type
+  - Allows independent scheduling and tuning
+
+#### **Option B: Add to StructureBuilder (Alternative)**
+- Add method `BuildGrandObservationTowerAsync(...)` to `StructureBuilder`
+- Call it once after paths/fence are built, before resource structures
+- Pros: Reuses existing command queueing, error handling
+- Cons: Makes `StructureBuilder` do more; harder to disable/customize
+
+**Decision: Option A** — separate service. Keeps concerns clean.
+
+### Forceload Requirements
+
+**Before building, the entire tower area must be forceloaded:**
+
+```csharp
+// In GrandObservationTowerService.cs (pseudocode)
+var towerMinX = 20, towerMaxX = 40;
+var towerMinZ = -11, towerMaxZ = 10;
+
+await rcon.SendCommandAsync(
+    $"forceload add {towerMinX} {towerMinZ} {towerMaxX} {towerMaxZ}", ct);
+
+logger.LogInformation("Forceloaded tower area: ({X1},{Z1}) to ({X2},{Z2})", 
+    towerMinX, towerMinZ, towerMaxX, towerMaxZ);
+```
+
+**Order matters:**
+1. After `TerrainProbeService` (so we know SurfaceY)
+2. After `VillageLayout.PlanNeighborhoods()` (so we know final village extents — tower doesn't overlap)
+3. **Before** `StructureBuilder.UpdateStructuresAsync()` (so resource buildings don't conflict)
+
+### Building Protection Integration
+
+**The tower interior must be protected** so other systems don't place blocks inside:
+
+```csharp
+protection.Register(
+    towerMinX - 1, SurfaceY, towerMinZ - 2,
+    towerMaxX + 1, SurfaceY + 32, towerMaxZ + 1,
+    "GrandObservationTower");
+```
+
+- Prevents canals from cutting through the tower
+- Prevents minecart rails from entering
+- Extends 1 block beyond tower footprint (buffer for external decorations)
+
+### Relationship to Resource Structures
+
+- **Independent placement:** Tower is built regardless of how many resources exist
+- **No neighborhood assignment:** Not a "Project" or "Container" — exists in a separate coordinate zone
+- **Door/health indicator:** Not needed (tower doesn't represent a single resource)
+- **Accessible to all players:** No resource dependency
+
+---
+
+## RCON Command Budget Estimate
+
+### Command Breakdown
+
+| Task | Commands | Notes |
+|------|----------|-------|
+| Base plinth (mossy stone) | 1 fill | Full 21×21 footprint |
+| Main walls (hollow box) | 1 fill | y+1 to y+31, outer shell |
+| Interior clearing | 1 fill | Inner 17×17 shaft |
+| Corner buttresses (4 pillars) | 4 fill | Deepslate, rise above roof |
+| Decorative stone bands | 12 fill | Weathered lower walls, string courses, machicolations |
+| Parapet & battlements | 3 fill | Ring + merlons |
+| Pinnacle posts | 4 setblock | Top of each pillar |
+| Windows & glass (4 sides) | 8–10 fill | Arrow slits, observation deck |
+| Floor platforms (4 floors) | 4 fill | Oak planks |
+| **Spiral staircases** (5 flights) | 100–120 setblock | Each stair placed individually |
+| Landing fences/guards | 8 fill | Safety rails around stairwells |
+| Interior furniture | 30–40 setblock | Lanterns, lecterns, armor stands, chests, bookshelves, banners |
+| Torches/lanterns | 25–30 setblock | Ambient lighting throughout |
+| Roofline details | 5–8 fill | Crenellations, pinnacle caps |
+| **TOTAL** | **280–320** | **Manageable in burst mode** |
+
+### Burst Mode Execution
+- Standard burst mode: 40 commands/sec (per existing config)
+- **Execution time:** 280–320 commands ÷ 40 cmds/sec = **7–8 seconds** ✅
+- No timeout risk; well within normal player patience window
+
+---
+
+## Development Roadmap
+
+### Phase 1: Foundation (Rocket's Work)
+1. Implement `GrandObservationTowerService`
+   - Coordinates, forceload logic
+   - Exterior: walls, buttresses, windows, roof
+   - Placement registration with protection service
+2. Implement basic spiral staircase structure
+   - All 5 flights, minimal landing platforms
+   - Torches for lighting (no fancy decorations yet)
+3. Test building, verify no overlaps, confirm visibility from entrance
+
+### Phase 2: Interior Theming & Decoration (Future)
+1. **Floor 2:** Add bookshelves, lecterns, maps
+2. **Floor 3:** Add armor stands, beacon, chests
+3. **Floor 4:** Add observation benches, decorative glass, windows
+4. **Floor 5:** Add roof furniture, compass markers, pinnacle flag
+5. Polish: banners, color accents, ambient items
+
+### Phase 3: Integration Features (Future, Optional)
+1. **Redstone beacon:** Animate based on town status (all projects healthy → color changes)
+2. **Telescopes:** Decorative lecterns with redstone directional indicators
+3. **Plaques:** Information signs on each floor (lore, resource counts, etc.)
+4. **Sound effects:** Optional ambient music when players reach top floor
+
+---
+
+## Code Patterns & Details
+
+### Service Registration (Program.cs)
+```csharp
+// After TerrainProbeService, before StructureBuilder
+builder.Services.AddSingleton<GrandObservationTowerService>();
+```
+
+### Coordinate Constants
+```csharp
+private const int TowerOriginX = 20;
+private const int TowerOriginZ = -11;
+private const int TowerSideLength = 21;  // 21×21 footprint
+private const int TowerMaxHeight = 32;   // y + 32
+
+private static readonly (int x, int z) TowerMin = (TowerOriginX, TowerOriginZ);
+private static readonly (int x, int z) TowerMax = 
+    (TowerOriginX + TowerSideLength - 1, TowerOriginZ + TowerSideLength - 1);
+```
+
+### Staircase Flight Template
+```csharp
+// Example: Flight 1 (South wall, ascending east, y+1 to y+7)
+var stairX = new[] { 4, 5, 6, 7, 8, 9, 10 };  // x coordinates
+var stairY = new[] { 1, 2, 3, 4, 5, 6, 7 };   // y coordinates
+var stairZ = 11;  // fixed z (south wall location relative to origin)
+var facing = "east";  // direction player ascends
+
+for (int i = 0; i < stairX.Length; i++)
+{
+    await rcon.SendCommandAsync(
+        $"setblock {towerOriginX + stairX[i]} {surfaceY + stairY[i]} " +
+        $"{towerOriginZ + stairZ} minecraft:oak_stairs[facing={facing}]", ct);
+}
+```
+
+### Floor Platform Registration
+```csharp
+// Floor platforms at y+7, y+12, y+17, y+24
+var floors = new[] { 7, 12, 17, 24 };
+foreach (var floorOffset in floors)
+{
+    await rcon.SendCommandAsync(
+        $"fill {TowerOriginX + 2} {SurfaceY + floorOffset} {TowerOriginZ + 2} " +
+        $"{TowerOriginX + 18} {SurfaceY + floorOffset} {TowerOriginZ + 18} " +
+        $"minecraft:oak_planks", ct);
+}
+```
+
+---
+
+## Risk Mitigation
+
+### Potential Issues & Solutions
+
+| Issue | Impact | Mitigation |
+|-------|--------|-----------|
+| **Forceload not applied** | Staircase blocks fail to place, silent failure | Log forceload area, verify with `forceload query` before building |
+| **Z-coordinate confusion** | Tower placed at wrong entrance (north vs. south) | Document clearly: south = Z-min = negative Z; use BaseZ as reference |
+| **Staircase creates gaps** | Players fall through floors | Each stair must be contiguous; test by walking the path |
+| **Overlaps with fence perimeter** | Tower blocks fence line | Verify tower Z extends beyond fence min: tower z=-11, fence z=-10 |
+| **RCON burst mode saturates** | Commands queue too long, timeout | Budget is ~7 sec, well under typical timeout; monitor logs |
+| **Player falls off roof** | Unrealistic expectation of crenellation height | Make merlons 2 blocks high minimum, test fall damage |
+
+---
+
+## Testing Checklist
+
+Before declaring the tower complete:
+
+- [ ] **Forceloading:** Confirm all blocks are placed (no silent failures)
+- [ ] **Staircase continuity:** Walk every step from ground to roof (no jumps needed)
+- [ ] **Floor visibility:** Can player see previous floors when standing on upper floors?
+- [ ] **Roof view:** Standing on roof, player can see all village buildings below
+- [ ] **Entrance aesthetics:** Tower visually frames the south gate, looks like a landmark
+- [ ] **No overlaps:** Verify tower doesn't collide with village grid, fence, or canals
+- [ ] **Interior lighting:** All floors are adequately lit (no dark corners)
+- [ ] **Protection zone:** Confirm canals/rails don't pathfind through tower
+
+---
+
+## Summary for Rocket
+
+**Build this as a separate `GrandObservationTowerService`:**
+
+1. **Placement:** x=20–40, y=-59 to -27, z=-11 to 10 (21×21 footprint, 32 blocks tall, south entrance)
+2. **Exterior:** Stone brick walls with deepslate corner buttresses, crenellated parapet, large observation windows
+3. **Interior:** 5 floors with spiral staircase (oak stairs, 100–120 individual setblocks)
+   - Floor 2 (y+7): Library theme (bookshelves, lecterns)
+   - Floor 3 (y+12): Armory theme (armor stands, beacon)
+   - Floor 4 (y+17): Observation gallery (large windows, benches)
+   - Floor 5 (y+24): Rooftop crowning chamber with compass markers
+4. **Forceload:** Entire area before placing any blocks
+5. **Protection:** Register with `BuildingProtectionService` to prevent other systems from intersecting
+6. **Execution:** ~280–320 RCON commands, ~7–8 seconds in burst mode
+
+**Key constraint:** Every stair block must be contiguous — no jumping. Use individual `setblock` for each stair step to ensure precise placement.
+
+**Future enhancements:** Thematic decorations (maps, armor stands), animated beacon, informational plaques.
+
+---
+
+**Status:** Ready for implementation by Rocket (Sprint TBD)  
+**Estimated effort:** 2–3 development hours (exterior + basic staircases); +1 hour for Phase 2 decorations
+
+---
+# Decision: VillagerService Integration Requirements
+
+**Author:** Shuri  
+**Date:** 2026-02-26  
+**Status:** Pending (needs Program.cs wiring)
+
+## Context
+
+Created `VillagerService.cs` as a standalone easter-egg service that spawns three named NPC villagers (Maddy, Damien, Fowler) running a fruit stand in the village. Follows the same pattern as `HorseSpawnService`.
+
+## What Needs to Happen
+
+Someone with access to modify `Program.cs` needs to add:
+
+1. **DI registration** (near line 86, after `HorseSpawnService`):
+   ```csharp
+   builder.Services.AddSingleton<VillagerService>();
+   ```
+
+2. **BackgroundService constructor** — add optional parameter:
+   ```csharp
+   VillagerService? villagerService = null
+   ```
+
+3. **Initialization call** — after `horseSpawn.SpawnHorsesAsync()` (near line 323):
+   ```csharp
+   await villagerService?.SpawnVillagersAsync(stoppingToken);
+   ```
+
+## Why This Is Deferred
+
+Program.cs is concurrently being modified by Rocket for bridge/canal/rail work. To avoid merge conflicts, the integration wiring is documented but not applied.
+
+---
+### 2026-02-26: User directive — NPC villager names
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Three NPC villagers should be named Maddy, Damien, and Fowler. They manage a fruit stand in town. This is an Easter egg feature alongside the three horses already in town.
+**Why:** User request — captured for team memory
+

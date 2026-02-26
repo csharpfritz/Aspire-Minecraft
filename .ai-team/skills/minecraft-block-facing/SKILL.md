@@ -1,8 +1,8 @@
 ---
 name: "minecraft-block-facing"
-description: "Correctly place wall-mounted blocks (levers, torches, signs, banners) in Minecraft via RCON"
+description: "Correctly place directional blocks (levers, torches, signs, banners, stairs) in Minecraft via RCON"
 domain: "minecraft-interactions"
-confidence: "low"
+confidence: "medium"
 source: "earned"
 ---
 
@@ -46,3 +46,23 @@ await rcon.SendCommandAsync(
 - **Placing the item AT the wall coordinate** — replaces the wall block, and support direction points to interior air (floating item).
 - **Using `facing=south` when the wall is to the south** — support would be to the north (away from wall), causing the item to float.
 - **Confusing `facing` with "the direction the wall is in"** — `facing` is the direction the item EXTENDS, not where the wall is.
+
+### 4. Stair blocks for ramps and bridges
+
+Stairs have a `facing` property that controls the ascent direction. `facing=X` means the stair's full-block back faces direction X, and the step opens in the opposite direction.
+
+For a south-to-north ramp (player walks toward +Z and goes up):
+- Use `facing=north` — back faces north, step faces south, player steps up walking north
+
+For a north-to-south ramp (player walks toward -Z and goes up):
+- Use `facing=south` — back faces south, step faces north, player steps up walking south
+
+```csharp
+// South approach ramp — player walks north (+Z) and ascends
+await rcon.SendCommandAsync(
+    $"fill {x1} {y} {z} {x2} {y} {z} minecraft:stone_brick_stairs[facing=north,half=bottom]");
+
+// North exit ramp — symmetric descent (also works as approach from north)
+await rcon.SendCommandAsync(
+    $"fill {x1} {y} {z} {x2} {y} {z} minecraft:stone_brick_stairs[facing=south,half=bottom]");
+```

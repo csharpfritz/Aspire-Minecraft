@@ -220,6 +220,28 @@
 
 📌 Team update (2026-02-17): Village redesign architecture proposed — 6-phase plan covering canals, error boats, Docker image, track/canal bridges, spacing increase to 36 blocks — decided by Rhodey
 
+### 2026-02-26: Watchtower Feature Plan — Grand Observation Tower
+
+- **Jeff's vision:** A climbable observation tower at the front of the town, 2–3× building height, with spiral staircases and ornate interior designs so players can overlook their Aspire town.
+- **Architecture plan written** at `.ai-team/decisions/inbox/rhodey-watchtower-plan.md` with complete implementation roadmap for Rocket.
+- **Placement: South side entrance (z=-11 to z=10), x=20 to x=40, y=-59 to y=-27.** 21×21 footprint, 32 blocks tall. Positioned directly in front of the gate, creates a natural focal point for town entrance. Independent of resource grid (not in the 2×N layout).
+- **Five-floor interior design:**
+  - **Floor 1 (y+1–6):** Entrance hall with decorative arch and resource name sign
+  - **Floor 2 (y+7–11):** Library/cartography (bookshelves, lecterns, enchanting table, maps)
+  - **Floor 3 (y+12–16):** Armory/beacon chamber (armor stands, beacon monument, banners)
+  - **Floor 4 (y+17–23):** Observation gallery (large glass windows on all sides, benches, deepslate tiles)
+  - **Floor 5 (y+24–32):** Rooftop crowning chamber (crenellated parapet, compass markers, signal beacon, pinnacle flag)
+- **Spiral staircase design:** Left-handed spiral (counter-clockwise), 5 continuous flights using oak stairs, 100–120 individual setblocks. Each stair block must be contiguous (no jumping). Landing platforms at each floor (oak planks). Safety rails on inside of stairwell.
+- **Exterior:** Stone brick walls with decorative deepslate corner buttresses, weathered lower walls, string courses, machicolations, crenellated battlements with merlons, glass pane observation windows (y+9–10, y+15–16), four corner turrets with pinnacle posts and standing banners.
+- **Implementation approach:** Separate `GrandObservationTowerService` (not part of StructureBuilder, which handles per-resource buildings). Service responsible for: computing placement, forceloading area before building, protecting zone from canals/rails, executing ~280–320 RCON commands in burst mode (~7–8 seconds).
+- **RCON budget breakdown:** Base + walls (1 fill), corner buttresses (4 fill), decorative details (12 fill), parapet/battlements (3 fill), windows (8–10 fill), 4 floor platforms (4 fill), spiral staircases (100–120 setblock), landing guards (8 fill), furniture (30–40 setblock), torches/lanterns (25–30 setblock), roof details (5–8 fill). Total: 280–320 commands, manageable in burst mode.
+- **Phase 1 (Rocket's work):** Foundation service setup, exterior building (walls, buttresses, windows, roof), basic spiral staircase with torches, test build, verify placement, check no overlaps.
+- **Phase 2 (Future):** Interior thematic decoration (maps, bookshelves, armor stands, beacon, benches, compass markers, pinnacle flag).
+- **Phase 3 (Optional):** Redstone features (animated beacon, telescopes with directional indicators, informational plaques).
+- **Key architectural decisions:** Tower is independent, not a resource. Uses separate service to keep StructureBuilder focused. Forceload required before build. Protection zone prevents canals/rails from intersecting. Coordinates chosen to be visible from south gate and frame town entrance.
+
+📌 Team update (2026-02-26): Grand Observation Tower feature plan finalized — ready for Rocket to implement as separate service — decided by Rhodey
+
 ## Learnings
 
 ### MinecartRailService Architecture Insights
