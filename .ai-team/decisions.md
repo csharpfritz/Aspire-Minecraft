@@ -1,3 +1,8 @@
+### 2026-02-27: Grand Observation Tower repositioned north of village, entrance rotated south
+**By:** Rocket
+**What:** Tower moved from (20, -36) to (25, -45) — horizontally centered on the village x-axis (x=35) and placed 15 blocks north of the northern fence line (z=-10). Entrance rotated 180° from the min-Z (north) wall to the max-Z (south) wall so it faces toward the village. Tower now spans x=25-45, z=-45 to -25.
+**Why:** Jeff wants the tower centered on the village and positioned as a landmark north of town, with the entrance welcoming players as they look south toward the village. The 15-block gap between tower and fence gives clean sightlines and prevents the tower from crowding the fence perimeter.
+
 ### 2026-02-17: Village Redesign Architecture — Canals, Tracks, Docker Image
 **By:** Rhodey
 **What:** Comprehensive architecture proposal for Jeff's village redesign: custom Docker image, wider village spacing, canal system, error boats, and track/canal bridge interactions.
@@ -9,7 +14,6 @@
 
 
 ---
-
 
 ### Phase 1: Village Layout Expansion (Blocker — everything depends on this)
 **Duration:** 3–4 days | **Owner:** Shuri
@@ -26,7 +30,6 @@
 
 ---
 
-
 ### Phase 2: Custom Docker Image (Parallel with Phase 1)
 **Duration:** 2–3 days | **Owner:** Wong
 - Create `docker/Dockerfile` extending `itzg/minecraft-server:latest`
@@ -38,7 +41,6 @@
 
 ---
 
-
 ### Phase 3: Canal System (Depends on Phase 1)
 **Duration:** 5–7 days | **Owner:** Rocket
 - New `CanalService.cs` — builds water channels from each building to the lake
@@ -49,7 +51,6 @@
 
 ---
 
-
 ### Phase 4: Error Boats (Depends on Phase 3)
 **Duration:** 3–4 days | **Owner:** Rocket
 - New `ErrorBoatService.cs` — spawns boats with creepers on error events
@@ -59,7 +60,6 @@
 
 ---
 
-
 ### Phase 5: Track/Canal Bridges (Depends on Phase 1 + Phase 3)
 **Duration:** 2–3 days | **Owner:** Rocket
 - Modify `MinecartRailService` to detect canal crossings
@@ -68,7 +68,6 @@
 
 
 ---
-
 
 ### Phase 6: Tests & Documentation (Depends on Phases 3–5)
 **Duration:** 3–4 days | **Owner:** Nebula + Rhodey
@@ -91,7 +90,6 @@ Phase 2 (Docker)   └── Phase 5 (Bridges) ───────────
 
 
 ---
-
 
 ### New Constants and Properties
 
@@ -119,7 +117,6 @@ public const int LakeGap = 20;
 
 ---
 
-
 ### Spacing Change
 
 `ConfigureGrandLayout()` updated:
@@ -137,7 +134,6 @@ public static void ConfigureGrandLayout()
 
 ---
 
-
 ### Grid Dimensions (10 resources, 2 columns, 5 rows)
 
 | Property | Old (24 spacing) | New (36 spacing) |
@@ -150,7 +146,6 @@ public static void ConfigureGrandLayout()
 
 
 ---
-
 
 ### New Methods
 
@@ -181,7 +176,6 @@ public static (int x, int y, int z) GetLakePosition(int resourceCount)
 
 ---
 
-
 ### Layout Diagram (Top-Down, 2 resources shown)
 
 ```
@@ -210,7 +204,6 @@ Z   │  ... next row at Z+36 ...                                               
 
 
 ---
-
 
 ### Recommendation: Custom Dockerfile extending `itzg/minecraft-server`
 
@@ -262,7 +255,6 @@ private const string DefaultTag = "latest";
 
 ---
 
-
 ### Minecraft Water Mechanics
 
 Water in Minecraft flows up to 8 blocks from a source block on flat terrain. For a canal longer than 8 blocks, you need source blocks every 8 blocks OR a 1-block drop every 8 blocks to create flowing water that boats can traverse.
@@ -278,7 +270,6 @@ For a canal that's 100+ blocks long (building to lake), a flat canal with source
 
 
 ---
-
 
 ### Canal Cross-Section (3 blocks wide)
 
@@ -299,7 +290,6 @@ Surface level (SurfaceY = -60):
 
 
 ---
-
 
 ### Canal Routing
 
@@ -337,7 +327,6 @@ Instead of sloping, use **blue ice** as the canal floor. Boats on blue ice slide
 
 ---
 
-
 ### Canal RCON Commands
 
 Building the canal for one resource (assume 80-block length):
@@ -356,7 +345,6 @@ fill <x1+1> <surfaceY-1> <z1> <x2-1> <surfaceY-1> <z2> water
 
 
 ---
-
 
 ### Lake Construction
 
@@ -381,7 +369,6 @@ fill <lakeX+1> <surfaceY-2> <lakeZ+1> <lakeX+19> <surfaceY-1> <lakeZ+11> water
 
 ---
 
-
 ### Spawning
 
 When an Aspire resource logs an error, spawn a boat with a creeper passenger at that resource's canal entrance:
@@ -400,7 +387,6 @@ The `CustomName` tag lets us query and manage specific error boats later.
 
 ---
 
-
 ### Floating
 
 On blue ice, boats auto-slide toward the lake (if given initial velocity). To push boats:
@@ -417,7 +403,6 @@ This gives initial Z-velocity. On blue ice, the boat slides to the lake.
 
 
 ---
-
 
 ### Despawning — Jeff's Key Concern
 
@@ -452,7 +437,6 @@ This gives initial Z-velocity. On blue ice, the boat slides to the lake.
 
 
 ---
-
 
 ### ErrorBoatService Design
 
@@ -504,7 +488,6 @@ internal sealed class ErrorBoatService
 
 ---
 
-
 ### Error Detection Hook
 
 The `ErrorBoatService` subscribes to the existing `AspireResourceMonitor` health change events. When a resource transitions to `Unhealthy`, spawn a boat. When it transitions back to `Healthy`, stop spawning (but let existing boats finish their journey).
@@ -518,14 +501,12 @@ For log-level errors (Jeff's original ask), we'd need the worker to consume log 
 
 ---
 
-
 ### The Problem
 
 Minecart tracks (from `MinecartRailService`) and water canals will cross paths when tracks connect buildings in different rows. A track running in the Z-axis will cross a canal running in the Z-axis if they share X-coordinates, or an X-axis track will cross a Z-axis canal.
 
 
 ---
-
 
 ### Bridge Design
 
@@ -561,7 +542,6 @@ setblock <x> <surfaceY+2> <bridgeZ> rail
 
 ---
 
-
 ### Detection Logic
 
 In `MinecartRailService.CalculateRailConnection()`, after computing the L-shaped path:
@@ -582,7 +562,6 @@ foreach (var (x, y, z) in railPositions)
 
 ---
 
-
 ### Rail Types Near Water
 
 Rails cannot be placed on water or in water — they pop off. The bridge slab provides a solid surface. Critical: the bridge slab must be at least 1 block ABOVE the water surface to prevent water from washing away the rail. With water at SurfaceY - 1 and rails at SurfaceY + 1, there's a 2-block gap — sufficient.
@@ -593,7 +572,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 
 ---
-
 
 ### Files That Change
 
@@ -608,7 +586,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### New Files
 
 | File | Purpose |
@@ -622,7 +599,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### What Breaks
 
 1. **Village spacing increase (24→36) changes ALL structure positions for Grand layout.** Every test that asserts exact coordinates for Grand layout structures will need updating. Standard (7×7) layout is unaffected.
@@ -635,7 +611,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 
 ---
-
 
 ### What Doesn't Break
 
@@ -665,7 +640,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-17: Village redesign design defaults
 **By:** Jeffrey T. Fritz (via Copilot — autonomous defaults)
 **What:** For the village redesign: blue ice canal floors, stone brick walls, oak boats, GHCR for Docker image, health-status-based error triggers (v1), simple lake with dock. Spacing 24→36 for Grand layout.
@@ -675,7 +649,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 
 ---
-
 
 ### 2026-02-10: Proposed feature ideas for Aspire-Minecraft
 **By:** Rocket
@@ -687,7 +660,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Backlog (not in 3-sprint arc):** Nether Portal Frames, Live Log Wall, /trigger Commands.
 
 ---
-
 
 ### 2026-02-10: 3-Sprint Plan for Aspire-Minecraft
 **By:** Rhodey
@@ -718,7 +690,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: CI/CD pipeline — build.yml + release.yml created
 **By:** Wong
 **What:** Created two GitHub Actions workflows: `build.yml` (CI on push/PR to main, ubuntu+windows matrix, restore→build→test→pack→upload) and `release.yml` (NuGet publish on `v*` tag, GitHub Release creation). Also added `.github/PULL_REQUEST_TEMPLATE.md`. No separate PR-validation workflow — `build.yml` covers PR triggers.
@@ -726,14 +697,12 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Test project structure and InternalsVisibleTo pattern established
 **By:** Nebula
 **What:** Created tests/Aspire.Hosting.Minecraft.Rcon.Tests and tests/Aspire.Hosting.Minecraft.Tests with xUnit and Microsoft.NET.Test.Sdk. Added InternalsVisibleTo to both source projects. Changed MinecraftHealthCheck.ParseConnectionString from private to internal for testability. 62 tests (45 RCON + 17 hosting), 0 failures.
 **Why:** CI/CD pipeline requires test projects to exist and pass. The InternalsVisibleTo pattern enables testing of internal types (RconPacket, endpoint constants, ParseConnectionString) without exposing them publicly.
 
 ---
-
 
 ### 2026-02-10: FluentAssertions removal and assertion library decision (consolidated)
 **By:** Nebula, Jeffrey T. Fritz
@@ -743,14 +712,12 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Track all work as GitHub issues with team member labels
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** All sprint plan items opened as GitHub issues. Labels created for each team member (rhodey, shuri, rocket, nebula, wong, mantis) and sprint (sprint-1, sprint-2, sprint-3). 34 issues created across 3 sprints. Labels should have distinct, visually meaningful colors for easy identification.
 **Why:** User directive — ensures visibility and accountability for all planned work.
 
 ---
-
 
 ### 2026-02-10: Single NuGet package consolidation (consolidated)
 **By:** Jeffrey T. Fritz, Shuri
@@ -760,7 +727,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Status:** ✅ Resolved.
 
 ---
-
 
 ### 2026-02-10: Redstone Dependency Graph — Design & Implementation (consolidated)
 **By:** Jeffrey T. Fritz (idea), Rocket (implementation)
@@ -780,7 +746,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: NuGet PackageId renamed to Fritz.Aspire.Hosting.Minecraft
 **By:** Shuri (requested by Jeffrey T. Fritz)
 **What:** Renamed the NuGet PackageId from `Aspire.Hosting.Minecraft` to `Fritz.Aspire.Hosting.Minecraft` in the csproj. Updated all documentation (blog post, demo script, CONTRIBUTING.md) to reference the new package name. C# namespaces, project folders, assembly names, and solution structure are unchanged — only the NuGet package identity changed. User explicitly chose `Fritz` as the prefix (rejected `CommunityToolkit` alternative).
@@ -789,7 +754,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Blog outline structure and media plan for v0.1.0
 **By:** Mantis
 **What:** Created three deliverables in `docs/blog/`: `v0.1.0-release-outline.md` (full blog post outline with 7 sections, placeholder code snippets, social media copy), `v0.1.0-media-plan.md` (18 visual assets with capture instructions), and `v0.1.0-demo-script.md` (10-minute 4-act demo script).
@@ -797,7 +761,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Dependencies:** Rocket's Sprint 1 features (boss bar, weather, title alerts, sounds, particles) must be complete before media capture. Blog references actual sample `Program.cs`.
 
 ---
-
 
 ### 2026-02-10: Sprint 1 proactive test coverage for Rocket's features
 **What:** Created `tests/Aspire.Hosting.Minecraft.Worker.Tests` with 145 tests covering all 5 Sprint 1 features (particles, title alerts, weather, boss bar, sounds) plus state transitions, health→RCON mapping, and feature opt-in behavior. Solution total: 207 tests across 3 projects, all passing.
@@ -808,7 +771,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Sprint 1 feature decisions — opt-in architecture, state tracking, health thresholds
 **Issues:** #3, #5, #7, #8, #10
 **What:** Each Sprint 1 feature (particles, title alerts, weather, boss bar, sounds) is enabled by a dedicated environment variable (`ASPIRE_FEATURE_{NAME}=true`) set via builder extension methods, with conditional service registration in the Worker. Services injected as nullable primary constructor parameters. Particles/titles/sounds fire per-resource; weather/boss bar reflect aggregate fleet health. State tracking (`_lastWeather`, `_lastValue`, `_lastColor`) avoids redundant RCON commands.
@@ -818,7 +780,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Public API surface contract established
 **By:** Shuri
 **Issue:** #12
@@ -826,7 +787,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Why:** Worker is a standalone service (`IsPackable=false`) — all its types are implementation details. RCON types kept public for consumers who want custom RCON commands. `EnablePackageValidation` catches accidental API surface changes.
 
 ---
-
 
 ### 2026-02-10: Sprint 2 API review — consistent, no breaking changes
 **Scope:** Public API surface review of `src/Aspire.Hosting.Minecraft/` after Sprint 2 completion
@@ -846,7 +806,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Beacon tower glass colors match Aspire dashboard resource type palette
 **By:** Rocket (requested by Jeffrey T. Fritz)
 **What:** Changed `BeaconTowerService` from simple green/red glass to resource-type-specific colors matching the Aspire dashboard icon palette. Project=blue, Container=purple, Executable=cyan, unknown type=light blue, unhealthy=red, starting=yellow. `GetGlassBlock()` method is `internal static` for testability. Implements user directive that beacon beams should match Aspire dashboard resource type colors.
@@ -855,13 +814,11 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Hologram line-add commands must use unique text to avoid RCON throttle
 **What:** Fixed `HologramManager` using identical placeholder text (`&7...`) for all `dh line add` commands. The `RconService` 250ms throttle silently dropped duplicate commands in rapid succession, causing fewer hologram lines than expected. Changed to `&7line{n}` for unique commands.
 **Why:** The RCON throttle is intentional for preventing server flood. The fix works with the throttle rather than disabling it. Any future service issuing identical RCON commands in a tight loop must use unique command strings.
 
 ---
-
 
 ### 2026-02-10: Sprint 2 feature decisions — action bar ticker, beacon towers, boss bar app name
 **Issues:** #38, #20, #22
@@ -875,14 +832,12 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: NuGet package version defaults to `0.1.0-dev`, overridden by CI
 **What:** Changed `<Version>` in csproj from `0.1.0` to `0.1.0-dev`. Local builds produce pre-release packages. The release workflow passes `-p:Version=X.Y.Z` (from git tag) which overrides the csproj default.
 **Why:** Previously every NuGet publish produced version `0.1.0` regardless of the git tag. The `-dev` suffix distinguishes local from release builds. MSBuild CLI properties always win over csproj values.
 **Status:** ✅ Resolved. Wong's release workflow update is the companion change.
 
 ---
-
 
 ### 2026-02-10: Server Properties API — WithServerProperty + Enums + File Loading (consolidated)
 **What:** Added comprehensive server.properties configuration API:
@@ -894,7 +849,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Sprint 2 — XML documentation, RCON throttle, config builder pattern review
 **Issues:** #16, #21
 **What:**
@@ -904,20 +858,17 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Release workflow now extracts version from git tag
 **What:** Updated `.github/workflows/release.yml` to extract the semantic version from the git tag (`v0.2.1` → `0.2.1`) and pass it to `dotnet build` and `dotnet pack` via `-p:Version=`. GitHub Release name now includes the version. CI workflow (`build.yml`) intentionally unchanged.
 **Why:** Previously every tag-triggered release produced `0.1.0` packages regardless of the actual tag. The tag is now the single source of truth for release versions.
 
 ---
 
-
 ### 2026-02-10: User directive — sprint branches with PRs
 **What:** Each sprint's work should be done in a dedicated branch named after that sprint, then pushed and merged via PR to main on GitHub.
 **Why:** User request — captured for team memory
 
 ---
-
 
 ### 2026-02-10: E2E cascade failure scenario + 25-resource performance tests
 **Issue:** #31
@@ -929,7 +880,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: API Surface Freeze for v0.2.0
 **Issue:** #24
 **What:** Froze the public API surface for the v0.2.0 release. Created `docs/api-surface.md` documenting all 31 public extension methods on `MinecraftServerBuilderExtensions`, 4 public types in `Aspire.Hosting.Minecraft`, and 6 public RCON types.
@@ -940,7 +890,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Status:** ✅ Resolved. Any API additions beyond this point require explicit review before release.
 
 ---
-
 
 ### 2026-02-10: Azure Resource Group Integration — Epic Design & SDK Research (consolidated)
 **By:** Rhodey (epic design), Shuri (SDK research)
@@ -966,7 +915,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Advancement Achievements use RCON titles instead of datapacks
 **Issue:** #32
 **What:** `AdvancementService` grants four infrastructure achievements using RCON `title @a title/subtitle` with JSON text components and `playsound`. No Minecraft datapack advancements are used.
@@ -974,7 +922,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Status:** ✅ Implemented. Follows opt-in pattern (`ASPIRE_FEATURE_ACHIEVEMENTS`, `WithAchievements()`).
 
 ---
-
 
 ### 2026-02-10: Azure Resource Visualization Design
 **Document:** `docs/epics/azure-minecraft-visuals.md`
@@ -989,7 +936,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Heartbeat service timing
 **Issue:** #27
 **What:** `HeartbeatService` uses a 1–4 second pulse interval depending on health. Originally implemented as `BackgroundService` (via `AddHostedService`), later converted to `AddSingleton<>()` called from `MinecraftWorldWorker` to fix a startup race condition (see: "Sprint 3 service lifecycle" decision).
@@ -997,13 +943,11 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Resource Village Layout & Themed Structures
 **Issue:** #25
 **What:** Themed mini-buildings per Aspire resource type in a 2×N grid with 10-block spacing. Project=Watchtower, Container=Warehouse, Executable=Workshop, Unknown=Cottage. `VillageLayout` static class centralizes position calculations. Health indicator via redstone lamp in front wall.
 
 ---
-
 
 ### 2026-02-10: Service Switches — visual-only levers representing resource status (consolidated)
 **Issue:** #35
@@ -1012,13 +956,11 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Village fence perimeter and pathway coordinate conventions
 **What:** Added `GetVillageBounds()` and `GetFencePerimeter()` to `VillageLayout`. Fence at ground level (`BaseY`), 4-block gap from buildings. Boulevard at `BaseX + StructureSize` (X=17). Future services placing things around the village edge should use these methods.
 **Status:** ✅ Implemented (updated: fence moved to ground level, gap increased to 4 blocks).
 
 ---
-
 
 ### 2026-02-10: Resource Dependency Placement + RCON Rate-Limiting
 **Issue:** #29
@@ -1029,13 +971,11 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### 2026-02-10: Ephemeral Minecraft world by default, WithPersistentWorld() opt-in
 **What:** Removed the default named Docker volume from `AddMinecraftServer()`. World data is now ephemeral. Added `WithPersistentWorld()` for opt-in persistence.
 **Why:** Persistent worlds cause confusion during development — old structures remain from previous sessions.
 
 ---
-
 
 ### 2026-02-10: World Border Pulse on Critical Failure
 **Issue:** #28
@@ -1043,7 +983,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Why:** Dramatic visual/physical feedback for critical failures. Follows opt-in pattern (`ASPIRE_FEATURE_WORLDBORDER`).
 
 ---
-
 
 ### 2026-02-10: Changelog, Symbol Packages, CodeQL Scanning
 **Issue:** #26
@@ -1054,7 +993,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 
 ---
 
-
 ### Sprint 3 service lifecycle: no independent BackgroundServices for RCON-dependent features
 **What:** Converted HeartbeatService, RedstoneDependencyService, and ServiceSwitchService from `AddHostedService<>()` (independent BackgroundServices) to `AddSingleton<>()` called by MinecraftWorldWorker. Also fixed beacon tower positions to derive from VillageLayout instead of hardcoded offsets.
 **Why:** Independent BackgroundServices start before RCON is connected and before resources are discovered, causing all Sprint 3 features to silently fail. The established pattern (used by WorldBorderService, AdvancementService, BeaconTowerService, etc.) is singleton + nullable constructor injection + calls from the main worker loop. Beacon positions used a hardcoded BaseZ=14 that overlapped with row-1 structures (z=10–16), blocking beacon sky access for 2 of 4 resources.
@@ -1062,7 +1000,6 @@ Rails cannot be placed on water or in water — they pop off. The bridge slab pr
 **Status:** ✅ Resolved. All 303 tests pass. Build clean (0 errors, 0 warnings).
 
 ---
-
 
 ### 2026-02-11: Minecraft building rules and constraints
 **What:** When building structures and infrastructure in the Minecraft world, follow these mandatory constraints:
@@ -1080,20 +1017,17 @@ These rules were established after fixing Sprint 3 bugs where fences floated and
 
 ---
 
-
 ### 2026-02-11: Use GitHub issues and milestones for planning
 **What:** Going forward, record all plans as issues and milestones in GitHub. Each sprint is a milestone.
 **Why:** User directive — centralizes planning in GitHub for visibility and tracking. Replaces ad-hoc SQL/plan.md tracking.
 
 ---
 
-
 ### 2026-02-11: Sprint completion definition includes documentation
 **What:** Going forward, all sprints must include updates to README and user documentation to be considered complete.
 **Why:** User directive — documentation is a first-class deliverable, not an afterthought. Ensures features are always properly documented when shipped.
 
 ---
-
 
 ### 2026-02-11: Boss Bar Title Configuration
 **Date:** 2026-02-11  
@@ -1121,7 +1055,6 @@ The boss bar previously displayed "Aspire Fleet Health: 100 percent" which looke
 - No change required for users who don't pass a title (default behavior preserved)
 
 ---
-
 
 ### 2026-02-10: Peaceful Mode Implementation
 **Date:** 2026-02-10  
@@ -1155,7 +1088,6 @@ Implemented `WithPeacefulMode()` extension method using `/difficulty peaceful` M
 - Consistent with team's feature opt-in architecture
 
 ---
-
 
 ### 2026-02-11: Village Structure Idempotent Building Pattern
 Village structures were being rebuilt every 10-second display update cycle, causing visible glitching in-game. The `StructureBuilder.UpdateStructuresAsync()` method was calling `BuildResourceStructureAsync()` for every resource on every cycle without checking if the structure already existed.
@@ -1203,7 +1135,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### 2026-02-10: Structure Build Validation with Graceful Degradation
 **By:** Shuri  
 **What:** Added post-build validation to StructureBuilder that verifies door and window blocks were placed successfully after each structure builds.  
@@ -1214,7 +1145,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 - Returns false on any exception to handle RCON failures gracefully
 
 ---
-
 
 ### 2026-02-11: User Documentation Structure in user-docs/
 **By:** Vision
@@ -1230,7 +1160,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### 2026-02-10: Documentation path filters added to GitHub Actions workflows
 **What:** Added `paths-ignore` filters to build.yml, release.yml, and codeql.yml to skip CI/CD pipelines when only documentation files change. Ignored paths: `docs/**`, `user-docs/**`, `*.md` (root-level), `.ai-team/**`.
 **Why:** Documentation updates (README, user docs, team state) don't affect code correctness, test outcomes, or package output. Running full build/test/pack cycles wastes CI runner minutes and creates noise in the workflow history. This change ensures CI resources are spent only on actual code changes.
@@ -1238,20 +1167,17 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### 2026-02-11: Dynamic terrain detection replaces hardcoded superflat Y=-60
 **What:** Added `TerrainProbeService` that uses RCON binary search (`setblock ... keep`) to detect surface height at startup. All village services now use `VillageLayout.SurfaceY` instead of hardcoded `BaseY`. Path building made terrain-agnostic (clears all blocks, not just grass_block). Falls back to BaseY=-60 if detection fails, preserving backward compatibility.
 **Why:** The village was hardcoded to Y=-60 (superflat grass layer). This broke on any other world type (normal, amplified, custom). Dynamic detection makes the village work on ANY world type while keeping superflat as the safe fallback. Binary search keeps RCON usage minimal (~8 commands) and the probe is non-destructive (cleans up placed blocks immediately).
 
 ---
 
-
 ### 2026-02-12: User directive
 **What:** SourceLink is not needed for this project. Remove it from Directory.Build.props.
 **Why:** User request  captured for team memory
 
 ---
-
 
 ### 2026-02-12: User directive — Label issues by squad member
 **What:** When creating GitHub issues and assigning them to a squad member, apply a label for that member so we can see who is working on what.
@@ -1264,14 +1190,12 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### Decision: Redstone Dashboard Wall placement west of village at X=-5
 **What:** The Redstone Dashboard Wall is placed at `DashboardX = -5`, facing east toward the village. This is 11 blocks west of the fence perimeter — visible from the village gate but not overshadowing any buildings.
 **Why:** Jeff specifically requested it "near the village but far enough away it isn't overshadowing the buildings." West placement uses negative-X space that is otherwise empty (village grows in positive-Z). The east-facing orientation means players see it when they exit the village gate and turn left.
 **Trade-offs:** Could have placed it north (behind village) but that competes with village growth direction. Could have placed it further away but then it's outside view distance for players at the village.
 
 ---
-
 
 ### Decision: /clone shift-register for dashboard scrolling, not per-lamp updates
 **What:** Each update cycle uses one `/clone` command to shift the entire lamp grid left by one column, then writes only the new rightmost column (N commands for N resources). Total: N+1 commands per cycle.
@@ -1280,14 +1204,12 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### Decision: Database resources get cylindrical buildings using circular geometry in 7×7 grid
 **What:** Resources detected as databases via `IsDatabaseResource()` are built as cylindrical structures using polished deepslate, fitting within the existing 7×7 structure footprint. The circular footprint uses a 3-block radius approximation.
 **Why:** Jeff requested "round/cylindrical buildings — like database cylinder icons in architecture diagrams." The 7×7 grid cell perfectly accommodates a radius-3 circle. Deepslate palette is dark and distinct from all other structure types.
 **Trade-off:** Cylinder construction requires ~88 RCON commands vs ~15 for a watchtower. Acceptable because it's a one-time build, and database resources are typically <30% of total resources.
 
 ---
-
 
 ### Decision: Azure detection via resource type string matching, not SDK dependency
 **What:** `IsAzureResource()` uses string matching on the resource type (starts with "azure.", contains "azure", or matches known Azure-only types like "cosmosdb", "servicebus"). No Azure SDK package reference needed.
@@ -1296,13 +1218,11 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 
 ---
 
-
 ### Decision: Azure banner on ALL Azure resources regardless of structure type
 **What:** The light_blue_banner is placed on the rooftop of any structure when `IsAzureResource()` returns true. This applies even to database cylinders (Azure SQL gets a cylinder + azure banner). The banner is additive — it doesn't change the building shape, just adds the flag.
 **Why:** Jeff asked for "Azure-related resources should have a bright azure blue flag/banner on top." Making it additive means a resource's building shape communicates its function (database, project, container) while the banner communicates its origin (Azure). Players can spot Azure resources at a glance across the village.
 
 ---
-
 
 ### Decision: Sprint 4 scope is 14 issues — dashboard, buildings, Dragon Egg, DX polish, docs
 **What:** Sprint 4 includes: Redstone Dashboard (4 issues), Enhanced Buildings (3 issues), Dragon Egg monument (1 issue), DX polish (3 issues: WithAllFeatures, env var tightening, welcome teleport), and documentation (3 issues: README, user-docs, tests).
@@ -1310,7 +1230,6 @@ This follows the same pattern already established for fence (`_fenceBuilt` flag)
 **Cut line:** If sprint runs long, drop welcome teleport first (M, nice-to-have), then Dragon Egg (L, can slip to Sprint 5 without blocking anything).
 
 ---
-
 
 ### Decision: HealthHistoryTracker as a separate class, not embedded in AspireResourceMonitor
 **What:** Health history tracking (ring buffer per resource) lives in a new `HealthHistoryTracker` class, not added to `AspireResourceMonitor`.
@@ -1411,7 +1330,6 @@ Above the hall, **item frames** on the wall show what data is being exchanged �
 
 ---
 
-
 ### 2026-02-15: User directive — structural validation requirements for tests
 **By:** Jeff (via Copilot)
 **What:** All acceptance tests must verify: (1) all doors open and are wide enough for a player to walk through, (2) all stairs connect to floors and have room to enter and dismount, (3) all signs, torches, and levers are mounted on walls (not floating in air).
@@ -1442,7 +1360,6 @@ These patterns are normal Minecraft building technique:
 
 ---
 
-
 ### 2026-02-15: MCA Inspector milestone plan
 **What:** Milestone plan for Minecraft Anvil (MCA) format inspector — read region files directly to verify block state without RCON
 **Why:** Bypass RCON latency, enable bulk verification of entire structures, catch block placement errors that RCON single-coordinate probes might miss, support integration tests in CI with mounted world directories
@@ -1457,7 +1374,6 @@ The **MCA Inspector** enables direct verification of block state in the Minecraf
 ## Architecture
 
 ---
-
 
 ### New Component: `Aspire.Hosting.Minecraft.Anvil`
 **Purpose:** Read-only Minecraft Anvil format (NBT) library tailored for integration testing.
@@ -1474,7 +1390,6 @@ The **MCA Inspector** enables direct verification of block state in the Minecraf
 - Depends on NBT library only
 
 ---
-
 
 ### Integration with Existing Tests
 **Where:** `Aspire.Hosting.Minecraft.Integration.Tests`
@@ -1508,7 +1423,6 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Why MCA Over BlueMap?
 **BlueMap REST:** ❌ No block-level query API. Web server only serves pre-rendered tiles, not raw block data.
 **BlueMap Java Plugin API:** ❌ Requires injecting into Paper server process, breaks test isolation, complex setup.
@@ -1519,21 +1433,26 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Phase 1: Anvil Library Foundation (Size M)
-#### 1.1 Research & Spike NBT Library Evaluation (Size S)
+#
+
+### 1.1 Research & Spike NBT Library Evaluation (Size S)
 - Compare fNbt, SharpNBT, Unmined.Minecraft.Nbt for feature completeness, performance, licensing
 - Test reading a sample .mca file from itzg Docker image
 - Document API shape preferences (we need: `GetBlockAt(x, y, z)`, chunk lookup)
 - **Dependency for:** All other Phase 1 items
-#### 1.2 Create Aspire.Hosting.Minecraft.Anvil Project (Size S)
+#
+
+### 1.2 Create Aspire.Hosting.Minecraft.Anvil Project (Size S)
 - New .csproj in `src/Aspire.Hosting.Minecraft.Anvil/`
 - Add selected NBT library dependency
 - Create `AnvilRegionReader` class with basic structure
 - Add `Directory.Build.props` inheritance (NuGet metadata, XML docs)
 - Update main README with new package description
 - **Acceptance:** Project builds, no errors
-#### 1.3 Implement AnvilRegionReader (Size M)
+#
+
+### 1.3 Implement AnvilRegionReader (Size M)
 - Parse region file paths: `r.<rx>.<rz>.mca` → extract region coordinates
 - Implement `GetBlockAt(x, y, z)` using NBT library
   - Convert world coordinates to region/chunk/section/block offsets
@@ -1541,7 +1460,9 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
   - Return block state object (type + properties dict)
 - Handle edge cases: out-of-bounds coordinates, unloaded chunks, missing region files
 - **Acceptance:** Single unit test reading a known .mca file, verifying block at specific coordinate
-#### 1.4 Unit Tests for AnvilRegionReader (Size M)
+#
+
+### 1.4 Unit Tests for AnvilRegionReader (Size M)
 - Mock or use real .mca test fixture (extract from itzg Docker image)
 - Test block lookup at corners, center, different Y levels
 - Test error handling (missing files, invalid coordinates)
@@ -1550,19 +1471,24 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Phase 2: Integration Test Infrastructure (Size M)
-#### 2.1 Add `WorldSaveDirectory` to MinecraftAppFixture (Size S)
+#
+
+### 2.1 Add `WorldSaveDirectory` to MinecraftAppFixture (Size S)
 - Fixture already mounts server world; expose the path
 - Add property: `public string WorldSaveDirectory { get; }`
 - Update fixture setup to capture mount path from Docker container
 - **Acceptance:** Fixture property accessible in integration tests
-#### 2.2 Create AnvilTestHelper (Size S)
+#
+
+### 2.2 Create AnvilTestHelper (Size S)
 - Convenience wrapper around `AnvilRegionReader` for tests
 - Methods: `VerifyStructureAsync(originX, originY, originZ, expectedBlockMap)`, `VerifyBlockRangeAsync(x1, z1, x2, z2, expectedType)`
 - Handles the `save-all flush` + delay pattern automatically
 - **Acceptance:** Helper compiles, 3 example usages documented
-#### 2.3 Integration Test: MCA vs. RCON Parity (Size M)
+#
+
+### 2.3 Integration Test: MCA vs. RCON Parity (Size M)
 - Test same structure with both RCON probe and MCA reader
 - Verify results match (same block type at sampled coordinates)
 - Run both methods, compare execution time (should see MCA much faster)
@@ -1570,19 +1496,24 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Phase 3: Watchtower Bulk Verification (Size L)
-#### 3.1 Migrate VillageStructureTests to Dual-Mode (Size L)
+#
+
+### 3.1 Migrate VillageStructureTests to Dual-Mode (Size L)
 - Keep existing RCON spot checks
 - **Add** MCA-based full-building verification
 - Verify: all corners, all walls (15×15 footprint), interior floor, roof
 - Extract expected block map from `StructureBuilder` code or constant
 - **Acceptance:** Test verifies 200+ block coordinates for one complete watchtower
-#### 3.2 Add MCA Tests for Other Building Types (Size M)
+#
+
+### 3.2 Add MCA Tests for Other Building Types (Size M)
 - Apply dual-mode to warehouse, workshop, cylinder
 - Verify each building type's unique blocks (e.g., cylinder's polished_deepslate)
 - **Acceptance:** 4 test classes, one per building type, each verifying full footprint
-#### 3.3 Performance Baseline & Documentation (Size S)
+#
+
+### 3.3 Performance Baseline & Documentation (Size S)
 - Measure RCON-only vs. MCA-only vs. dual-mode execution times for VillageStructureTests
 - Document findings in `docs/mca-inspector-performance.md`
 - Provide guidance: when to use RCON, when to use MCA, when to use both
@@ -1590,19 +1521,24 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Phase 4: Polish & Release (Size M)
-#### 4.1 NuGet Package Metadata & README (Size S)
+#
+
+### 4.1 NuGet Package Metadata & README (Size S)
 - Add description to `Aspire.Hosting.Minecraft.Anvil.csproj`
 - Write package README (usage, examples, limitations)
 - Add tags: minecraft, anvil, nbt, testing, verification
 - **Acceptance:** Package readme complete, package can be built
-#### 4.2 Update Main Documentation (Size S)
+#
+
+### 4.2 Update Main Documentation (Size S)
 - Update project README with MCA Inspector section
 - Add decision log: `.ai-team/decisions/inbox/rhodey-mca-inspector-architecture.md`
 - Update `docs/designs/bluemap-integration-tests.md` to reference MCA as complementary tool
 - **Acceptance:** All docs updated, links verified
-#### 4.3 CI/CD Integration (Size S)
+#
+
+### 4.3 CI/CD Integration (Size S)
 - Integration tests already run in Linux-only CI (gated after unit tests)
 - Verify world save directory is mounted and accessible to tests
 - No new secrets or permissions needed
@@ -1611,14 +1547,12 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### Hard Blockers
 1. **NBT Library Selection** (1.1) — must choose before implementing AnvilRegionReader
 2. **MinecraftAppFixture exposure of world path** (2.1) — required for all Phase 2+ work
 3. **v0.5.0 release shipped** — new package must not block current release
 
 ---
-
 
 ### Phase Sequence
 - Phases 1 & 2 are parallel-safe (1 works on library, 2 prepares test infrastructure)
@@ -1627,14 +1561,12 @@ public async Task WatchtowerFloor_HasStoneAtAllCorners_ViaAnvilReader()
 
 ---
 
-
 ### External
 - itzg/minecraft-server Docker image must have readable world save at known mount path (✅ already does)
 - Paper server `save-all flush` command available (✅ Paper 1.20+ supports this)
 ## Acceptance Criteria
 
 ---
-
 
 ### Definition of Done: MCA Inspector Milestone
 The milestone is **complete** when:
@@ -1664,7 +1596,6 @@ The milestone is **complete** when:
 
 ---
 
-
 ### Complementary, Not Competitive
 **Today (RCON-based):**
 await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "stone_bricks"); // 1 block, 1 RCON call
@@ -1679,7 +1610,6 @@ for (var (x, z) in watchtowerCorners) {
 await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "glowstone");
 
 ---
-
 
 ### No Replacement for RCON
 - RCON is still the primary test method for dynamic behavior (e.g., "this feature puts glowstone at X")
@@ -1717,24 +1647,20 @@ await RconAssertions.AssertBlockAsync(fixture.Rcon, x, y, z, "glowstone");
 
 ---
 
-
 ### Why not use BlueMap REST API?
 BlueMap's web server doesn't expose block-level queries. The REST endpoints are for tile rendering (map geometry + images), not raw block data. No way to query "what block is at X,Y,Z?" without injecting a server-side plugin.
 
 ---
-
 
 ### Why not inject NBT parsing into Worker service?
 Worker is for in-world gameplay. Parsing region files is a test/verification concern. Separation keeps concerns clean and avoids adding I/O dependencies to the game-facing service.
 
 ---
 
-
 ### Why not use server-side plugins (e.g., custom Bukkit plugin)?
 Adds complexity to Docker setup, requires compilation & deployment, makes CI harder. Reading files locally is simpler and offline-capable.
 
 ---
-
 
 ### Why not expand RCON testing further?
 RCON has latency (~50ms per call). Bulk verification of 200+ blocks = 10+ seconds. MCA reader on same filesystem ≈ <1 second. For acceptance tests, performance matters for CI throughput.
@@ -1801,7 +1727,6 @@ A **Dragon Egg** sits atop a custom obsidian pedestal at the village center — 
 
 ---
 
-
 ### Critical Architectural Decision Needed
 All ideas numbered 1-4, 6-7, and 9 require **consuming OTLP data** (traces, metrics, logs) in the worker service. Today the worker only polls health endpoints. Adding OTLP ingestion is a **cross-cutting architectural change** that should be designed once and implemented as shared infrastructure before any individual feature. This is likely a Sprint 5 epic in itself.
 Options:
@@ -1816,7 +1741,6 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 ---
 
-
 ### 1. Database Cylinder Building
 - Radius-3 circle (7-block diameter) fits perfectly in the existing 7×7 grid cell
 - Smooth stone walls + polished deepslate cap = "data center" aesthetic
@@ -1829,7 +1753,6 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 ---
 
-
 ### 2. Azure Flag/Banner
 - `light_blue_banner` base with white stripe (`str`) and base (`bs`) patterns
 - NBT: `{Patterns:[{Color:0,Pattern:"str"},{Color:0,Pattern:"bs"}]}`
@@ -1839,7 +1762,6 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 
 ---
 
-
 ### 3. Enhanced Building Palettes
 - **Watchtower:** Chiseled stone floor, deepslate pillars, polished andesite band, battlements, bookshelves + lantern interior
 - **Warehouse:** Orange concrete accent stripe (shipping container look), gray glass, iron trapdoor corrugated roof, chains + soul lanterns
@@ -1847,7 +1769,6 @@ Design specifications for four Sprint 4 building enhancements requested by Jeff:
 - **Cottage:** Mossy cobblestone accents, stripped oak timber frame band, peaked oak stair roof, flower pots + awning
 
 ---
-
 
 ### 4. Dashboard Wall
 - 20×10 block frame (polished blackstone) with 18×8 usable redstone lamp grid
@@ -1867,7 +1788,6 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 
 ---
 
-
 ### Cylinder & Azure resource detection precedence
 **Date:** 2026-02-12
 **What:** `GetStructureType()` now checks `IsDatabaseResource()` before `IsAzureResource()`. Resources that are both database AND Azure (e.g., `cosmosdb`, `azure.sql`) get the Cylinder structure shape, with the azure banner added as a post-build overlay via `PlaceAzureBannerAsync()`.
@@ -1876,14 +1796,12 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 
 ---
 
-
 ### Visual Bug Fixes: Structure Elevation & Health Lamp Alignment
 **What:** Fixed two visual bugs: (1) structures placed 1 block below ground — `GetStructureOrigin()` now returns `SurfaceY + 1`; (2) Warehouse health lamp overlapping cargo door — lamp moved to `y+4` for structures with 3-tall doors.
 **Why:** SurfaceY is the topmost solid block. Placing floors there replaces the grass and buries walls. Health lamps at `y+3` overlap 3-tall doors (y+1 to y+3). Both fixes are surgical (VillageLayout.cs, StructureBuilder.cs) with updated tests.
 **Status:** ✅ Resolved
 
 ---
-
 
 ### Feature env var checks now require exact `"true"` value
 **What:** All `ASPIRE_FEATURE_*` env var checks in `Program.cs` changed from `!string.IsNullOrEmpty(...)` to `== "true"`. This affects 16 feature registrations (15 service DI registrations + 1 peaceful mode check in `ExecuteAsync`). The `With*()` extension methods in `MinecraftServerBuilderExtensions.cs` already set all feature env vars to `"true"`, so no changes were needed on the hosting side.
@@ -1892,7 +1810,6 @@ Jeff wants Sprint 4 to include more visually distinct buildings, database-specif
 **Status:** ✅ Implemented on sprint-4 branch.
 
 ---
-
 
 ### Village Spacing increased from 10 to 12
 **What:** Changed `VillageLayout.Spacing` from 10 to 12, giving a 5-block walking gap between 7×7 structures (was 3 blocks).
@@ -1918,14 +1835,12 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### 2026-02-12: Dashboard lamps use self-luminous blocks instead of redstone power
 **What:** Replaced the redstone power layer (`redstone_block` at `x-1` behind `redstone_lamp` at `x`) with direct self-luminous block placement. Healthy = `glowstone`, Unhealthy = `redstone_lamp` (unlit), Unknown = `sea_lantern`. The `/clone` scroll now operates on the lamp layer directly.
 **Why:** RCON-issued `setblock redstone_block` does not reliably trigger block updates on Paper servers, causing lamps to light briefly then go dark. Self-luminous blocks require no power propagation — their lit/unlit state is intrinsic to the block type, making the display 100% reliable regardless of server tick timing.
 **Status:** ✅ Resolved. Build passes, all 382 tests pass. RCON command count per update cycle halved.
 
 ---
-
 
 ### Language-Based Color Coding for Village Buildings
 **Requested by:** Jeffrey T. Fritz
@@ -1942,7 +1857,6 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### 2026-02-12: Integration testing strategy — Hybrid RCON + BlueMap approach
 **What:** Designed integration testing strategy for verifying Minecraft village construction. Evaluated 4 approaches: BlueMap REST API (not viable — no block-level endpoints), Playwright screenshots (good for visual regression, poor for correctness), RCON block verification (reliable and deterministic), and Hybrid RCON + BlueMap (recommended).
 **Why:** We need confidence that the worker builds structures correctly at the right coordinates. RCON `execute if block X Y Z <block>` gives exact, immediate, deterministic block-level assertions using our existing `RconClient`. BlueMap's web API only serves pre-rendered tile files — no block query endpoint exists. Playwright screenshot comparison is fragile (non-deterministic 3D rendering, BlueMap version sensitivity, render timing) and should be secondary.
@@ -1958,19 +1872,16 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### 2026-02-12: User directive — Famous Building API
 **What:** Add `.AsMinecraftFamousBuilding(BigBenClockTower)` extension method on any Aspire resource, backed by an enum of available famous buildings with fixed building models. Syntax: `.AsMinecraftFamousBuilding(FamousBuilding.BigBenClockTower)`. Each enum value maps to a fixed, detailed Minecraft structure definition.
 **Why:** User request — allows developers to assign iconic real-world building representations to their Aspire resources for a more visually rich and personalized Minecraft village experience. Planned for a future sprint.
 
 ---
 
-
 ### 2026-02-12: Fritz's horses easter egg  always present in village
 **What:** Three horses are always spawned in the village fence area, named after Fritz's real horses: Charmer (black), Dancer (brown paint), and Toby (Appaloosa). This is not feature-gated  it's an always-on easter egg.
 
 ---
-
 
 ### 2026-02-12: User directive — MonitorAllResources convenience API
 **What:** Add a `.MonitorAllResources()` extension method on the Minecraft server resource that automatically discovers and creates buildings for all non-Minecraft resources in the Aspire distributed application. Should exclude the Minecraft server itself and its related resources (worker, BlueMap, etc.) from monitoring.
@@ -1978,14 +1889,12 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### 2026-02-12: Famous Buildings API design
 **What:** Designed the `AsMinecraftFamousBuilding(FamousBuilding)` extension method and `FamousBuilding` enum for assigning iconic real-world buildings (Big Ben, Eiffel Tower, Colosseum, Pyramid, etc.) to any Aspire resource. The API lives on `IResourceBuilder<T> where T : IResource` — not on the Minecraft server builder — because the building choice belongs to the resource being visualized. Selection flows via `FamousBuildingAnnotation` → `WithMonitoredResource` deferred env var callback → `ASPIRE_RESOURCE_{NAME}_FAMOUS_BUILDING` env var → worker reads and overrides auto-detected structure type. Enum has 15 buildings spanning 6 continents, all constrained to 15×15 footprint. Building models are pure C# methods (no JSON/NBT), matching the existing `StructureBuilder` pattern. Feature requires `WithGrandVillage()` for full-size rendering. Full design at `docs/designs/famous-buildings-design.md`.
 **Why:** Jeff wants conference demos where resources are represented by recognizable landmarks. The annotation-based approach is order-independent, the env var pattern matches all existing resource metadata flow, and the enum keeps the API surface small and intentional. Two-sprint phasing (API+3 buildings, then remaining 12) avoids a single oversized sprint. Famous buildings override auto-detection but don't break it — resources without annotations continue to work exactly as before.
 #
 
 ---
-
 
 ### Key Decisions
 1. **Extension method targets `IResourceBuilder<T> where T : IResource`** — broadest constraint; annotation is inert unless resource is monitored.
@@ -1998,13 +1907,11 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### 2026-02-12: MonitorAllResources convenience API design
 **What:** Design for a `.MonitorAllResources()` extension method that auto-discovers all non-Minecraft resources in the Aspire application and monitors them in-world, replacing manual `.WithMonitoredResource()` calls. Includes `ExcludeFromMonitoring()` opt-out API, structural exclusion of Minecraft infrastructure (server, worker, children), duplicate prevention, and Famous Building annotation passthrough.
 **Why:** Jeff's directive to reduce AppHost boilerplate. Five manual `WithMonitoredResource` calls → one `MonitorAllResources()` call. The convenience API composes cleanly with existing manual calls and doesn't introduce new paradigms. Eager discovery (Option A) chosen over deferred eventing for predictability, debuggability, and consistency with existing `WithMonitoredResource` behavior. Full design at `docs/designs/monitor-all-resources-design.md`.
 
 ---
-
 
 ### Decision 1: VillageLayout constants become mutable properties
 **What:** `Spacing`, `StructureSize`, and `FenceClearance` change from `const int` to `static int { get; private set; }` with default values matching Sprint 4. A `ConfigureGrandLayout()` method sets them to Grand Village values.
@@ -2013,13 +1920,11 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 2: Structure size is 15×15, not 11×11 or 21×21
 **What:** All buildings expand to 15×15 footprint (13×13 usable interior).
 **Why:** 11×11 (9×9 interior) is too small for meaningful multi-floor buildings with staircases — the spiral staircase alone needs 3×3, leaving only 6×6 per floor. 21×21 would be impressive but the RCON cost balloons (>200 commands for a watchtower), spacing goes to 32+ blocks, and the village exceeds world border with just 4 resources. 15×15 is the sweet spot — room for 3 floors with furniture, staircases fit, RCON stays under ~100 commands per building.
 
 ---
-
 
 ### Decision 3: Spacing is 24 blocks (15 + 9 gap)
 **What:** `Spacing` increases from 12 to 24.
@@ -2028,13 +1933,11 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 4: MAX_WORLD_SIZE bumps from 256 to 512
 **What:** Default world border diameter doubles.
 **Why:** At 24-block spacing, 8 resources need Z ~110 blocks. With fence clearance and margin, 256 blocks is too tight. 512 gives comfortable room for 20 resources. Memory impact is minimal (~10 MB additional for chunk data in a superflat world).
 
 ---
-
 
 ### Decision 5: Minecart rails coexist with redstone wires, not replace them
 **What:** `WithMinecartRails()` is a separate feature from `WithRedstoneDependencyGraph()`. Both can be active simultaneously. Rails are offset by 1 block in X from redstone wires.
@@ -2042,20 +1945,17 @@ Added `.WithLifetime(ContainerLifetime.Session)` to the `AddMinecraftServer()` b
 
 ---
 
-
 ### Decision 6: RCON burst mode for initial construction
 **What:** `RconService` gets an `EnterBurstMode()` method that temporarily increases `MaxCommandsPerSecond` from 10 to 40 during initial village build.
 **Why:** A 6-resource Grand Village with rails sends ~600 commands. At 10 cmd/sec = 60 seconds. At 40 cmd/sec = 15 seconds. The Minecraft server can handle 40 RCON commands/sec for short bursts — the tick budget is 50ms per tick, and simple `/setblock` + `/fill` commands typically complete in <1ms each. Steady-state (health updates) stays at 10 cmd/sec.
 
 ---
 
-
 ### Decision 7: Grand Village is opt-in via `WithGrandVillage()`
 **What:** New feature is behind a feature flag, not a default behavior change.
 **Why:** Breaking the default experience is unacceptable for existing users. The standard 7×7 village is fast to build, works within 256-block world border, and is conference-demo-proven. Grand Village is for users who want the immersive experience and are willing to accept longer build times and larger world requirements.
 
 ---
-
 
 ### 2026-02-12: Fritz's horses are always-on, not feature-gated
 **What:** HorseSpawnService registered as a plain singleton with non-nullable injection into MinecraftWorldWorker. No ASPIRE_FEATURE_ env var or opt-in check. Horses spawn unconditionally after village structures are built.
@@ -2071,7 +1971,6 @@ The original 12-block spacing with 7×7 structures left only a 5-block gap — c
 All layout-dependent services automatically inherit the new positions via `VillageLayout.GetStructureOrigin()`. Test expectations updated in 4 test files. All 382 tests pass.
 
 ---
-
 
 ### 2026-02-12: VillageLayout constants converted to configurable properties
 **What:** `Spacing`, `StructureSize`, and `FenceClearance` are now `static int { get; private set; }` instead of `const`. `ConfigureGrandLayout()` sets Grand Village values. `ResetLayout()` (internal) restores defaults for test isolation.
@@ -2094,14 +1993,12 @@ using (rcon.EnterBurstMode())
 
 ---
 
-
 ### 2026-02-12: Integration test infrastructure uses xUnit Collection + Aspire Testing Builder
 **What:** Created `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with `MinecraftAppFixture` using `DistributedApplicationTestingBuilder` and xUnit `[Collection("Minecraft")]` pattern. All integration tests share a single Minecraft server instance per test run.
 **Why:** Minecraft server startup takes 30–60s — per-test startup is not feasible. The collection fixture pattern ensures one server per run. The `app.GetEndpoint("minecraft", "rcon")` API returns a `Uri` for RCON connectivity. Poll-based readiness (`execute if block` every 5s) is more reliable than fixed delays.
 **Affects:** Any future integration tests must use `[Collection("Minecraft")]` and inject `MinecraftAppFixture`. The fixture handles RCON connection and village build readiness.
 
 ---
-
 
 ### 2026-02-12: Use "milestones" not "sprints"
 **What:** Refer to work phases as "milestones" instead of "sprints" going forward.
@@ -2124,13 +2021,11 @@ Created `docs/blog/sprint-5-release.md` — a 2,800-word release post for v0.5.0
 
 ---
 
-
 ### 1. Structure Deviates from Previous Release Posts
 **Decision:** Used building-by-building tour instead of "features → code → what's next" structure.
 **Why:** v0.5.0 is about *experience* (walking inside your infrastructure) more than mechanics. Readers need to visualize each grand building as they read. A feature list would feel dry. The architectural tour lets them "walk through" the release mentally.
 
 ---
-
 
 ### 2. Minecart Rails Framed as "Dependency Visualization"
 **Decision:** Positioned minecart rails as a teaching tool for system architecture, not just a cool animation.
@@ -2138,20 +2033,17 @@ Created `docs/blog/sprint-5-release.md` — a 2,800-word release post for v0.5.0
 
 ---
 
-
 ### 3. DoorPosition Refactor Highlighted as Architecture Insight
 **Decision:** Included a "behind the scenes" section explaining DoorPosition as an architectural pattern.
 **Why:** Most release posts skip the "why this was built" in favor of "what to do with it." But developers reading Aspire-Minecraft blog posts are also trying to understand good distributed system design. The DoorPosition record is a clean example of derived positioning — it's the kind of pattern that matters across many systems. Highlighting it signals "this team thinks about architecture."
 
 ---
 
-
 ### 4. Code Example Shows Toggle Pattern
 **Decision:** Provided the same AppHost code twice (once without Grand Village, implied; once with), showing `.WithGrandVillage()` and `.WithMinecartRails()` as opt-in toggles.
 **Why:** Demonstrates backwards compatibility and makes migration obvious. A developer using v0.4.x can copy their exact AppHost and add two lines.
 
 ---
-
 
 ### 5. No Aggressive Analytics or "Try It Now" Conversion
 **Decision:** Kept CTA low-key (standard links, simple install command).
@@ -2160,12 +2052,10 @@ Created `docs/blog/sprint-5-release.md` — a 2,800-word release post for v0.5.0
 
 ---
 
-
 ### Emphasis on Interior Details
 Each grand building gets 3–4 bullet points describing what you see *inside*. This is intentional — Aspire-Minecraft's differentiator is walkability. Small villages have one-block-thick walls. Grand villages reward exploration. The blog post should sell that exploration.
 
 ---
-
 
 ### Performance Transparency
 Included a "Performance & Compatibility" section addressing potential concerns *before* readers have them:
@@ -2176,7 +2066,6 @@ Included a "Performance & Compatibility" section addressing potential concerns *
 This prevents "is this going to slow down my monitor?" questions in issues.
 
 ---
-
 
 ### Azure Citadel Tease
 Mentioned the Azure integration as "The Pan" from village to cloud. This is stolen from Rocket's conference demo pitch. Including it in the release post keeps momentum high and signals that the roadmap is actively evolving.
@@ -2204,13 +2093,11 @@ The Grand Watchtower (15×15, 20 tall, 3 floors) needs to coexist with the stand
 
 ---
 
-
 ### RCON Burst Mode: No-Op on Re-Entry (#85)
 **What:** `EnterBurstMode()` now returns a no-op `IDisposable` instead of throwing `InvalidOperationException` when burst mode is already active.
 **Why:** Callers using nested `using` blocks (e.g., multiple services building concurrently) don't need try/catch. The first caller owns the burst session; subsequent callers get a harmless no-op disposable. Thread safety maintained via `SemaphoreSlim.Wait(0)`.
 
 ---
-
 
 ### Fence/Forceload Grand Village Verification (#84)
 **What:** Verified all fence, path, and forceload code already uses dynamic `VillageLayout` properties — no hardcoded values remain.
@@ -2228,13 +2115,11 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### 2026-02-13: v0.5.0 release readiness — APPROVED
 **What:** API surface reviewed, build clean, all tests pass, package verified
 **Why:** Milestone 5 (Grand Village) feature-complete, all quality gates passed
 
 ---
-
 
 ### API Surface
 - 35 public extension methods on `MinecraftServerBuilderExtensions` (including new `WithGrandVillage()`, `WithMinecartRails()`, `WithAllFeatures()`)
@@ -2247,7 +2132,6 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### Build
 - **PASS** — 0 errors
 - 1 pre-existing warning: CS8604 nullable in `MinecraftServerResource.cs` line 49 (pre-existing, not new)
@@ -2255,14 +2139,12 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### Tests
 - **434 unit tests passed** (45 Rcon + 19 Hosting + 370 Worker)
 - 0 failures in unit tests
 - 5 integration test failures — expected, require running Minecraft server (Docker). These are pre-existing and not gated by `Category!=Integration` filter due to missing `[Trait("Category", "Integration")]`. Non-blocking.
 
 ---
-
 
 ### Package
 - **Fritz.Aspire.Hosting.Minecraft.0.1.0-dev.nupkg** created successfully
@@ -2272,7 +2154,6 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### Non-blocking observations
 1. Integration tests should add `[Trait("Category", "Integration")]` so `--filter "Category!=Integration"` works correctly
 2. CS8604 warning in `MinecraftServerResource.ConnectionStringExpression` should be addressed before v1.0
@@ -2280,11 +2161,9 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### Verdict: 🚀 SHIP IT
 
 ---
-
 
 ### 2026-02-15: Grand Watchtower exterior redesigned for ornate medieval look
 **What:** Replaced the flat rectangular exterior with a visually rich medieval castle tower. Corner buttresses now use deepslate_bricks (darker contrast against stone_bricks). Turrets extend 2 blocks above the parapet (y+22) with pinnacle posts and banners at y+23. Gatehouse has a taller pointed arch (keystone at y+6) with iron_bars portcullis across the top of the door opening. Lower walls have cracked_stone_bricks weathering. Ground floor windows are iron_bars arrow slits. Observation windows are 2-high. String course corbel ledge runs above the first wool band. Machicolations remain on all 4 sides. Total method uses 85 RCON commands (was 84), staying under the 100-command village budget.
@@ -2292,19 +2171,16 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### 2026-02-15: User directive
 **What:** JAR files for needed extensions (like opentelemetry-javaagent.jar) are acceptable to keep committed in the repo, in a lib folder or similar location. No need to switch to build-time downloads.
 
 ---
-
 
 ### 2026-02-15: Python and Node.js sample projects added; Grand Village demo created
 **What:** Added minimal Python (http.server) and Node.js (http module) sample APIs to MinecraftAspireDemo on main. Created a new GrandVillageDemo sample on milestone-5 that uses WithAllFeatures() + WithGrandVillage() with all resource types (Project, Container, Database, Azure, Python, Node.js) so every 15×15 grand building variant is visible.
 **Why:** The existing sample only showed .NET projects, Redis, and Postgres. Adding Python and Node.js demonstrates that Aspire can orchestrate polyglot stacks and that the Workshop building type works for executable resources. The separate Grand Village demo gives a clean, focused showcase of the milestone-5 feature without cluttering the main sample's toggle pattern.
 
 ---
-
 
 ### 2026-02-15: Grand Watchtower Entrance Redesign — decided by Rocket
 **Context:** Jeff reported the Grand Watchtower entrance was "an ugly mess" with a visible "strange lower level."
@@ -2317,20 +2193,17 @@ The `ASPIRE_FEATURE_MINECART_RAILS` check in `Program.cs` is wired up with a com
 
 ---
 
-
 ### 2026-02-15: User directive — Improve acceptance testing
 **What:** Team must document learnings and improve acceptance testing on tasks before presenting them as completed. Too many iterations on the watchtower entrance (floating torch, cluttered entrance, stair skirt) were presented as "done" without catching visual/functional issues.
 **Why:** User request — captured for team memory. Quality gate: agents should validate their work against known constraints (geometry, visibility, placement) before reporting completion.
 
 ---
 
-
 ### 2026-02-15: Geometric validation tests for Grand buildings
 **What:** Added 26 comprehensive acceptance tests to StructureBuilderTests.cs that validate geometric relationships in Grand building generation. Tests catch three categories of bugs that escaped previous review cycles: (1) doorway visibility — ensures no decorative blocks (torches, lanterns) overlap door openings, (2) ground-level continuity — prevents stairs/decorations at y+1 on front faces outside door regions, (3) health indicator placement — validates glow blocks at exact DoorPosition-derived coordinates.
 **Why:** Jeff rejected Grand Watchtower work 3 times due to geometric bugs (lower-level stair skirt visible at z-plane, entrance cluttered with decorations, floating torch in doorway). Existing tests only verified RCON command format, not spatial geometry. New tests parse setblock commands to extract x/y/z coordinates and assert geometric constraints: doorway region boundaries, front-face material restrictions, health indicator position validation. Pattern is reusable for any future Minecraft structure tests requiring spatial validation beyond string matching.
 
 ---
-
 
 ### 2026-02-15: Minecraft automated acceptance testing — gap analysis and solution roadmap (consolidated)
 **By:** Nebula, Rocket
@@ -2349,7 +2222,6 @@ Examples from recent rejections:
 
 ---
 
-
 ### Tier 1 (P0 — Do Now): RCON Block Verification
 **Primary approach: Expand existing RCON infrastructure.**
 We already have RconAssertions.AssertBlockAsync() using xecute if block X Y Z <block>. Extend this with:
@@ -2367,7 +2239,6 @@ We already have RconAssertions.AssertBlockAsync() using xecute if block X Y Z <
 
 ---
 
-
 ### Tier 2 (P1 — Do Soon): World File Inspection
 **Secondary approach: Direct Anvil region file parsing.**
 Minecraft stores world data in Anvil format (.mca region files). Read directly without RCON:
@@ -2380,7 +2251,6 @@ Minecraft stores world data in Anvil format (.mca region files). Read directly w
 **Status:** ⚠️ Medium effort, high value. Implement after RCON verification is solid.
 
 ---
-
 
 ### Tier 3 (P2 — Explore Later): BlueMap Visual Regression
 **Tertiary approach: Screenshot comparison at fixed camera angles.**
@@ -2432,7 +2302,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 
 ---
 
-
 ### RCON Verification Commands Reference
 | Command | Purpose | RCON? | Notes |
 |---------|---------|-------|-------|
@@ -2442,7 +2311,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 | data get block X Y Z <path> | Get NBT path | ✅ | Same — useful for sign text, banner patterns. |
 
 ---
-
 
 ### World File Inspection Path
 1. save-all flush RCON → force chunk save to disk
@@ -2457,7 +2325,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 ## Six Concrete Ideas
 
 ---
-
 
 ### 1. **HTTP Request Flows Between Services** ⭐ (RECOMMENDED)
 **What it models:** Request/response cycles between dependent services. When ServiceA calls ServiceB, a minecart spawns, travels the rail, and arrives at the destination service. When ServiceB is healthy, minecarts move freely. When ServiceB degrades, minecarts slow down or stall at stations.
@@ -2478,7 +2345,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 
 ---
 
-
 ### 2. **Health Check Polling Cycles** 
 **What it models:** Health check requests polling each resource on a fixed interval (e.g., every 30 seconds). A minecart completes a round-trip to the resource and back to the polling station.
 - Single "health check" minecart spawns from a central health station every 30 seconds.
@@ -2495,7 +2361,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 
 ---
 
-
 ### 3. **OpenTelemetry Trace Propagation (Trace Spans)**
 **What it models:** A distributed trace as a sequence of minecarts, each representing a span. Parent span spawns a minecart at ServiceA; when it reaches ServiceB, a child span minecart is spawned, and so on. The complete trace is a chain of minecarts moving through the rail network.
 - Parent request minecart (e.g., blue color via armor stand dye) spawns at the entry service.
@@ -2511,7 +2376,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 
 ---
 
-
 ### 4. **Log Message Flow** 
 **What it models:** Log messages from one service appearing at (or passing through) another service's building. High-frequency logs = minecarts shuttling quickly.
 - Minecarts spawn from a logging service and travel to the resource that emitted the log.
@@ -2524,7 +2388,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 **Why it's cool:** Logging is invisible in most demos. This makes it **tangible and real-time**. Seeing logs flow visually is compelling for observability education.
 
 ---
-
 
 ### 5. **Resource Startup/Shutdown Sequence**
 **What it models:** The dependency chain during system startup. Minecarts represent the startup propagation: base resources spawn minecarts → minecarts trigger dependent resources → those spawn minecarts to their dependents, etc.
@@ -2541,7 +2404,6 @@ The Grand Watchtower was rejected 3 times for visual bugs — every rejection wa
 **Why it's cool:** It's a **memorable visual moment**. Conference demos love a good "startup sequence" shot. Shows system architecture in motion without real-time overhead.
 
 ---
-
 
 ### 6. **Message Queue Depth & Flow**
 **What it models:** Async work queues (e.g., Rabbit MQ, Azure Service Bus). Minecarts in a queue represent pending messages. Spawning rate (minecarts) = enqueue rate. Consumption rate = minecarts leaving.
@@ -2585,13 +2447,11 @@ It's the dream feature, but it requires the entire "OTLP ingestion architecture"
 
 ---
 
-
 ### 2026-02-15: ExecutableResource subclasses detected via contains-matching in GetStructureType
 **What:** Added `IsExecutableResource()` predicate to `StructureBuilder` that recognizes `PythonApp`, `NodeApp`, `JavaScriptApp`, and `Executable` type strings. `GetStructureType()` now checks this predicate before the switch statement, mapping all executable-family resources to the "Workshop" building type.
 **Why:** `WithMonitoredResource()` sends the concrete class name (e.g., "PythonApp") via environment variables, not the base class "Executable". The switch statement only matched the exact string "executable", so Python and Node.js apps fell through to the default "Cottage" type. The fix follows the same contains-based pattern already used by `IsDatabaseResource()` and `IsAzureResource()`, making it extensible for future ExecutableResource subclasses.
 
 ---
-
 
 ### 2026-02-16: Feature monitoring services moved to continuous loop
 **By:** Coordinator (fixing Bug #2 reported by Jeff)
@@ -2599,7 +2459,6 @@ It's the dream feature, but it requires the entire "OTLP ingestion architecture"
 **Why:** Both services' `UpdateAsync()` methods update visual state (wire colors, rail power) based on current health. When trapped inside `changes.Count > 0`, they only fired on health transitions — so the visual state went stale between transitions. Their docstrings say "Called each worker cycle" confirming they were designed to run continuously.
 
 ---
-
 
 ### 2026-02-16: Lever placement fixed — facing direction and wall attachment
 **By:** Coordinator (fixing Bug #3 reported by Jeff)
@@ -2609,7 +2468,6 @@ It's the dream feature, but it requires the entire "OTLP ingestion architecture"
 **Why:** Buildings face south (front wall at Z-min). A lever at the wall plane with `facing=north` needed a support block at Z+1 (interior), which is air in hollow-fill buildings. Moving the lever one block forward and flipping to `facing=south` attaches it to the actual wall. The lamp was documented in the class docstring but never called — now both levers and lamps work together as intended.
 
 ---
-
 
 ### # Minecart Lifecycle Design
 **Context:** Jeff approved HTTP Request Flow as the minecart model. Now the question: **What happens when minecarts arrive at their destination? Do they pile up?**
@@ -2658,7 +2516,6 @@ When a cart despawns (timeout), decrement the counter.
 
 ---
 
-
 ### Primary: Timeout at Destination
 Every 5 seconds, for each rail connection:
 private async Task CleanupExpiredCartsAsync(CancellationToken ct)
@@ -2677,7 +2534,6 @@ private async Task CleanupExpiredCartsAsync(CancellationToken ct)
 
 ---
 
-
 ### Backup: Periodic Sweep for Orphaned Carts
 On worker restart or if tracking gets out of sync, a **server-side cleanup** command ensures no stale carts remain:
 execute at @e[type=chest_minecart] unless entity @s[nbt={...}] run kill @s
@@ -2689,7 +2545,6 @@ This kills stationary carts (at a station or stalled on rails) every 30 seconds 
 ## Edge Cases & Recovery
 
 ---
-
 
 ### 1. Service Goes Unhealthy Mid-Transit
 **What happens:**
@@ -2712,7 +2567,6 @@ This kills stationary carts (at a station or stalled on rails) every 30 seconds 
 
 ---
 
-
 ### 2. Stalled Carts (Rails Powered Back On)
 If a service recovers from unhealthy → healthy:
 - `RestoreRailsAsync()` re-enables powered rails.
@@ -2720,7 +2574,6 @@ If a service recovers from unhealthy → healthy:
 - If it's been stalled >3s already, it will be cleaned up by the stalled-cart sweep.
 
 ---
-
 
 ### 3. Server Restart / Orphaned Entities
 On server restart:
@@ -2784,8 +2637,9 @@ On server restart:
 
 ---
 
+###
 
-### ### 2026-02-12: All grid-positioned services must use dependency ordering
+### 2026-02-12: All grid-positioned services must use dependency ordering
 **What:** Unified all services that place elements on the village grid to use `VillageLayout.ReorderByDependency()` for consistent index-to-position mapping. Previously, StructureBuilder, BeaconTowerService, GuardianMobService, and ParticleEffectService used raw dictionary iteration order while ServiceSwitchService, RedstoneDependencyService, and MinecartRailService used dependency ordering. This mismatch caused features to target wrong buildings when resources had dependencies.
 **Why:** When dependency ordering differs from dictionary ordering (which happens whenever resources declare dependencies), services using different orderings would place features at the wrong physical grid positions. This caused redstone wires, minecart rails, and service switches to connect to or appear at buildings belonging to different resources than intended. The dependency ordering is preferred because it places parent resources before children in the grid, making the visual layout semantically meaningful.
 # ExecutableResource Health Detection Fix
@@ -2804,7 +2658,6 @@ Skip endpoint resolution for ExecutableResource types in `MinecraftServerBuilder
 When a resource has no endpoint configuration, `AspireResourceMonitor.PollHealthAsync()` follows the "no endpoint" path (lines 84-87) and assumes `ResourceStatus.Healthy`. This matches the Aspire dashboard behavior.
 
 ---
-
 
 ### ExecutableResource Detection Logic
 var isExecutable = resourceType.Contains("PythonApp", StringComparison.OrdinalIgnoreCase)
@@ -2841,7 +2694,6 @@ Modified `BuildGrandAzurePavilionAsync()` in `StructureBuilder.cs` to detect Azu
 
 ---
 
-
 ### Vault Interior Features
 - **Dark vault floor:** Polished deepslate with iron trapdoor grating accents
 - **Iron vault door:** Replaced standard air door with double iron doors (requiring buttons/levers to open)
@@ -2853,7 +2705,6 @@ Modified `BuildGrandAzurePavilionAsync()` in `StructureBuilder.cs` to detect Azu
 - **Moody lighting:** Soul lanterns (dim blue glow) instead of bright lanterns
 
 ---
-
 
 ### Non-Key-Vault Azure Buildings
 All other Azure resources (App Config, Service Bus, Storage, etc.) retain the standard cloud services aesthetic:
@@ -2884,7 +2735,6 @@ All other Azure resources (App Config, Service Bus, Storage, etc.) retain the st
 
 ---
 
-
 ### 2026-02-16: User directive — technology branding colors on buildings
 **What:** Each project technology must have distinctive color stripes and banners on their buildings:
 - .NET projects (Watchtowers): Purple stripes (already done)
@@ -2894,13 +2744,11 @@ Additionally, Python and Node applications must properly reflect their health st
 
 ---
 
-
 ### 2026-02-16: Azure Key Vault building interior should resemble a bank vault
 **What:** For Grand Village designs, when placing an Azure Key Vault resource, the interior of the AzureThemed building should feel like a bank vault — with locked cabinets, chest storage, iron bars/doors, and vault aesthetics that convey security and containment.
 **Why:** User request — captured for team memory. Scheduled for a future sprint.
 
 ---
-
 
 ### 2026-02-16: Tech branding color palette update
 **What:** Updated StructureBuilder color system to modernize tech stack palette and apply Docker aqua branding to Container resources. Rust moved from brown to red, Go moved from cyan to light_blue. Added Container type check returning cyan colors. Expanded language support with PHP (magenta), Ruby (pink), and Elixir/Erlang (lime). Enhanced Warehouse buildings with language-colored accent stripes and banners matching Workshop aesthetic.
@@ -2931,7 +2779,6 @@ Additionally, Python and Node applications must properly reflect their health st
 
 
 ---
-
 
 ### Village Redesign Phase 1: Grand Layout Spacing and Canal/Lake Infrastructure
 **By:** Shuri
@@ -2989,7 +2836,6 @@ Created a custom Docker image (`ghcr.io/csharpfritz/aspire-minecraft-server`) th
 
 ---
 
-
 ### Prebaked Marker Env Var
 The image sets `ASPIRE_MINECRAFT_PREBAKED=true` to signal that plugins are already installed. This allows the hosting extension (MinecraftServerBuilderExtensions) to:
 - Detect the prebaked image
@@ -3001,7 +2847,6 @@ This contract will be formalized when Shuri updates the hosting extension to res
 
 ---
 
-
 ### Minimal Plugin Set
 Only BlueMap is prebaked initially. This keeps the image lightweight and allows incremental testing. Future plugins can be added via:
 ```dockerfile
@@ -3011,7 +2856,6 @@ ENV MODRINTH_PROJECTS="bluemap,decentholograms"
 
 ---
 
-
 ### Workflow Triggers
 - **Path filter (`docker/**`)** — Avoids rebuilding the image when only .NET code or docs change
 - **Manual dispatch** — Allows emergency rebuilds or testing without merging
@@ -3020,7 +2864,6 @@ ENV MODRINTH_PROJECTS="bluemap,decentholograms"
 
 ---
 
-
 ### Version Tagging
 Image tags match the release.yml version extraction pattern:
 - Git tag `v0.2.0` → image tags `latest`, `<SHA>`, `0.2.0`
@@ -3028,7 +2871,6 @@ Image tags match the release.yml version extraction pattern:
 
 
 ---
-
 
 ### Action Versions
 - Uses current stable versions to minimize deprecation warnings
@@ -3105,7 +2947,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 ---
 
-
 ### 2026-02-17: User directive — Remove redstone dependency graph from default village
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Remove `.WithRedstoneDependencyGraph()` from the default sample app and from `WithAllFeatures()`. The redstone wiring between buildings is not desired. The extension method and service remain available for manual opt-in.
@@ -3114,7 +2955,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 ---
 
-
 ### 2026-02-17: Canal/rail commands use Normal priority with burst mode; queue capacity 100→500
 **By:** Shuri
 **What:** Changed all canal and minecart rail build commands from `CommandPriority.Low` to `CommandPriority.Normal`. Added burst mode to MinecartRailService initialization. Increased RCON bounded queue capacity from 100 to 500. Added forceload commands for canal/lake areas after DiscoverResources.
@@ -3122,7 +2962,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 
 ---
-
 
 ### 2026-02-17: User directive — Town squares and ornate buildings
 **By:** Jeffrey T. Fritz (via Copilot)
@@ -3135,7 +2974,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 ---
 
-
 ### 2026-02-17: Town squares architecture — zone-based neighborhoods with U-shape layout
 **By:** Rhodey
 **What:** Architecture proposal for resource-type grouping, town squares with fountains, and ornate building upgrades. Key decisions: zone-based neighborhoods (Azure NE, .NET NW, Containers SW, Executables SE), 21×21 plaza with 9×9 fountain, U-shape building arrangement (all doors face south, south side open), feature flag `ASPIRE_FEATURE_NEIGHBORHOODS`. 3-phase plan: Phase 1 (Neighborhood Layout Engine), Phase 2 (Town Squares + Fountains), Phase 3 (Ornate Buildings).
@@ -3143,7 +2981,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 
 ---
-
 
 ### 2026-02-17: User decisions on town square architecture
 **By:** Jeffrey T. Fritz (via Copilot)
@@ -3158,7 +2995,6 @@ Jeff requested removal of the redstone wiring between buildings. The redstone de
 
 
 ---
-
 
 ### Decision: Never chain `.WithHttpEndpoint()` after `AddSpringApp()` / `AddJavaApp()`
 
@@ -3239,7 +3075,6 @@ The token scope limitation is not a blocker on the merges themselves — just a 
 
 ---
 
-
 ### CI Test Step: Exclude Integration.Tests by Testing Projects Explicitly
 **By:** Nebula
 **Date:** 2026-02-17
@@ -3283,7 +3118,6 @@ This caused 176 build errors across test files.
 
 ---
 
-
 ### All Test Files
 - **Removed all `VillageLayout.ResetLayout()` calls** from constructors and cleanup methods (InitializeAsync/DisposeAsync)
 - **Removed all `VillageLayout.ConfigureGrandLayout()` calls** from test setup and individual test methods
@@ -3291,7 +3125,6 @@ This caused 176 build errors across test files.
 
 
 ---
-
 
 ### VillageLayoutTests.cs
 - **Deleted obsolete tests:**
@@ -3314,14 +3147,12 @@ This caused 176 build errors across test files.
 
 ---
 
-
 ### StructureBuilderTests.cs
 - Removed 30 `ConfigureGrandLayout()` calls from grand-specific tests
 - Tests still pass because grand IS the default
 
 
 ---
-
 
 ### FillOverlapDetectionTests.cs
 - Removed `ResetLayout()` from InitializeAsync/DisposeAsync
@@ -3331,7 +3162,6 @@ This caused 176 build errors across test files.
 
 ---
 
-
 ### RconBlockVerificationTests.cs
 - Removed `ResetLayout()` from InitializeAsync/DisposeAsync
 - Removed `ConfigureGrandLayout()` from BuildStructure helper
@@ -3339,7 +3169,6 @@ This caused 176 build errors across test files.
 
 
 ---
-
 
 ### StructuralGeometryTests.cs
 - Removed `ResetLayout()` from InitializeAsync/DisposeAsync
@@ -3349,7 +3178,6 @@ This caused 176 build errors across test files.
 
 ---
 
-
 ### MinecartRailServiceTests.cs, ServiceAdaptationTests.cs
 - Removed `ResetLayout()` from InitializeAsync/DisposeAsync
 - All tests adapted automatically to grand defaults
@@ -3358,7 +3186,6 @@ This caused 176 build errors across test files.
 
 
 ---
-
 
 ### Build Status
 ✅ **Build succeeded with ZERO errors**
@@ -3371,7 +3198,6 @@ Build succeeded.
 
 
 ---
-
 
 ### Test Results
 ✅ **512 of 546 tests passed** (93.8% pass rate)
@@ -3386,7 +3212,6 @@ Duration: 4 m 33 s
 
 
 ---
-
 
 ### Known Test Failures
 29 test failures are **expected coordinate mismatches** from tests that still use old small layout coordinate expectations:
@@ -3502,20 +3327,17 @@ builder.AddMinecraftServer("minecraft")
 
 ---
 
-
 ### Source Code
 - `src/Aspire.Hosting.Minecraft/MinecraftServerBuilderExtensions.cs` — Removed `WithGrandVillage()` method, updated `WithAllFeatures()`, updated XML docs
 
 
 ---
 
-
 ### Solution
 - `Aspire-Minecraft.slnx` — Removed MinecraftAspireDemo folder and projects
 
 
 ---
-
 
 ### Documentation
 - `README.md` — Removed WithGrandVillage references, updated demo instructions
@@ -3531,7 +3353,6 @@ builder.AddMinecraftServer("minecraft")
 
 
 ---
-
 
 ### Deleted
 - `samples/MinecraftAspireDemo/` — Entire directory removed (4 subprojects)
@@ -3604,7 +3425,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### Stream A: Integration Testing Infrastructure (Critical Path)
 
 ```
@@ -3623,7 +3443,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### Stream B: Performance Optimization (Independent)
 
 ```
@@ -3639,7 +3458,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 
 ---
-
 
 ### #91 — [Sprint 5] BlueMap Integration Test Infrastructure
 
@@ -3680,7 +3498,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### #93 — [MCA Inspector] Implement AnvilRegionReader
 
 **Status:** Blocked by #95  
@@ -3719,7 +3536,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### #94 — [MCA Inspector] Add WorldSaveDirectory Support to MinecraftAppFixture
 
 **Status:** Blocked by #93  
@@ -3753,7 +3569,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 
 ---
-
 
 ### #95 — [MCA Inspector] Research & Evaluate NBT Libraries
 
@@ -3795,7 +3610,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 
 ---
-
 
 ### #48 — Pre-baked Docker Image for Faster Minecraft Server Startup
 
@@ -3843,7 +3657,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### Phase 1: Foundation (Immediate, parallel)
 
 | Task | Owner | Start | Duration | Notes |
@@ -3856,7 +3669,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### Phase 2: MCA Inspection (After Phase 1)
 
 | Task | Owner | Start | Duration | Dependencies | Notes |
@@ -3868,7 +3680,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 
 ---
-
 
 ### Phase 3: Performance (Independent, lower priority)
 
@@ -3884,7 +3695,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 
 ---
-
 
 ### CI Fix Status ✅
 
@@ -3905,7 +3715,6 @@ Reviewed 5 testing-related GitHub issues (#48, #91, #93, #94, #95). The issues f
 
 ---
 
-
 ### Integration Test Project ✅
 
 Fixture project already exists at `tests/Aspire.Hosting.Minecraft.Integration.Tests/` with proper structure:
@@ -3923,14 +3732,12 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### By End of #95 (NBT Evaluation)
 ✅ Decision doc recommending one NBT library with justification  
 ✅ Simple test harness showing library can decode sample .mca files  
 
 
 ---
-
 
 ### By End of #91 (BlueMap Infrastructure)
 ✅ MinecraftAppFixture fully implemented (start Aspire app, connect RCON, wait for village)  
@@ -3941,7 +3748,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### By End of #93 + #94 (MCA Inspection)
 ✅ AnvilRegionReader parses .mca files, supports block lookups  
 ✅ MinecraftAppFixture.WorldSaveDirectory property exposed  
@@ -3950,7 +3756,6 @@ No cleanup needed — just fill in the gaps.
 
 
 ---
-
 
 ### By End of #48 (Docker Image)
 ✅ Custom Docker image in GitHub Container Registry  
@@ -3964,7 +3769,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### Why #91 is the priority
 
 - **Design is already complete** (bluemap-integration-tests.md) — just needs implementation  
@@ -3974,7 +3778,6 @@ No cleanup needed — just fill in the gaps.
 
 
 ---
-
 
 ### Why #95 must come before #93
 
@@ -3986,7 +3789,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### Why #48 is deferred
 
 - **Incremental optimization** — #91 already cuts startup from 45–60s to ~1–2 min for full integration test runs (via shared fixture)  
@@ -3996,7 +3798,6 @@ No cleanup needed — just fill in the gaps.
 
 
 ---
-
 
 ### Dependency graph visualized
 
@@ -4045,7 +3846,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### 2026-02-17: Village bug triage — 8 issues
 **By:** Rhodey
 **What:** Triaged Jeff's 8 reported issues into prioritized work items with agent assignments
@@ -4058,7 +3858,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### CanalService — exists, partially working
 - `CanalService.cs` exists and implements branch canals (building→trunk), a north–south trunk canal, and a lake with dock.
 - **Canal entrance position** uses `GetCanalEntrance()` → `(ox + StructureSize + 2, CanalY, oz + StructureSize/2)`. This places the entrance 2 blocks east of the building's east wall, at the building's Z-midpoint.
@@ -4069,7 +3868,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### MinecartRailService — exists, mostly working
 - `MinecartRailService.cs` builds L-shaped rail paths between dependent resources.
 - **Problem #2 (tracks missing):** Rail routing uses `GetStructureOrigin()` for start/end positions, and walks L-shaped paths (X first, then Z). With neighborhood-enabled layout, dependent resources can be in different zone quadrants (e.g., API depends on Redis — API is in NW .NET zone, Redis is in SW Container zone). The L-path may traverse through other buildings. Rails that overlap with building `/fill` commands get paved over.
@@ -4079,7 +3877,6 @@ No cleanup needed — just fill in the gaps.
 
 ---
 
-
 ### Java Detection — works for structure type, broken for health and neighborhoods
 - `IsExecutableResource()` in StructureBuilder checks for `javaapp` and `springapp` — matches `JavaAppContainer` type string. Structure type mapping is correct (→ Workshop).
 - `GetResourceCategory()` in VillageLayout does NOT check for `javaapp` or `springapp`. Java containers fall through to `lower == "container"` → `ContainerOrDatabase`. This means Java apps get grouped with databases in the SW neighborhood instead of with executables in the SE neighborhood.
@@ -4087,7 +3884,6 @@ No cleanup needed — just fill in the gaps.
 
 
 ---
-
 
 ### Neighborhood/Fountain — zone layout done, fountains not implemented
 - `VillageLayout.PlanNeighborhoods()` is fully implemented — groups resources by category into NW/NE/SW/SE quadrants.
@@ -4138,7 +3934,6 @@ No cleanup needed — just fill in the gaps.
 
 
 ---
-
 
 ### 2026-02-18: NBT library evaluation for MCA Inspector
 **By:** Rocket
@@ -4196,7 +3991,6 @@ This is format-specific logic that no library provides — it's the core of our 
 
 ---
 
-
 ### Why fNbt Wins
 
 1. **Most actively maintained.** v1.0.0 released July 2025 — the only candidate with a recent stable release. SharpNBT's last release was Sept 2023; Unmined is still at 0.1.5-dev.
@@ -4222,7 +4016,6 @@ This is format-specific logic that no library provides — it's the core of our 
 
 ---
 
-
 ### Why Not SharpNBT
 
 SharpNBT is a solid library with modern C# features (Span\<T\>, async). However:
@@ -4233,7 +4026,6 @@ SharpNBT is a solid library with modern C# features (Span\<T\>, async). However:
 
 
 ---
-
 
 ### Why Not Unmined.Minecraft.Nbt
 
@@ -4348,7 +4140,6 @@ public class AnvilRegionReader
 
 ---
 
-
 ### 2026-02-19: AnvilRegionReader lives in integration test project
 **Date:** 2026-02-19
 **By:** Rocket
@@ -4385,7 +4176,6 @@ We needed an MCA/Anvil region file reader to verify Minecraft block placement in
 
 
 ---
-
 
 ### 2026-02-18: WorldSaveDirectory only supports bind mounts, not named volumes
 **By:** Shuri
@@ -4427,7 +4217,6 @@ The **best confidence** comes from **RCON block assertions** + **BlueMap HTTP AP
 
 ---
 
-
 ### What BlueMap Exposes
 
 BlueMap is a **read-only 3D map viewer** at `http://localhost:8100`. It serves:
@@ -4446,7 +4235,6 @@ BlueMap's **Java API** (`com.bluemap.api.BlueMapAPI`) provides server-side acces
 
 
 ---
-
 
 ### Three.js Canvas in Playwright
 
@@ -4487,7 +4275,6 @@ Playwright **can navigate to BlueMap** and interact with the page:
 
 ---
 
-
 ### Phase 1: RCON (Now — Stable Foundation)
 
 **Status:** Already designed in `docs/designs/bluemap-integration-tests.md`. Implemented in:
@@ -4507,7 +4294,6 @@ await RconAssertions.AssertBlockAsync(fixture.Rcon, 10, -59, 0, "minecraft:mossy
 
 
 ---
-
 
 ### Phase 2: BlueMap HTTP Smoke Tests (Now — Quick Validation)
 
@@ -4530,7 +4316,6 @@ Assert.Contains("maps", settings);  // Map was rendered
 
 
 ---
-
 
 ### Phase 3: Playwright Smoke Tests (Optional, Future)
 
@@ -4570,7 +4355,6 @@ public async Task BlueMap_WebUI_NavigatesToVillageAndLoads()
 
 
 ---
-
 
 ### Phase 4: Visual Regression (Later — High Polish)
 
@@ -4679,7 +4463,6 @@ dotnet add package Microsoft.Playwright
 
 ---
 
-
 ### ✅ Ship in Sprint 5 (Now)
 
 1. **RCON block tests** (already designed, partially implemented)
@@ -4699,7 +4482,6 @@ dotnet add package Microsoft.Playwright
 
 ---
 
-
 ### 🔄 Consider for Sprint 6 (Polish)
 
 1. **Playwright page load test** (low-risk smoke test)
@@ -4714,7 +4496,6 @@ dotnet add package Microsoft.Playwright
 
 
 ---
-
 
 ### ❌ Defer to Sprint 7+ (High Polish)
 
@@ -4753,7 +4534,6 @@ dotnet add package Microsoft.Playwright
 
 ---
 
-
 ### Immediate (Sprint 5)
 
 ```
@@ -4776,7 +4556,6 @@ dotnet add package Microsoft.Playwright
 
 
 ---
-
 
 ### Future (Sprint 6+)
 
@@ -4837,7 +4616,6 @@ This gives Jeff:
 
 ---
 
-
 ### 2026-02-18: User directive — Pre-baked Docker image scope
 **By:** Jeff (via Copilot)
 **What:** Issue #48 should be a Docker image with the Minecraft server and ALL add-ins (mods, plugins, BlueMap, etc.) baked in and ready to spawn a new world for any system — not just a CI speed optimization. The image should be a turnkey "start fresh world with everything configured" experience.
@@ -4846,7 +4624,6 @@ This gives Jeff:
 
 
 ---
-
 
 ### 2026-02-18: Pre-baked Docker image  turnkey design, implementation, and Aspire integration
 
@@ -4878,7 +4655,6 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 ---
 
-
 ### 2026-02-18: WithExternalAccess() modifies existing endpoints instead of adding new ones
 **By:** Shuri
 **What:** Implemented `WithExternalAccess()` as an annotation-mutation method that finds existing `EndpointAnnotation` instances by name and sets `IsExternal = true`, rather than adding new endpoints via `.WithEndpoint()`.
@@ -4886,7 +4662,6 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
-
 
 ### WithExternalAccess Test Coverage
 **By:** Nebula
@@ -4909,7 +4684,6 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
-
 
 ### 2026-02-18: User directive — Skip BlueMap Playwright tests
 **By:** Jeffrey T. Fritz (via Copilot)
@@ -4970,6 +4744,7 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
+
 ### 2026-02-23: User directive — single-plane 2D grid with neighborhoods
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Village buildings must be arranged in a 2-dimensional grid (X and Z) on a single Y-plane. Similar resource types should be grouped into neighborhoods. There must NOT be buildings stacked vertically — only one horizontal plane of buildings in the town.
@@ -4977,6 +4752,7 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
+
 ### 2026-02-23: Village layout restored to 2D grid with neighborhood quadrants
 **By:** Rocket
 **What:** Replaced single-row village layout with a 2D grid on a single Y-plane. Buildings are now arranged in a 2-column × N-row grid (using existing Columns=2 constant). Neighborhood zones use a 2×2 quadrant layout: NW=DotNetProject, NE=Azure, SW=ContainerOrDatabase, SE=Executable. Each zone contains a 2-column sub-grid of its buildings, with ZoneGap=20 blocks between quadrants. The fallback `GetStructureOrigin(int index)` also uses the 2-column grid. All buildings remain on the same horizontal plane (SurfaceY + 1) — no vertical stacking.
@@ -4984,6 +4760,7 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
+
 ### 2026-02-24: Canal trunk moved from east to west side of village
 **By:** Rocket
 **What:** The N-S trunk canal now runs on the WEST side of town (minX - CanalTotalWidth - 2) instead of the east. Per-building canals extend westward from behind each building. Trunk Z range now spans from the southernmost building canal to the lake, fixing a gap where earlier rows had no trunk coverage.
@@ -5001,6 +4778,7 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
+
 ### 2026-02-18: Trunk canal extended into lake for visual continuity
 **By:** Rocket
 **What:** Modified BuildTrunkCanalAsync to extend trunk canal 2 blocks beyond the lake's north wall (lakeZ + 2 instead of lakeZ)
@@ -5009,6 +4787,7 @@ Issue #48 is **NOT** a CI speed optimization. It's a **turnkey developer/deploym
 
 
 ---
+
 ### 2026-02-23: Per-Building Canal System Architecture
 
 **By:** Rocket
@@ -5078,6 +4857,7 @@ This ensures the dictionary is not modified while the `foreach` enumerator is ac
 
 
 ---
+
 ### 2026-02-19: Village layout flattened to single row
 
 **By:** Rocket
@@ -5101,6 +4881,7 @@ This ensures the dictionary is not modified while the `foreach` enumerator is ac
 **Impact:** All existing services (StructureBuilder, MinecartRailService, FenceService, WorldBorderService) automatically adapt via VillageLayout API — no changes needed outside VillageLayout.cs. Canal system now correctly positions back canal behind entire single-row village.
 
 ---
+
 ### 2026-02-27: BridgeService enabled via DI registration + rail bridge water-level fix
 **By:** Rocket
 **What:** Two fixes to get bridges working properly:
@@ -5109,6 +4890,7 @@ This ensures the dictionary is not modified while the `foreach` enumerator is ac
 **Why:** BridgeService was dead code without the DI registration — walkway bridges never appeared in-world. The stone_bricks blockage was a functional bug reported by Nebula: boats couldn't pass under elevation-2 rail bridges because a solid block sat right at the water surface. Oak fences provide visual support while allowing entity passage, matching how Minecraft bridge builds work in practice.
 
 ---
+
 ### Bridge Test Update: Water-Level Blockage Tests Now Assert Fixed Behavior
 **By:** Nebula
 **Date:** 2026-02-26
@@ -5149,12 +4931,14 @@ Rocket's bridge redesign should either:
 24 tests in `BridgeGeometryTests.cs` document this behavior and will catch regressions. The `TrackBridge_NoBridgeBlockAtWaterLevel` test explicitly flags the known issue.
 
 ---
+
 ### 2026-02-26: Walkway and rail bridges over canals
 **By:** Rocket
 **What:** Added BridgeService for walkway bridges and updated MinecartRailService for proper rail bridges. Both bridge types arch 2 blocks above canal water (deck at SurfaceY+2) for boat clearance. Walkway bridges use stone brick deck with stair ramps and wall railings, placed at boulevard crossings and per-building entrances. Rail bridges use elevation smoothing so minecarts ramp smoothly up and over canals with stone brick support columns.
 **Why:** Streets run through the village and E-W canals cut across them — NPCs and horses can't cross water. Flat rail slabs at water level blocked boat traffic. Both issues solved by proper arch bridges with 2-block clearance. Initialization order: canals → bridges → rails ensures CanalPositions is available and walkway bridges don't get overwritten.
 
 ---
+
 ### 2026-02-26: Grand Observation Tower — Implementation Details
 **By:** Rocket
 **What:** Implemented `GrandObservationTowerService` as a standalone service following Rhodey's architecture plan. Tower is 21×21, 32 blocks tall, with 5 themed floors and continuous counter-clockwise spiral staircase. Integrated into Program.cs with forceload, protection registration, and build in the init sequence (after terrain probe, before structures).
@@ -5246,14 +5030,18 @@ The **Grand Watchtower** will be a standalone structure placed at the "front of 
 
 ### Placement: "Front of Town" Coordinates
 
-#### Village Layout Review
+#
+
+### Village Layout Review
 - **Village baseline:** BaseX=10, BaseZ=0 (southwest corner of main grid)
 - **Grid spacing:** 36 blocks center-to-center, 2 columns
 - **Fence gate location:** South side (Z-min), centered at `x = BaseX + StructureSize = 10 + 15 = 25` (near entrance)
 - **Gate opening width:** 5 blocks (standard)
 - **South entrance:** Between the south fence line and the first row of buildings
 
-#### Watchtower Placement (South Side Entrance)
+#
+
+### Watchtower Placement (South Side Entrance)
 ```
 Coordinates: (x_origin, y_base, z_origin) = (20, -59, -11)
 
@@ -5286,7 +5074,9 @@ This placement:
 
 ### Floor Layout (Bottom to Top)
 
-#### **Ground Floor (y + 1 to y + 6) — Entrance Hall**
+#
+
+### **Ground Floor (y + 1 to y + 6) — Entrance Hall**
 - **Purpose:** Player entry point, orientation space
 - **Staircase entry:** South-facing wooden doors at y+1–y+4 (2-wide opening)
 - **Interior:**
@@ -5296,7 +5086,9 @@ This placement:
   - Decorative stone brick base: stone bricks + mossy stone for age
 - **Exit:** First flight of stairs begins at south wall, ascending northeast
 
-#### **Floor 2 (y + 7 to y + 11) — Library/Cartography Room**
+#
+
+### **Floor 2 (y + 7 to y + 11) — Library/Cartography Room**
 - **Purpose:** Knowledge and exploration theme
 - **Features:**
   - Bookshelves lining walls (full-height stacks, 1 block inset from perimeter)
@@ -5306,7 +5098,9 @@ This placement:
   - Landing platform: oak planks floor
 - **Staircase:** Second flight ascends along east wall, moving from south to north
 
-#### **Floor 3 (y + 12 to y + 16) — Armory/Beacon Chamber**
+#
+
+### **Floor 3 (y + 12 to y + 16) — Armory/Beacon Chamber**
 - **Purpose:** Resources and power
 - **Features:**
   - Armor stands displaying gear (weapons, shields)
@@ -5316,7 +5110,9 @@ This placement:
   - Stained glass accents (light blue or purple)
 - **Staircase:** Third flight ascends along west wall, moving from north to south
 
-#### **Floor 4 (y + 17 to y + 23) — Observation Gallery**
+#
+
+### **Floor 4 (y + 17 to y + 23) — Observation Gallery**
 - **Purpose:** Views of the town
 - **Features:**
   - **Large windows on all four walls** (glass panes, y+19–y+21, 3-wide openings)
@@ -5326,7 +5122,9 @@ This placement:
   - Landing platform: deepslate tiles (prestige floor)
 - **Staircase:** Fourth flight ascends along north wall, moving from west to east
 
-#### **Top Floor / Roof Level (y + 24 to y + 32) — Crowning Chamber**
+#
+
+### **Top Floor / Roof Level (y + 24 to y + 32) — Crowning Chamber**
 - **Purpose:** Ultimate view platform
 - **Features:**
   - **Open roof platform with crenellated parapet** (battlements for safety)
@@ -5339,7 +5137,9 @@ This placement:
 
 ### Spiral Staircase Design
 
-#### Geometry & Flow
+#
+
+### Geometry & Flow
 ```
 Direction pattern (viewed from above):
 Ground → Floor 2: Ascend along SOUTH WALL, moving EAST (left turn)
@@ -5351,7 +5151,9 @@ Result: Continuous left-handed spiral (counter-clockwise viewed from above)
 Player walks up naturally, never has to backtrack or jump gaps.
 ```
 
-#### Block Details
+#
+
+### Block Details
 - **Stair blocks:** Oak stairs (warm, inviting aesthetic, matches village)
   - Alternative: Stone brick stairs (more formal, matches buildings)
   - Decision: **Use oak stairs for contrast** with the stone exterior
@@ -5365,7 +5167,9 @@ Player walks up naturally, never has to backtrack or jump gaps.
   - Torches or lanterns on every other stair block
   - Hanging lanterns from floor above (chains + lanterns)
 
-#### Staircase Continuity
+#
+
+### Staircase Continuity
 **Every player step is supported — no jumping required:**
 1. Ground floor → climb to landing at y+7 (oak stairs, each ascending 1 block)
 2. Land, turn, continue to y+11 (stay on floor platform, no gaps)
@@ -5380,7 +5184,9 @@ Player walks up naturally, never has to backtrack or jump gaps.
 
 ### Implementation Approach
 
-#### **Option A: Separate WatchtowerService (Recommended)**
+#
+
+### **Option A: Separate WatchtowerService (Recommended)**
 - Create `GrandObservationTowerService.cs` in `Services/`
 - **Responsibilities:**
   - Compute tower placement at startup (or per configuration)
@@ -5393,7 +5199,9 @@ Player walks up naturally, never has to backtrack or jump gaps.
   - Tower is a **one-time build** (not per-resource) → simpler than adding a resource type
   - Allows independent scheduling and tuning
 
-#### **Option B: Add to StructureBuilder (Alternative)**
+#
+
+### **Option B: Add to StructureBuilder (Alternative)**
 - Add method `BuildGrandObservationTowerAsync(...)` to `StructureBuilder`
 - Call it once after paths/fence are built, before resource structures
 - Pros: Reuses existing command queueing, error handling
@@ -5508,18 +5316,6 @@ protection.Register(
 ```csharp
 // After TerrainProbeService, before StructureBuilder
 builder.Services.AddSingleton<GrandObservationTowerService>();
-```
-
-### Coordinate Constants
-```csharp
-private const int TowerOriginX = 20;
-private const int TowerOriginZ = -11;
-private const int TowerSideLength = 21;  // 21×21 footprint
-private const int TowerMaxHeight = 32;   // y + 32
-
-private static readonly (int x, int z) TowerMin = (TowerOriginX, TowerOriginZ);
-private static readonly (int x, int z) TowerMax = 
-    (TowerOriginX + TowerSideLength - 1, TowerOriginZ + TowerSideLength - 1);
 ```
 
 ### Staircase Flight Template
@@ -5642,8 +5438,8 @@ Someone with access to modify `Program.cs` needs to add:
 Program.cs is concurrently being modified by Rocket for bridge/canal/rail work. To avoid merge conflicts, the integration wiring is documented but not applied.
 
 ---
+
 ### 2026-02-26: User directive — NPC villager names
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Three NPC villagers should be named Maddy, Damien, and Fowler. They manage a fruit stand in town. This is an Easter egg feature alongside the three horses already in town.
 **Why:** User request — captured for team memory
-
