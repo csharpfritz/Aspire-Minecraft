@@ -734,3 +734,9 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 - Walkway and rail bridges over canals implemented  both bridge types arch 2 blocks above canal water for boat clearance
 - Grand Observation Tower service implemented  standalone 2121, 32-block tall structure at south entrance with spiral staircases and themed floors
 
+### Tower Repositioning & Entrance Rotation (2026-02-27)
+**Position calculation:** Tower horizontally centered on village x-axis at x=35 (midpoint between column 0 at x=10-24 and column 1 at x=46-60). TowerOriginX = 35 - 10 = 25, spanning x=25-45. Tower placed 15 blocks north of the northern fence (z=-10), so tower max-Z = -25, TowerOriginZ = -45.
+**Entrance rotation:** Entrance moved from min-Z wall (z1) to max-Z wall (z2) so it faces south toward the village. Door facing changed from `south` to `north`, welcome sign from `z1+1/facing=south` to `z2-1/facing=north`, exterior lanterns from z1 to z2. Decorative arch above entrance also moved to z2.
+**Minecraft door facing:** `facing=north` on a door at the max-Z wall means the flat/front face points north (into the building), which is correct for an entrance on the south wall.
+**Files:** `GrandObservationTowerService.cs`, `GrandObservationTowerTests.cs`
+

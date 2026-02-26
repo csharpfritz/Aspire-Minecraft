@@ -1,8 +1,8 @@
 ---
 name: "minecraft-block-facing"
-description: "Correctly place directional blocks (levers, torches, signs, banners, stairs) in Minecraft via RCON"
+description: "Correctly place directional blocks (doors, levers, torches, signs, banners, stairs) in Minecraft via RCON"
 domain: "minecraft-interactions"
-confidence: "medium"
+confidence: "high"
 source: "earned"
 ---
 
@@ -47,7 +47,30 @@ await rcon.SendCommandAsync(
 - **Using `facing=south` when the wall is to the south** — support would be to the north (away from wall), causing the item to float.
 - **Confusing `facing` with "the direction the wall is in"** — `facing` is the direction the item EXTENDS, not where the wall is.
 
-### 4. Stair blocks for ramps and bridges
+### 4. Door blocks
+
+A door's `facing` property indicates where the FRONT face of the door points. For an entrance on a building wall, the door's front face should point into the building (toward the interior).
+
+- Door on **min-Z wall** (north wall): Use `facing=south` — front face points south (into the building)
+- Door on **max-Z wall** (south wall): Use `facing=north` — front face points north (into the building)
+- Door on **min-X wall** (west wall): Use `facing=east` — front face points east (into the building)
+- Door on **max-X wall** (east wall): Use `facing=west` — front face points west (into the building)
+
+Wall signs near doors follow the same convention: `facing` points toward the viewer (into the room for interior signs).
+
+```csharp
+// Door on south wall (max-Z), entrance facing into the building
+await rcon.SendCommandAsync(
+    $"setblock {midX} {y + 1} {z2} minecraft:oak_door[facing=north,half=lower,hinge=left]");
+await rcon.SendCommandAsync(
+    $"setblock {midX} {y + 2} {z2} minecraft:oak_door[facing=north,half=upper,hinge=left]");
+
+// Interior welcome sign above the south-wall entrance (one block inside)
+await rcon.SendCommandAsync(
+    $"setblock {midX} {y + 4} {z2 - 1} minecraft:oak_wall_sign[facing=north]");
+```
+
+### 5. Stair blocks for ramps and bridges
 
 Stairs have a `facing` property that controls the ascent direction. `facing=X` means the stair's full-block back faces direction X, and the step opens in the opposite direction.
 

@@ -11,12 +11,13 @@ namespace Aspire.Hosting.Minecraft.Worker.Tests.Services;
 /// Written from Rhodey's architecture spec before Rocket's implementation.
 ///
 /// Key coordinates (superflat defaults, SurfaceY = -60):
-///   Tower origin:   (20, SurfaceY, -11)
-///   Tower extents:  X: 20–40, Z: -11–9, Y: SurfaceY to SurfaceY+32
+///   Tower origin:   (25, SurfaceY, -45)
+///   Tower extents:  X: 25–45, Z: -45–-25, Y: SurfaceY to SurfaceY+32
 ///   Footprint:      21×21 blocks
 ///   Interior:       17×17 (2-block walls each side)
 ///   Floors:         y+7, y+12, y+17, y+24
 ///   Spiral:         South→East→North→West (counter-clockwise)
+///   Entrance:       South wall (max-Z), facing toward village
 ///
 /// These tests will NOT compile until GrandObservationTowerService is implemented.
 /// The geometry and behavior assertions are derived from the spec and should be
@@ -28,16 +29,16 @@ public partial class GrandObservationTowerTests : IAsyncLifetime
     // EXPECTED CONSTANTS (from Rhodey's architecture plan)
     // ====================================================================
 
-    private const int TowerOriginX = 20;
-    private const int TowerOriginZ = -36;
+    private const int TowerOriginX = 25;
+    private const int TowerOriginZ = -45;
     private const int TowerSideLength = 21;
     private const int TowerHeight = 32;
 
     private static int SurfaceY => VillageLayout.SurfaceY;
     private static int TowerMinX => TowerOriginX;
-    private static int TowerMaxX => TowerOriginX + TowerSideLength - 1; // 40
+    private static int TowerMaxX => TowerOriginX + TowerSideLength - 1; // 45
     private static int TowerMinZ => TowerOriginZ;
-    private static int TowerMaxZ => TowerOriginZ + TowerSideLength - 1; // 9
+    private static int TowerMaxZ => TowerOriginZ + TowerSideLength - 1; // -25
     private static int TowerBaseY => SurfaceY;
     private static int TowerTopY => SurfaceY + TowerHeight; // SurfaceY + 32
 
@@ -176,20 +177,20 @@ public partial class GrandObservationTowerTests : IAsyncLifetime
     [Fact]
     public void TowerOrigin_MatchesSpecCoordinates()
     {
-        // Spec: Tower origin at (20, SurfaceY, -11)
-        Assert.Equal(20, TowerOriginX);
-        Assert.Equal(-36, TowerOriginZ);
+        // Spec: Tower origin at (25, SurfaceY, -45)
+        Assert.Equal(25, TowerOriginX);
+        Assert.Equal(-45, TowerOriginZ);
     }
 
     [Fact]
     public void TowerExtents_MatchSpec_21x21Footprint()
     {
-        // Spec: X: 20 to 40, Z: -11 to 9 (21×21 footprint)
+        // Spec: X: 25 to 45, Z: -45 to -25 (21×21 footprint)
         Assert.Equal(21, TowerSideLength);
-        Assert.Equal(20, TowerMinX);
-        Assert.Equal(40, TowerMaxX);
-        Assert.Equal(-36, TowerMinZ);
-        Assert.Equal(-16, TowerMaxZ);
+        Assert.Equal(25, TowerMinX);
+        Assert.Equal(45, TowerMaxX);
+        Assert.Equal(-45, TowerMinZ);
+        Assert.Equal(-25, TowerMaxZ);
 
         // Verify footprint dimensions
         Assert.Equal(TowerSideLength, TowerMaxX - TowerMinX + 1);
@@ -232,13 +233,14 @@ public partial class GrandObservationTowerTests : IAsyncLifetime
     }
 
     [Fact]
-    public void TowerPlacement_SouthOfFenceLine()
+    public void TowerPlacement_NorthOfFenceLine()
     {
-        // Spec: fence Z-min is BaseZ - FenceClearance = 0 - 10 = -10
-        // Tower starts at z=-11, which is south (outside) of the fence perimeter
+        // Tower is placed 15 blocks north of the northern fence line
+        // Fence Z-min is BaseZ - FenceClearance = 0 - 10 = -10
+        // Tower max-Z = -25, which is 15 blocks north of the fence
         var fenceZMin = VillageLayout.BaseZ - VillageLayout.FenceClearance;
-        Assert.True(TowerMinZ < fenceZMin,
-            $"Tower Z-min ({TowerMinZ}) should be south of fence Z-min ({fenceZMin})");
+        Assert.True(TowerMaxZ < fenceZMin,
+            $"Tower Z-max ({TowerMaxZ}) should be north of fence Z-min ({fenceZMin})");
     }
 
     // ====================================================================
@@ -781,7 +783,7 @@ public partial class GrandObservationTowerTests : IAsyncLifetime
         var (ox, _, oz) = VillageLayout.GetStructureOrigin(resourceIndex);
         var size = VillageLayout.StructureSize;
 
-        // Tower is at X:20-40, Z:-11-9
+        // Tower is at X:25-45, Z:-45--25
         // Grid position 0 is at X:10, Z:0 → extends to X:24, Z:14
         // Grid position 1 is at X:46, Z:0 → extends to X:60, Z:14
         bool overlapsX = TowerMaxX >= ox && TowerMinX <= ox + size - 1;

@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Builds a standalone 21×21, 32-block-tall Grand Observation Tower at the south entrance
-/// of the Aspire village. Five themed floors connected by a continuous counter-clockwise
+/// Builds a standalone 21×21, 32-block-tall Grand Observation Tower north of the
+/// Aspire village. Five themed floors connected by a continuous counter-clockwise
 /// spiral staircase (oak stairs). Players walk from ground to roof without jumping.
 ///
-/// Placement: x=20–40, z=-11 to 10, 32 blocks above SurfaceY.
-/// Built once at startup, independent of resource structures.
+/// Placement: x=25–45, z=-45 to -25, 32 blocks above SurfaceY.
+/// Entrance faces south (toward the village). Built once at startup.
 /// </summary>
 internal sealed class GrandObservationTowerService(
     RconService rcon,
@@ -18,14 +18,15 @@ internal sealed class GrandObservationTowerService(
     private bool _built;
 
     // Tower absolute coordinates (independent of village BaseX/BaseZ).
-    // Placed entirely south of the fence line (z=-10) with a 5-block gap.
-    private const int TowerOriginX = 20;
-    private const int TowerOriginZ = -36;
+    // Centered on village X-axis, 15 blocks north of the northern fence line.
+    // Entrance faces south (max-Z wall) toward the village.
+    private const int TowerOriginX = 25;
+    private const int TowerOriginZ = -45;
     private const int TowerSize = 21;       // 21×21 footprint
     private const int TowerHeight = 32;     // y+1 through y+32
 
-    private static int TowerMaxX => TowerOriginX + TowerSize - 1;  // 40
-    private static int TowerMaxZ => TowerOriginZ + TowerSize - 1;  // -16
+    private static int TowerMaxX => TowerOriginX + TowerSize - 1;  // 45
+    private static int TowerMaxZ => TowerOriginZ + TowerSize - 1;  // -25
 
     /// <summary>
     /// Forceloads the tower chunk area. Must be called before <see cref="BuildTowerAsync"/>.
@@ -210,17 +211,17 @@ internal sealed class GrandObservationTowerService(
         await rcon.SendCommandAsync(
             $"fill {x2 - 2} {y + 34} {z2 - 2} {x2} {y + 34} {z2} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
 
-        // Entrance: south wall (z1), centered 3-wide × 4-tall opening
-        var midX = (x1 + x2) / 2; // 30
+        // Entrance: south wall (z2), centered 3-wide × 4-tall opening
+        var midX = (x1 + x2) / 2; // 35
         await rcon.SendCommandAsync(
-            $"fill {midX - 1} {y + 1} {z1} {midX + 1} {y + 4} {z1} minecraft:air", ct);
+            $"fill {midX - 1} {y + 1} {z2} {midX + 1} {y + 4} {z2} minecraft:air", ct);
         // Decorative arch above entrance
         await rcon.SendCommandAsync(
-            $"setblock {midX - 2} {y + 5} {z1} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
+            $"setblock {midX - 2} {y + 5} {z2} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {midX + 2} {y + 5} {z1} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+            $"setblock {midX + 2} {y + 5} {z2} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 5} {z1} minecraft:chiseled_stone_bricks", ct);
+            $"setblock {midX} {y + 5} {z2} minecraft:chiseled_stone_bricks", ct);
 
         logger.LogInformation("Tower exterior complete");
     }
@@ -486,9 +487,9 @@ internal sealed class GrandObservationTowerService(
 
         // Oak doors at entrance (south wall, y+1 and y+2)
         await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 1} {z1} minecraft:oak_door[facing=south,half=lower,hinge=left]", ct);
+            $"setblock {midX} {y + 1} {z2} minecraft:oak_door[facing=north,half=lower,hinge=left]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 2} {z1} minecraft:oak_door[facing=south,half=upper,hinge=left]", ct);
+            $"setblock {midX} {y + 2} {z2} minecraft:oak_door[facing=north,half=upper,hinge=left]", ct);
 
         // 4 lanterns around entry for ambiance
         await rcon.SendCommandAsync(
@@ -508,8 +509,8 @@ internal sealed class GrandObservationTowerService(
 
         // Welcome sign above entrance (inside)
         await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 4} {z1 + 1} minecraft:oak_wall_sign[facing=south]", ct);
-        var signCmd = "data merge block " + $"{midX} {y + 4} {z1 + 1}" +
+            $"setblock {midX} {y + 4} {z2 - 1} minecraft:oak_wall_sign[facing=north]", ct);
+        var signCmd = "data merge block " + $"{midX} {y + 4} {z2 - 1}" +
             " {front_text:{messages:[\"\"," +
             "'{\"text\":\"Grand Observation\",\"color\":\"gold\"}'," +
             "'{\"text\":\"Tower\",\"color\":\"gold\"}'," +
@@ -518,9 +519,9 @@ internal sealed class GrandObservationTowerService(
 
         // Exterior lanterns flanking entrance
         await rcon.SendCommandAsync(
-            $"setblock {midX - 2} {y + 3} {z1} minecraft:lantern[hanging=false]", ct);
+            $"setblock {midX - 2} {y + 3} {z2} minecraft:lantern[hanging=false]", ct);
         await rcon.SendCommandAsync(
-            $"setblock {midX + 2} {y + 3} {z1} minecraft:lantern[hanging=false]", ct);
+            $"setblock {midX + 2} {y + 3} {z2} minecraft:lantern[hanging=false]", ct);
 
         logger.LogInformation("Floor 1 (Entrance Hall) furnished");
     }
