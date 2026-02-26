@@ -3,15 +3,16 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Builds a simplified canal system with one straight back canal and a side trunk to the lake.
-/// - Back canal (E-W): runs along the BACK (north side) of all buildings
-/// - Side trunk (N-S): runs on the EAST side of town, connecting back canal to lake
-/// - Lake: positioned at the back of town, connected to trunk
+/// Builds an individual per-building canal system with a side trunk connecting to a massive lake.
+/// - Per-building canals (E-W): Each building gets its own short canal running along its BACK (Z-max / north side)
+/// - Side trunk (N-S): Single trunk canal on the WEST side collecting all per-building canals
+/// - Lake: Massive town-width lake at the back (Z-max) of town where the trunk connects (creeper boat landing zone)
 /// Called by MinecraftWorldWorker after RCON is connected and resources are discovered.
 /// </summary>
 internal sealed class CanalService(
     RconService rcon,
     AspireResourceMonitor monitor,
+    BuildingProtectionService protection,
     ILogger<CanalService> logger)
 {
     private bool _canalsBuilt;
@@ -51,45 +52,67 @@ internal sealed class CanalService(
         var (minX, _, maxX, maxZ) = VillageLayout.GetVillageBounds(resourceCount);
         var (lakeX, _, lakeZ) = VillageLayout.GetLakePosition(resourceCount);
 
-        // Back canal Z position: a few blocks north of the northernmost building
-        var backCanalZ = maxZ + 5;
-        
-        // Side trunk X position: east of all structures
-        var trunkX = maxX + VillageLayout.CanalTotalWidth + 2;
+        // Side trunk X position: west of all structures
+        var trunkX = minX - VillageLayout.CanalTotalWidth - 2;
 
-        // Build the straight back canal (E-W) along the north side of all buildings
-        await BuildBackCanalAsync(minX, backCanalZ, trunkX, ct);
-
-        // Build the side trunk canal (N-S) from back canal down to lake
-        await BuildTrunkCanalAsync(trunkX, backCanalZ, lakeZ, ct);
-
-        // Open junction where back canal meets side trunk
-        await OpenJunctionAsync(trunkX, backCanalZ, isEastWest: true, ct);
-
-        // Build the lake
+        // Build the massive lake first (needed for trunk endpoint calculation)
         await BuildLakeAsync(resourceCount, ct);
+
+        // Build the main north-south trunk canal spanning all building canals to the lake
+        var trunkStartZ = int.MaxValue;
+        for (var i = 0; i < orderedNames.Count; i++)
+        {
+            var (_, _, oz) = VillageLayout.GetStructureOrigin(orderedNames[i], i);
+            var backZ = oz + VillageLayout.StructureSize + 4; // Must match per-building canal offset
+            trunkStartZ = Math.Min(trunkStartZ, backZ);
+        }
+        trunkStartZ -= 4; // Gap south of the first building canal
+        await BuildTrunkCanalAsync(trunkX, trunkStartZ, lakeZ, ct);
+
+        // Build individual per-building canals that connect to the trunk
+        for (var i = 0; i < orderedNames.Count; i++)
+        {
+            await BuildPerBuildingCanalAsync(orderedNames[i], i, trunkX, ct);
+        }
 
         // Open junction where trunk meets lake
         await OpenLakeJunctionAsync(trunkX, lakeZ, ct);
     }
 
     /// <summary>
-    /// Builds the straight back canal (E-W) running along the north side of all buildings.
-    /// This canal spans from the village's west edge to the side trunk on the east.
+    /// Builds an individual canal for a specific building.
+    /// The canal runs along the BACK (Z-max / north side) of the building,
+    /// then turns east to connect to the side trunk canal.
     /// </summary>
-    private async Task BuildBackCanalAsync(int startX, int z, int endX, CancellationToken ct)
+    private async Task BuildPerBuildingCanalAsync(string resourceName, int index, int trunkX, CancellationToken ct)
     {
+        var (ox, _, oz) = VillageLayout.GetStructureOrigin(resourceName, index);
         var canalY = VillageLayout.CanalY;
         var depth = VillageLayout.CanalDepth;
         var waterWidth = VillageLayout.CanalWaterWidth;
+        var structureSize = VillageLayout.StructureSize;
 
-        await BuildCanalSegmentEastWestAsync(startX, z, endX, canalY, depth, waterWidth, ct);
+        // Canal runs behind (north of) the building at Z-max side
+        // +4 clearance so canal walls don't overlap building decorations/footprint
+        var buildingBackZ = oz + structureSize + 4;
+        
+        // E-W segment: from building's east edge across to the trunk's east wall
+        var canalStartX = ox + structureSize;
+        var trunkEastWall = trunkX + waterWidth / 2 + 1;
+        var canalEndX = trunkEastWall;
 
-        logger.LogInformation("Back canal built from X={StartX} to X={EndX} at Z={Z}", startX, endX, z);
+        // Build the horizontal (E-W) canal segment behind the building
+        await BuildCanalSegmentEastWestAsync(canalStartX, buildingBackZ, canalEndX, canalY, depth, waterWidth, ct);
+
+        // Open the junction where this building's canal meets the trunk
+        await OpenPerBuildingJunctionAsync(trunkX, buildingBackZ, ct);
+
+        logger.LogInformation("Per-building canal built for {ResourceName} at Z={Z}", resourceName, buildingBackZ);
     }
 
     /// <summary>
     /// Builds a horizontal (E-W) canal segment with stone brick walls, blue_ice floor, and water.
+    /// Fill commands are clipped against protected building regions to avoid damaging structures.
     /// </summary>
     private async Task BuildCanalSegmentEastWestAsync(int x1, int z, int x2, int canalY, int depth,
         int waterWidth, CancellationToken ct)
@@ -103,30 +126,26 @@ internal sealed class CanalService(
         var waterZMin = z - waterWidth / 2;
         var waterZMax = z + waterWidth / 2;
 
-        // Excavate
-        await rcon.SendCommandAsync(
-            $"fill {minX} {canalY - depth + 1} {wallZMin} {maxX} {VillageLayout.SurfaceY} {wallZMax} minecraft:air",
-            CommandPriority.Normal, ct);
+        // Excavate (clipped around protected buildings)
+        await SendProtectedFillAsync(minX, canalY - depth + 1, wallZMin, maxX, VillageLayout.SurfaceY, wallZMax,
+            "minecraft:air", ct);
 
         // Floor: blue_ice
-        await rcon.SendCommandAsync(
-            $"fill {minX} {canalY - 1} {wallZMin} {maxX} {canalY - 1} {wallZMax} minecraft:blue_ice",
-            CommandPriority.Normal, ct);
+        await SendProtectedFillAsync(minX, canalY - 1, wallZMin, maxX, canalY - 1, wallZMax,
+            "minecraft:blue_ice", ct);
 
         // Walls
-        await rcon.SendCommandAsync(
-            $"fill {minX} {canalY - 1} {wallZMin} {maxX} {VillageLayout.SurfaceY} {wallZMin} minecraft:stone_bricks",
-            CommandPriority.Normal, ct);
-        await rcon.SendCommandAsync(
-            $"fill {minX} {canalY - 1} {wallZMax} {maxX} {VillageLayout.SurfaceY} {wallZMax} minecraft:stone_bricks",
-            CommandPriority.Normal, ct);
+        await SendProtectedFillAsync(minX, canalY - 1, wallZMin, maxX, VillageLayout.SurfaceY, wallZMin,
+            "minecraft:stone_bricks", ct);
+        await SendProtectedFillAsync(minX, canalY - 1, wallZMax, maxX, VillageLayout.SurfaceY, wallZMax,
+            "minecraft:stone_bricks", ct);
 
         // Water
-        await rcon.SendCommandAsync(
-            $"fill {minX} {canalY} {waterZMin} {maxX} {canalY} {waterZMax} minecraft:water",
-            CommandPriority.Normal, ct);
+        await SendProtectedFillAsync(minX, canalY, waterZMin, maxX, canalY, waterZMax,
+            "minecraft:water", ct);
 
-        // Track positions
+        // Track intended canal positions (full range, not clipped —
+        // the building itself acts as a "bridge" for rail detection)
         for (var x = minX; x <= maxX; x++)
             for (var zz = wallZMin; zz <= wallZMax; zz++)
                 CanalPositions.Add((x, zz));
@@ -178,6 +197,7 @@ internal sealed class CanalService(
 
     /// <summary>
     /// Builds the side trunk canal (N-S) running from the back canal down to the lake.
+    /// Extends 2 blocks into the lake (beyond the north wall) to ensure visual connection.
     /// </summary>
     private async Task BuildTrunkCanalAsync(int trunkX, int backCanalZ, int lakeZ, CancellationToken ct)
     {
@@ -185,82 +205,82 @@ internal sealed class CanalService(
         var depth = VillageLayout.CanalDepth;
         var waterWidth = VillageLayout.CanalWaterWidth;
 
-        await BuildCanalSegmentNorthSouthAsync(trunkX, backCanalZ, lakeZ, canalY, depth, waterWidth, ct);
+        // Extend trunk canal 2 blocks into the lake to ensure connection beyond the north wall
+        await BuildCanalSegmentNorthSouthAsync(trunkX, backCanalZ, lakeZ + 2, canalY, depth, waterWidth, ct);
 
-        logger.LogInformation("Side trunk canal built at X={X} from Z={BackZ} to Z={LakeZ}", 
+        logger.LogInformation("Side trunk canal built at X={X} from Z={BackZ} to Z={LakeZ}+2", 
             trunkX, backCanalZ, lakeZ);
     }
 
     /// <summary>
-    /// Opens a junction where two canals meet (T or L intersection).
-    /// Removes wall blocks at the intersection to allow water flow.
+    /// Opens the junction where a per-building canal (E-W) meets the side trunk (N-S).
+    /// Removes the trunk's east wall where the building canal arrives to allow water flow.
     /// </summary>
-    private async Task OpenJunctionAsync(int trunkX, int canalZ, bool isEastWest, CancellationToken ct)
+    private async Task OpenPerBuildingJunctionAsync(int trunkX, int buildingCanalZ, CancellationToken ct)
     {
         var waterWidth = VillageLayout.CanalWaterWidth;
         var canalY = VillageLayout.CanalY;
         var depth = VillageLayout.CanalDepth;
 
-        if (isEastWest)
-        {
-            // Back canal (E-W) meets trunk (N-S) — open trunk's north and south walls at junction
-            var wallZMin = canalZ - waterWidth / 2 - 1;
-            var wallZMax = canalZ + waterWidth / 2 + 1;
-            var waterZMin = canalZ - waterWidth / 2;
-            var waterZMax = canalZ + waterWidth / 2;
-            var trunkWestWall = trunkX - waterWidth / 2 - 1;
-            var trunkEastWall = trunkX + waterWidth / 2 + 1;
+        // Building canal (E-W) arrives at the trunk's east wall
+        var waterZMin = buildingCanalZ - waterWidth / 2;
+        var waterZMax = buildingCanalZ + waterWidth / 2;
+        var trunkEastWall = trunkX + waterWidth / 2 + 1;
 
-            // Open west wall of trunk where back canal arrives
-            await rcon.SendCommandAsync(
-                $"fill {trunkWestWall} {canalY - depth + 1} {waterZMin} {trunkWestWall} {VillageLayout.SurfaceY} {waterZMax} minecraft:air",
-                CommandPriority.Normal, ct);
-            await rcon.SendCommandAsync(
-                $"fill {trunkWestWall} {canalY - 1} {waterZMin} {trunkWestWall} {canalY - 1} {waterZMax} minecraft:blue_ice",
-                CommandPriority.Normal, ct);
-            await rcon.SendCommandAsync(
-                $"fill {trunkWestWall} {canalY} {waterZMin} {trunkWestWall} {canalY} {waterZMax} minecraft:water",
-                CommandPriority.Normal, ct);
-        }
+        // Open east wall of trunk where building canal arrives
+        await rcon.SendCommandAsync(
+            $"fill {trunkEastWall} {canalY - depth + 1} {waterZMin} {trunkEastWall} {VillageLayout.SurfaceY} {waterZMax} minecraft:air",
+            CommandPriority.Normal, ct);
+        
+        // Restore floor continuity
+        await rcon.SendCommandAsync(
+            $"fill {trunkEastWall} {canalY - 1} {waterZMin} {trunkEastWall} {canalY - 1} {waterZMax} minecraft:blue_ice",
+            CommandPriority.Normal, ct);
+        
+        // Water connection
+        await rcon.SendCommandAsync(
+            $"fill {trunkEastWall} {canalY} {waterZMin} {trunkEastWall} {canalY} {waterZMax} minecraft:water",
+            CommandPriority.Normal, ct);
 
-        logger.LogInformation("Canal junction opened at X={X}, Z={Z}", trunkX, canalZ);
+        logger.LogInformation("Per-building junction opened at X={X}, Z={Z}", trunkX, buildingCanalZ);
     }
 
     /// <summary>
     /// Opens the junction where the side trunk canal meets the lake.
-    /// Removes the lake's north wall where the trunk arrives.
+    /// Removes the lake's north wall where the trunk arrives and fills water at both
+    /// canal depth and lake depth for a smooth transition between the shallow canal and deep lake.
     /// </summary>
     private async Task OpenLakeJunctionAsync(int trunkX, int lakeZ, CancellationToken ct)
     {
         var waterWidth = VillageLayout.CanalWaterWidth;
         var canalY = VillageLayout.CanalY;
-        var depth = VillageLayout.CanalDepth;
-        var lakeWidth = VillageLayout.LakeWidth;
-
-        // Lake northwest corner
-        var (lakeX, _, _) = VillageLayout.GetLakePosition(0); // resourceCount not used for X calculation
-        var lakeCenterX = lakeX + lakeWidth / 2;
+        var lakeDepth = VillageLayout.LakeBlockDepth;
 
         // Trunk canal arrives at lake's north wall — open an entrance
         var waterXMin = trunkX - waterWidth / 2;
         var waterXMax = trunkX + waterWidth / 2;
 
-        // Remove north wall section where trunk connects
+        // Open 2 blocks deep (lakeZ and lakeZ+1) so the wall is fully removed
+        // and the canal water merges cleanly with lake interior water.
+        var junctionZEnd = lakeZ + 1;
+
+        // Remove north wall section where trunk connects (2 Z blocks)
         await rcon.SendCommandAsync(
-            $"fill {waterXMin} {canalY - depth + 1} {lakeZ} {waterXMax} {VillageLayout.SurfaceY} {lakeZ} minecraft:air",
+            $"fill {waterXMin} {VillageLayout.SurfaceY - lakeDepth + 1} {lakeZ} {waterXMax} {VillageLayout.SurfaceY} {junctionZEnd} minecraft:air",
             CommandPriority.Normal, ct);
 
-        // Restore floor continuity
+        // Restore floor continuity at lake depth
         await rcon.SendCommandAsync(
-            $"fill {waterXMin} {VillageLayout.SurfaceY - VillageLayout.LakeBlockDepth} {lakeZ} {waterXMax} {VillageLayout.SurfaceY - VillageLayout.LakeBlockDepth} {lakeZ} minecraft:stone_bricks",
+            $"fill {waterXMin} {VillageLayout.SurfaceY - lakeDepth} {lakeZ} {waterXMax} {VillageLayout.SurfaceY - lakeDepth} {junctionZEnd} minecraft:stone_bricks",
             CommandPriority.Normal, ct);
 
-        // Water connection
+        // Water connection at both canal depth (SurfaceY-1) and lake depth (SurfaceY-2)
+        // so there's no air gap between the shallow trunk canal and the deeper lake.
         await rcon.SendCommandAsync(
-            $"fill {waterXMin} {canalY} {lakeZ} {waterXMax} {canalY} {lakeZ} minecraft:water",
+            $"fill {waterXMin} {VillageLayout.SurfaceY - lakeDepth + 1} {lakeZ} {waterXMax} {canalY} {junctionZEnd} minecraft:water",
             CommandPriority.Normal, ct);
 
-        logger.LogInformation("Lake junction opened at X={X}, Z={Z}", trunkX, lakeZ);
+        logger.LogInformation("Lake junction opened at X={X}, Z={Z} to Z={ZEnd}", trunkX, lakeZ, junctionZEnd);
     }
 
     private async Task BuildLakeAsync(int resourceCount, CancellationToken ct)
@@ -328,5 +348,22 @@ internal sealed class CanalService(
             CommandPriority.Normal, ct);
 
         logger.LogInformation("Lake built at ({X}, {Z}) with dock", lakeX, lakeZ);
+    }
+
+    /// <summary>
+    /// Sends a fill command that is clipped against all registered building protection zones.
+    /// If the fill region overlaps any building, it is split into sub-regions that avoid the building.
+    /// </summary>
+    private async Task SendProtectedFillAsync(
+        int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+        string block, CancellationToken ct)
+    {
+        var subRegions = protection.ClipFill(minX, minY, minZ, maxX, maxY, maxZ);
+        foreach (var (fMinX, fMinY, fMinZ, fMaxX, fMaxY, fMaxZ) in subRegions)
+        {
+            await rcon.SendCommandAsync(
+                $"fill {fMinX} {fMinY} {fMinZ} {fMaxX} {fMaxY} {fMaxZ} {block}",
+                CommandPriority.Normal, ct);
+        }
     }
 }

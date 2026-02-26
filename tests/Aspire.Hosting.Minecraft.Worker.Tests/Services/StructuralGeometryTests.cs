@@ -25,6 +25,7 @@ public partial class StructuralGeometryTests : IAsyncLifetime
             NullLogger<RconService>.Instance, maxCommandsPerSecond: 1000);
         _monitor = TestResourceMonitorFactory.Create();
         _structureBuilder = new StructureBuilder(_rcon, _monitor,
+            new BuildingProtectionService(NullLogger<BuildingProtectionService>.Instance),
             NullLogger<StructureBuilder>.Instance);
 
         await WaitForRconConnected();

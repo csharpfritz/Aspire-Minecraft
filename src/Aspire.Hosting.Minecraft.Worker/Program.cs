@@ -22,7 +22,15 @@ builder.Services.AddOpenTelemetry()
         t.AddOtlpExporter();
     });
 
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("aspire-monitor")
+    .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromSeconds(30),
+        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+        {
+            RemoteCertificateValidationCallback = delegate { return true; }
+        }
+    });
 
 // RCON connection configuration — supports both Aspire connection string and explicit config
 builder.Services.AddSingleton(sp =>
@@ -72,6 +80,7 @@ builder.Services.AddSingleton<AspireResourceMonitor>();
 builder.Services.AddSingleton<PlayerMessageService>();
 builder.Services.AddSingleton<HologramManager>();
 builder.Services.AddSingleton<ScoreboardManager>();
+builder.Services.AddSingleton<BuildingProtectionService>();
 builder.Services.AddSingleton<StructureBuilder>();
 builder.Services.AddSingleton<TerrainProbeService>();
 builder.Services.AddSingleton<HorseSpawnService>();
@@ -187,12 +196,11 @@ file sealed class MinecraftWorldWorker(
 
         logger.LogInformation("Connected to Minecraft server via RCON");
 
-        // Force-load the village chunks so block commands work before any player joins.
-        // Dynamically calculated from fence perimeter with extra margin.
-        var (flMinX, flMinZ, flMaxX, flMaxZ) = VillageLayout.GetFencePerimeter(10);
+        // Minimal forceload around terrain probe point so DetectSurfaceAsync can work.
+        // The full village forceload happens AFTER neighborhood planning below.
         await rcon.SendCommandAsync(
-            $"forceload add {flMinX - 10} {flMinZ - 10} {flMaxX + 10} {flMaxZ + 10}", stoppingToken);
-        logger.LogInformation("Village chunks force-loaded");
+            $"forceload add {VillageLayout.BaseX - 5} {VillageLayout.BaseZ - 5} {VillageLayout.BaseX + 5} {VillageLayout.BaseZ + 5}",
+            stoppingToken);
 
         // Detect terrain surface height before building anything
         await terrainProbe.DetectSurfaceAsync(stoppingToken);
@@ -201,6 +209,7 @@ file sealed class MinecraftWorldWorker(
         resourceMonitor.DiscoverResources();
 
         // Plan neighborhoods when enabled — must happen after resource discovery
+        // and BEFORE forceload so the forceload covers the actual neighborhood bounds.
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_NEIGHBORHOODS") == "true"
             && resourceMonitor.Resources.Count > 0)
         {
@@ -210,6 +219,17 @@ file sealed class MinecraftWorldWorker(
                 resourceMonitor.Resources.Count);
         }
 
+        // Force-load the village chunks so block commands work before any player joins.
+        // MUST happen AFTER PlanNeighborhoods — neighborhoods spread buildings across
+        // 4 quadrants with ZoneGap, making the village much wider than the standard grid.
+        // Using the actual resource count (not hardcoded 10) ensures correct bounds.
+        var actualResourceCount = Math.Max(resourceMonitor.Resources.Count, 10);
+        var (flMinX, flMinZ, flMaxX, flMaxZ) = VillageLayout.GetFencePerimeter(actualResourceCount);
+        await rcon.SendCommandAsync(
+            $"forceload add {flMinX - 10} {flMinZ - 10} {flMaxX + 10} {flMaxZ + 10}", stoppingToken);
+        logger.LogInformation("Village chunks force-loaded: ({MinX},{MinZ}) to ({MaxX},{MaxZ})",
+            flMinX - 10, flMinZ - 10, flMaxX + 10, flMaxZ + 10);
+
         // Force-load canal and lake chunks when canals feature is enabled.
         // These areas extend beyond the village fence perimeter and must be loaded
         // for /fill commands to succeed.
@@ -218,21 +238,21 @@ file sealed class MinecraftWorldWorker(
             var canalResourceCount = resourceMonitor.Resources.Count;
             if (canalResourceCount > 0)
             {
-                // Canal area: east of village grid to trunk canal
-                var (_, _, canalMaxX, _) = VillageLayout.GetVillageBounds(canalResourceCount);
-                var trunkX = canalMaxX + VillageLayout.CanalTotalWidth + 2;
+                // Canal area: west of village grid to trunk canal
+                var (canalMinX, _, _, _) = VillageLayout.GetVillageBounds(canalResourceCount);
+                var trunkX = canalMinX - VillageLayout.CanalTotalWidth - 2;
                 var firstEntrance = VillageLayout.GetCanalEntrance(0);
                 var lastEntrance = VillageLayout.GetCanalEntrance(canalResourceCount - 1);
                 var canalMinZ = Math.Min(firstEntrance.z, lastEntrance.z) - VillageLayout.CanalTotalWidth;
                 var canalMaxZ = VillageLayout.GetLakePosition(canalResourceCount).z;
                 await rcon.SendCommandAsync(
-                    $"forceload add {canalMaxX} {canalMinZ} {trunkX + VillageLayout.CanalTotalWidth} {canalMaxZ + VillageLayout.LakeLength}",
+                    $"forceload add {trunkX - VillageLayout.CanalTotalWidth} {canalMinZ} {canalMinX} {canalMaxZ + VillageLayout.LakeLength}",
                     stoppingToken);
 
-                // Lake area: south of village
+                // Lake area: south of village (now much larger, ~80x40 blocks)
                 var (lakeX, _, lakeZ) = VillageLayout.GetLakePosition(canalResourceCount);
                 await rcon.SendCommandAsync(
-                    $"forceload add {lakeX - 5} {lakeZ - 5} {lakeX + VillageLayout.LakeWidth + 5} {lakeZ + VillageLayout.LakeLength + 5}",
+                    $"forceload add {lakeX - 10} {lakeZ - 5} {lakeX + VillageLayout.LakeWidth + 10} {lakeZ + VillageLayout.LakeLength + 5}",
                     stoppingToken);
 
                 logger.LogInformation("Canal and lake chunks force-loaded");

@@ -26,6 +26,7 @@ internal readonly record struct DoorPosition(int CenterX, int TopY, int FaceZ)
 internal sealed class StructureBuilder(
     RconService rcon,
     AspireResourceMonitor monitor,
+    BuildingProtectionService protection,
     ILogger<StructureBuilder> logger)
 {
     private bool _pathsBuilt;
@@ -358,6 +359,15 @@ internal sealed class StructureBuilder(
 
             // Sign with resource name — placed just outside the door
             await PlaceSignAsync(door, info, ct);
+
+            // Register building's 3D bounding box so other subsystems (canals, rails)
+            // won't place blocks inside the structure volume.
+            // Buffer matches GetAllBuildingFootprints: 1 block W/E, 2 blocks S (entrance).
+            var s = VillageLayout.StructureSize;
+            protection.Register(
+                x - 1, y, z - 2,
+                x + s, y + 25, z + s,
+                info.Name);
 
             logger.LogInformation("Village structure built: {ResourceName} ({StructureType}) at ({X},{Y},{Z})",
                 info.Name, structureType, x, y, z);

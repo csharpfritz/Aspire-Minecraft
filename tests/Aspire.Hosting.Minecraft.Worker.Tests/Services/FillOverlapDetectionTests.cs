@@ -25,6 +25,7 @@ public class FillOverlapDetectionTests : IAsyncLifetime
             NullLogger<RconService>.Instance);
         _monitor = TestResourceMonitorFactory.Create();
         _structureBuilder = new StructureBuilder(_rcon, _monitor,
+            new BuildingProtectionService(NullLogger<BuildingProtectionService>.Instance),
             NullLogger<StructureBuilder>.Instance);
 
         await WaitForRconConnected();

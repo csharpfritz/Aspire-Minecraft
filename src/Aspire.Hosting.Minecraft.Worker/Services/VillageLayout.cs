@@ -356,8 +356,8 @@ internal static class VillageLayout
     public static int CanalY => SurfaceY - 1;
 
     /// <summary>Lake dimensions.</summary>
-    public const int LakeWidth = 20;
-    public const int LakeLength = 12;
+    public const int LakeWidth = 80; // As wide as the entire town for creeper boat landings
+    public const int LakeLength = 40; // Deep and impressive
     public const int LakeBlockDepth = 3;
 
     /// <summary>Gap between last structure row and lake edge.</summary>
@@ -441,13 +441,13 @@ internal static class VillageLayout
     }
 
     /// <summary>
-    /// Gets the canal entrance position for a resource (east side of building).
-    /// Canal runs from building toward the lake at Z-max.
+    /// Gets the canal entrance position for a resource (west side of building).
+    /// Canal runs from building toward the trunk on the west side of town.
     /// </summary>
     public static (int x, int y, int z) GetCanalEntrance(int index)
     {
         var (ox, _, oz) = GetStructureOrigin(index);
-        return (ox + StructureSize + 2, CanalY, oz + StructureSize / 2);
+        return (ox - 2, CanalY, oz + StructureSize / 2);
     }
 
     /// <summary>
@@ -456,16 +456,18 @@ internal static class VillageLayout
     public static (int x, int y, int z) GetCanalEntrance(string resourceName, int fallbackIndex)
     {
         var (ox, _, oz) = GetStructureOrigin(resourceName, fallbackIndex);
-        return (ox + StructureSize + 2, CanalY, oz + StructureSize / 2);
+        return (ox - 2, CanalY, oz + StructureSize / 2);
     }
 
     /// <summary>
     /// Gets the lake's northwest corner position.
-    /// Lake is centered on the village's X-axis, placed beyond the last row.
+    /// Lake spans the full width of the village (or wider), placed beyond the last row.
+    /// For the new canal system, the lake needs to be as wide as the entire town.
     /// </summary>
     public static (int x, int y, int z) GetLakePosition(int resourceCount)
     {
         var (minX, _, maxX, maxZ) = GetVillageBounds(resourceCount);
+        // Center the lake on the village X-axis
         var centerX = (minX + maxX) / 2;
         return (centerX - LakeWidth / 2, SurfaceY - LakeBlockDepth, maxZ + LakeGap);
     }

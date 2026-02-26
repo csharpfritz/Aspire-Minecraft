@@ -32,7 +32,9 @@ public class LargeResourceSetTests : IAsyncLifetime
             NullLogger<RconService>.Instance);
         _monitor = TestResourceMonitorFactory.Create();
 
-        _structures = new StructureBuilder(_rcon, _monitor, NullLogger<StructureBuilder>.Instance);
+        _structures = new StructureBuilder(_rcon, _monitor,
+            new BuildingProtectionService(NullLogger<BuildingProtectionService>.Instance),
+            NullLogger<StructureBuilder>.Instance);
         _beacons = new BeaconTowerService(_rcon, _monitor, NullLogger<BeaconTowerService>.Instance);
         _holograms = new HologramManager(_rcon, _monitor, NullLogger<HologramManager>.Instance);
         _bossBar = new BossBarService(_rcon, _monitor, NullLogger<BossBarService>.Instance);
