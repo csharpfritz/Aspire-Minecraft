@@ -7,8 +7,10 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Aspire village. Five themed floors connected by a continuous counter-clockwise
 /// spiral staircase (oak stairs). Players walk from ground to roof without jumping.
 ///
-/// Placement: x=25–45, z=-45 to -25, 32 blocks above SurfaceY.
-/// Entrance faces south (toward the village). Built once at startup.
+/// Placement is computed dynamically via <see cref="SetPosition"/>: the tower is
+/// centered on the village X-axis and placed <see cref="NorthGap"/> blocks north
+/// of the fence perimeter's north edge. Entrance faces south (toward the village).
+/// Built once at startup.
 /// </summary>
 internal sealed class GrandObservationTowerService(
     RconService rcon,
@@ -17,26 +19,47 @@ internal sealed class GrandObservationTowerService(
 {
     private bool _built;
 
-    // Tower absolute coordinates (independent of village BaseX/BaseZ).
-    // Centered on village X-axis, 15 blocks north of the northern fence line.
-    // Entrance faces south (max-Z wall) toward the village.
-    private const int TowerOriginX = 25;
-    private const int TowerOriginZ = -45;
+    // Tower footprint and height (fixed).
     private const int TowerSize = 21;       // 21×21 footprint
     private const int TowerHeight = 32;     // y+1 through y+32
 
-    private static int TowerMaxX => TowerOriginX + TowerSize - 1;  // 45
-    private static int TowerMaxZ => TowerOriginZ + TowerSize - 1;  // -25
+    /// <summary>Gap in blocks between the fence's north edge and the tower's south wall.</summary>
+    internal const int NorthGap = 15;
+
+    // Dynamic tower origin, computed from the village layout via SetPosition.
+    private int _towerOriginX;
+    private int _towerOriginZ;
+    private bool _positionSet;
+
+    private int TowerMaxX => _towerOriginX + TowerSize - 1;
+    private int TowerMaxZ => _towerOriginZ + TowerSize - 1;
+
+    /// <summary>
+    /// Computes and stores the tower's origin from the village layout.
+    /// Must be called before <see cref="ForceloadAsync"/> and <see cref="BuildTowerAsync"/>.
+    /// </summary>
+    /// <param name="resourceCount">Number of discovered Aspire resources (determines village width).</param>
+    public void SetPosition(int resourceCount)
+    {
+        var (fMinX, fMinZ, fMaxX, _) = VillageLayout.GetFencePerimeter(resourceCount);
+        var villageCenterX = (fMinX + fMaxX) / 2;
+        _towerOriginX = villageCenterX - TowerSize / 2;
+        _towerOriginZ = fMinZ - NorthGap - TowerSize;
+        _positionSet = true;
+        logger.LogInformation("Tower position calculated: ({X},{Z}) for {Count} resources",
+            _towerOriginX, _towerOriginZ, resourceCount);
+    }
 
     /// <summary>
     /// Forceloads the tower chunk area. Must be called before <see cref="BuildTowerAsync"/>.
     /// </summary>
     public async Task ForceloadAsync(CancellationToken ct)
     {
+        EnsurePositionSet();
         await rcon.SendCommandAsync(
-            $"forceload add {TowerOriginX - 2} {TowerOriginZ - 2} {TowerMaxX + 2} {TowerMaxZ + 2}", ct);
+            $"forceload add {_towerOriginX - 2} {_towerOriginZ - 2} {TowerMaxX + 2} {TowerMaxZ + 2}", ct);
         logger.LogInformation("Forceloaded tower area: ({X1},{Z1}) to ({X2},{Z2})",
-            TowerOriginX - 2, TowerOriginZ - 2, TowerMaxX + 2, TowerMaxZ + 2);
+            _towerOriginX - 2, _towerOriginZ - 2, TowerMaxX + 2, TowerMaxZ + 2);
     }
 
     /// <summary>
@@ -45,9 +68,10 @@ internal sealed class GrandObservationTowerService(
     /// </summary>
     public void RegisterProtection()
     {
+        EnsurePositionSet();
         var y = VillageLayout.SurfaceY;
         protection.Register(
-            TowerOriginX - 1, y, TowerOriginZ - 2,
+            _towerOriginX - 1, y, _towerOriginZ - 2,
             TowerMaxX + 1, y + TowerHeight, TowerMaxZ + 1,
             "GrandObservationTower");
         logger.LogInformation("Tower protection zone registered");
@@ -60,13 +84,14 @@ internal sealed class GrandObservationTowerService(
     public async Task BuildTowerAsync(CancellationToken ct)
     {
         if (_built) return;
+        EnsurePositionSet();
 
-        logger.LogInformation("Building Grand Observation Tower at ({X},{Z})...", TowerOriginX, TowerOriginZ);
+        logger.LogInformation("Building Grand Observation Tower at ({X},{Z})...", _towerOriginX, _towerOriginZ);
         using var burst = rcon.EnterBurstMode(40);
 
         var y = VillageLayout.SurfaceY;
-        var x1 = TowerOriginX;
-        var z1 = TowerOriginZ;
+        var x1 = _towerOriginX;
+        var z1 = _towerOriginZ;
         var x2 = TowerMaxX;
         var z2 = TowerMaxZ;
 
@@ -96,6 +121,13 @@ internal sealed class GrandObservationTowerService(
 
         _built = true;
         logger.LogInformation("Grand Observation Tower complete — 5 floors, spiral staircase, full decorations");
+    }
+
+    private void EnsurePositionSet()
+    {
+        if (!_positionSet)
+            throw new InvalidOperationException(
+                "Tower position not set. Call SetPosition(resourceCount) before building.");
     }
 
     // =========================================================================

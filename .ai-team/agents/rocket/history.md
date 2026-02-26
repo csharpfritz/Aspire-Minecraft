@@ -740,3 +740,11 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Minecraft door facing:** `facing=north` on a door at the max-Z wall means the flat/front face points north (into the building), which is correct for an entrance on the south wall.
 **Files:** `GrandObservationTowerService.cs`, `GrandObservationTowerTests.cs`
 
+
+## Learnings
+
+### Dynamic Tower Position from Village Layout (2026-02-27)
+**Pattern:** Tower X/Z origin is now computed dynamically from `VillageLayout.GetFencePerimeter(resourceCount)` instead of hardcoded constants. X centers on the village midpoint, Z is placed `NorthGap` (15) blocks north of the fence's north edge minus the tower depth.
+**API:** `SetPosition(int resourceCount)` must be called before `ForceloadAsync`/`BuildTowerAsync`. An `EnsurePositionSet()` guard throws `InvalidOperationException` if forgotten. `NorthGap` is exposed as `internal const` for test use.
+**Test approach:** Tests use a fixed `TestResourceCount = 4` and compute expected tower coordinates via the same `VillageLayout.GetFencePerimeter` formula. No hardcoded coordinate assertions  all derived from the layout engine.
+**Files:** `GrandObservationTowerService.cs`, `Program.cs` (line ~270), `GrandObservationTowerTests.cs`

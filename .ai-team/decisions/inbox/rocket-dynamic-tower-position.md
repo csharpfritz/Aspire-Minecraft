@@ -1,0 +1,4 @@
+### 2026-02-27: Tower position computed dynamically from village layout
+**By:** Rocket
+**What:** Removed hardcoded `TowerOriginX = 25` and `TowerOriginZ = -45` from `GrandObservationTowerService`. Tower position is now calculated via `SetPosition(int resourceCount)` using `VillageLayout.GetFencePerimeter()` — X centers on the village midpoint, Z is 15 blocks north of the fence's north edge. `NorthGap` constant exposed as `internal const` for test access.
+**Why:** Hardcoded coordinates only worked for a specific village size. As the resource count changes (or neighborhoods spread buildings across quadrants), the tower needs to track the actual village center and fence boundary. This follows the same pattern as lake positioning (`GetLakePosition`) which already derives from village bounds dynamically.

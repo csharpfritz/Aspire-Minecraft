@@ -269,6 +269,7 @@ file sealed class MinecraftWorldWorker(
         // Must happen AFTER terrain probe and neighborhoods, BEFORE structures.
         if (observationTower is not null)
         {
+            observationTower.SetPosition(actualResourceCount);
             await observationTower.ForceloadAsync(stoppingToken);
             observationTower.RegisterProtection();
             await observationTower.BuildTowerAsync(stoppingToken);
