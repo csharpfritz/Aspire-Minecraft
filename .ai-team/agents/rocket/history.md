@@ -727,3 +727,10 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Fix:** Changed the lowest support block from `minecraft:stone_bricks` to `minecraft:oak_fence`. Fences have a narrow collision model that boats can pass through while still visually supporting the bridge deck. The `adjustedY - 1` support directly under the rail stays as stone_bricks for structural integrity.
 **Key insight:** When building over navigable waterways, always use fence-type blocks at the water level — they support weight visually without blocking entity passage.
 **Files:** `src/Aspire.Hosting.Minecraft.Worker/Services/MinecartRailService.cs`
+
+ **Team update (2026-02-26):** 
+- BridgeService enabled via DI registration in Program.cs  was implemented but never wired into the Worker's dependency injection container, causing walkway bridges to never build
+- Track bridge water-level fix  replaced stone_bricks at canal water level with oak_fence to allow boat passage under rail bridges
+- Walkway and rail bridges over canals implemented  both bridge types arch 2 blocks above canal water for boat clearance
+- Grand Observation Tower service implemented  standalone 2121, 32-block tall structure at south entrance with spiral staircases and themed floors
+

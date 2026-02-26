@@ -342,3 +342,7 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 
 Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  Comprehensive analysis recommending RCON + HTTP hybrid approach as MVP (deterministic, stable, fast), Playwright screenshots deferred to Sprint 6+ (visual regression, non-deterministic). Supersedes earlier 2026-02-12 decision.  decided by Rhodey (lead)
  Team update (2026-02-18): User directive to skip BlueMap Playwright tests for now  Jeff agrees RCON block verification + HTTP smoke tests are sufficient MVP validation, Playwright visual regression deferred to future  decided by Jeff
+
+ **Team update (2026-02-26):**
+- Grand Observation Tower architecture plan merged into team decisions  detailed specifications for tower implementation (2121, 32 blocks, 5-floor spiral staircase, ~280320 RCON commands)
+

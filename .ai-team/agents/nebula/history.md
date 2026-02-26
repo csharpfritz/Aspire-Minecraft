@@ -134,3 +134,9 @@
 
 📌 Bridge water-level test update (2026-02-26): Updated `TrackBridge_NoBridgeBlockAtWaterLevel` from soft known-issue placeholder (always-true assertion) to hard assertions: (1) Assert.Empty for stone_bricks at CanalY over canal positions, (2) Assert.NotEmpty for oak_fence at CanalY when bridge rails exist. Added `TrackBridge_SupportStructure_HasCorrectMaterialLayers` verifying 3-layer bridge column: rail at adjustedY, stone_bricks/redstone_block at adjustedY-1, oak_fence at adjustedY-2. Total bridge tests: 25, all passing.
 📌 Bridge test early-return pattern: With 2-resource same-row setups, rail paths may not cross canals (both resources in row 0, rail runs at z=-2 north of buildings, canals are south). Tests pass vacuously via early return. A 3+ resource cross-row setup would create actual canal crossings and exercise the material assertions. Tests are structurally correct for when Rocket's fix lands.
+
+ **Team update (2026-02-26):**
+- Bridge geometry test suite updated  replaced placeholder assertion for water-level blockage with real validation; added TrackBridge_SupportStructure_HasCorrectMaterialLayers test
+- Bridge canal blockage issue documented  stone_brick support blocks at water level block boat passage; recommended solution is open supports (fences/walls)
+- Grand Observation Tower test API contract defined  proactive tests for GrandObservationTowerService with expected public API, constructor signature, and expected behaviors
+
