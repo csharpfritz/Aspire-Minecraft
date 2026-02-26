@@ -29,6 +29,8 @@ internal sealed class GrandObservationTowerService(
     // Dynamic tower origin, computed from the village layout via SetPosition.
     private int _towerOriginX;
     private int _towerOriginZ;
+    private int _fenceMinZ;
+    private int _villageCenterX;
     private bool _positionSet;
 
     private int TowerMaxX => _towerOriginX + TowerSize - 1;
@@ -42,8 +44,9 @@ internal sealed class GrandObservationTowerService(
     public void SetPosition(int resourceCount)
     {
         var (fMinX, fMinZ, fMaxX, _) = VillageLayout.GetFencePerimeter(resourceCount);
-        var villageCenterX = (fMinX + fMaxX) / 2;
-        _towerOriginX = villageCenterX - TowerSize / 2;
+        _villageCenterX = (fMinX + fMaxX) / 2;
+        _fenceMinZ = fMinZ;
+        _towerOriginX = _villageCenterX - TowerSize / 2;
         _towerOriginZ = fMinZ - NorthGap - TowerSize;
         _positionSet = true;
         logger.LogInformation("Tower position calculated: ({X},{Z}) for {Count} resources",
@@ -51,15 +54,18 @@ internal sealed class GrandObservationTowerService(
     }
 
     /// <summary>
-    /// Forceloads the tower chunk area. Must be called before <see cref="BuildTowerAsync"/>.
+    /// Forceloads the tower chunk area and the walkway gap to the fence.
+    /// Must be called before <see cref="BuildTowerAsync"/>.
     /// </summary>
     public async Task ForceloadAsync(CancellationToken ct)
     {
         EnsurePositionSet();
+        // Extend forceload south to cover the walkway between tower and fence
+        var forceloadMaxZ = Math.Max(TowerMaxZ + 2, _fenceMinZ);
         await rcon.SendCommandAsync(
-            $"forceload add {_towerOriginX - 2} {_towerOriginZ - 2} {TowerMaxX + 2} {TowerMaxZ + 2}", ct);
-        logger.LogInformation("Forceloaded tower area: ({X1},{Z1}) to ({X2},{Z2})",
-            _towerOriginX - 2, _towerOriginZ - 2, TowerMaxX + 2, TowerMaxZ + 2);
+            $"forceload add {_towerOriginX - 2} {_towerOriginZ - 2} {TowerMaxX + 2} {forceloadMaxZ}", ct);
+        logger.LogInformation("Forceloaded tower+walkway area: ({X1},{Z1}) to ({X2},{Z2})",
+            _towerOriginX - 2, _towerOriginZ - 2, TowerMaxX + 2, forceloadMaxZ);
     }
 
     /// <summary>
@@ -119,8 +125,13 @@ internal sealed class GrandObservationTowerService(
         await BuildFloor4ObservatoryAsync(x1, y, z1, x2, z2, ct);
         await BuildFloor5RooftopAsync(x1, y, z1, x2, z2, ct);
 
+        // ============================
+        // PHASE 5: WALKWAY TO VILLAGE
+        // ============================
+        await BuildWalkwayAsync(y, ct);
+
         _built = true;
-        logger.LogInformation("Grand Observation Tower complete — 5 floors, spiral staircase, full decorations");
+        logger.LogInformation("Grand Observation Tower complete — 5 floors, spiral staircase, walkway, full decorations");
     }
 
     private void EnsurePositionSet()
@@ -243,17 +254,34 @@ internal sealed class GrandObservationTowerService(
         await rcon.SendCommandAsync(
             $"fill {x2 - 2} {y + 34} {z2 - 2} {x2} {y + 34} {z2} minecraft:stone_brick_stairs[facing=north,half=top]", ct);
 
-        // Entrance: south wall (z2), centered 3-wide × 4-tall opening
-        var midX = (x1 + x2) / 2; // 35
+        // Entrance: south wall (z2), centered 5-wide × 4-tall open archway (no doors)
+        var midX = (x1 + x2) / 2;
+        // Clear a 5-wide × 4-tall air gap for a grand open archway
         await rcon.SendCommandAsync(
-            $"fill {midX - 1} {y + 1} {z2} {midX + 1} {y + 4} {z2} minecraft:air", ct);
-        // Decorative arch above entrance
+            $"fill {midX - 2} {y + 1} {z2} {midX + 2} {y + 4} {z2} minecraft:air", ct);
+        // Stone brick threshold step outside the archway
         await rcon.SendCommandAsync(
-            $"setblock {midX - 2} {y + 5} {z2} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
+            $"fill {midX - 2} {y} {z2 + 1} {midX + 2} {y} {z2 + 1} minecraft:stone_bricks", ct);
+        // Decorative arch: stone brick stairs curving inward with chiseled keystone
         await rcon.SendCommandAsync(
-            $"setblock {midX + 2} {y + 5} {z2} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+            $"setblock {midX - 3} {y + 5} {z2} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX - 2} {y + 5} {z2} minecraft:stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX - 1} {y + 5} {z2} minecraft:stone_brick_stairs[facing=east,half=top]", ct);
         await rcon.SendCommandAsync(
             $"setblock {midX} {y + 5} {z2} minecraft:chiseled_stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX + 1} {y + 5} {z2} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX + 2} {y + 5} {z2} minecraft:stone_bricks", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX + 3} {y + 5} {z2} minecraft:stone_brick_stairs[facing=west,half=top]", ct);
+        // Lanterns flanking the archway
+        await rcon.SendCommandAsync(
+            $"setblock {midX - 3} {y + 1} {z2 + 1} minecraft:lantern[hanging=false]", ct);
+        await rcon.SendCommandAsync(
+            $"setblock {midX + 3} {y + 1} {z2 + 1} minecraft:lantern[hanging=false]", ct);
 
         logger.LogInformation("Tower exterior complete");
     }
@@ -517,11 +545,7 @@ internal sealed class GrandObservationTowerService(
         var midX = (x1 + x2) / 2;
         var midZ = (z1 + z2) / 2;
 
-        // Oak doors at entrance (south wall, y+1 and y+2)
-        await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 1} {z2} minecraft:oak_door[facing=north,half=lower,hinge=left]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 2} {z2} minecraft:oak_door[facing=north,half=upper,hinge=left]", ct);
+        // Open archway and exterior lanterns are placed in BuildExteriorAsync
 
         // 4 lanterns around entry for ambiance
         await rcon.SendCommandAsync(
@@ -538,22 +562,6 @@ internal sealed class GrandObservationTowerService(
             $"fill {x1 + 1} {y + 1} {z1 + 1} {x1 + 1} {y + 1} {z2 - 1} minecraft:mossy_stone_bricks", ct);
         await rcon.SendCommandAsync(
             $"fill {x2 - 1} {y + 1} {z1 + 1} {x2 - 1} {y + 1} {z2 - 1} minecraft:mossy_stone_bricks", ct);
-
-        // Welcome sign above entrance (inside)
-        await rcon.SendCommandAsync(
-            $"setblock {midX} {y + 4} {z2 - 1} minecraft:oak_wall_sign[facing=north]", ct);
-        var signCmd = "data merge block " + $"{midX} {y + 4} {z2 - 1}" +
-            " {front_text:{messages:[\"\"," +
-            "'{\"text\":\"Grand Observation\",\"color\":\"gold\"}'," +
-            "'{\"text\":\"Tower\",\"color\":\"gold\"}'," +
-            "\"\"]}}";
-        await rcon.SendCommandAsync(signCmd, ct);
-
-        // Exterior lanterns flanking entrance
-        await rcon.SendCommandAsync(
-            $"setblock {midX - 2} {y + 3} {z2} minecraft:lantern[hanging=false]", ct);
-        await rcon.SendCommandAsync(
-            $"setblock {midX + 2} {y + 3} {z2} minecraft:lantern[hanging=false]", ct);
 
         logger.LogInformation("Floor 1 (Entrance Hall) furnished");
     }
@@ -788,5 +796,49 @@ internal sealed class GrandObservationTowerService(
             $"setblock {x2 - 3} {y + 25} {z2 - 3} minecraft:glowstone", ct);
 
         logger.LogInformation("Floor 5 (Rooftop/Crowning Chamber) furnished");
+    }
+
+    // =========================================================================
+    // COBBLESTONE WALKWAY: TOWER → VILLAGE GATE
+    // =========================================================================
+
+    /// <summary>
+    /// Builds a 5-wide cobblestone walkway from the tower entrance south to the
+    /// village fence gate, with stone brick wall borders and lanterns.
+    /// </summary>
+    private async Task BuildWalkwayAsync(int y, CancellationToken ct)
+    {
+        var gateWidth = VillageLayout.GateWidth;
+        var walkX1 = _villageCenterX - gateWidth / 2;
+        var walkX2 = walkX1 + gateWidth - 1;
+
+        // Walkway runs from just outside the tower entrance (TowerMaxZ + 1)
+        // to just outside the fence gate (fenceMinZ - 1)
+        var walkZStart = TowerMaxZ + 1;
+        var walkZEnd = _fenceMinZ - 1;
+
+        if (walkZEnd <= walkZStart) return; // No gap to fill
+
+        // Cobblestone path surface at ground level
+        await rcon.SendCommandAsync(
+            $"fill {walkX1} {y} {walkZStart} {walkX2} {y} {walkZEnd} minecraft:cobblestone", ct);
+
+        // Stone brick wall borders on both sides
+        await rcon.SendCommandAsync(
+            $"fill {walkX1 - 1} {y + 1} {walkZStart} {walkX1 - 1} {y + 1} {walkZEnd} minecraft:stone_brick_wall", ct);
+        await rcon.SendCommandAsync(
+            $"fill {walkX2 + 1} {y + 1} {walkZStart} {walkX2 + 1} {y + 1} {walkZEnd} minecraft:stone_brick_wall", ct);
+
+        // Lanterns every 4 blocks along the edges for visibility
+        for (var z = walkZStart; z <= walkZEnd; z += 4)
+        {
+            await rcon.SendCommandAsync(
+                $"setblock {walkX1 - 1} {y + 2} {z} minecraft:lantern[hanging=false]", ct);
+            await rcon.SendCommandAsync(
+                $"setblock {walkX2 + 1} {y + 2} {z} minecraft:lantern[hanging=false]", ct);
+        }
+
+        logger.LogInformation("Walkway built from tower (Z={TowerZ}) to gate (Z={GateZ})",
+            walkZStart, walkZEnd);
     }
 }

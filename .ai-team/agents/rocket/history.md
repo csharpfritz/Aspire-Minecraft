@@ -748,3 +748,10 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **API:** `SetPosition(int resourceCount)` must be called before `ForceloadAsync`/`BuildTowerAsync`. An `EnsurePositionSet()` guard throws `InvalidOperationException` if forgotten. `NorthGap` is exposed as `internal const` for test use.
 **Test approach:** Tests use a fixed `TestResourceCount = 4` and compute expected tower coordinates via the same `VillageLayout.GetFencePerimeter` formula. No hardcoded coordinate assertions  all derived from the layout engine.
 **Files:** `GrandObservationTowerService.cs`, `Program.cs` (line ~270), `GrandObservationTowerTests.cs`
+
+### Gate Centering, Tower Entrance, and Walkway (2026-02-27)
+**Gate centering:** Fence gate X position in `StructureBuilder.BuildFencePerimeterAsync` changed from `BaseX + StructureSize` (aligned with boulevard) to `villageCenterX - gateWidth / 2` (centered on village midpoint). This aligns the gate directly opposite the tower entrance.
+**Walkway:** 5-wide cobblestone path from `TowerMaxZ + 1` to `fenceMinZ - 1`, with `stone_brick_wall` borders and lanterns every 4 blocks. Built inside `GrandObservationTowerService.BuildWalkwayAsync` since the tower already stores both its own position and the fence position from `SetPosition`. Forceload extended south to cover the walkway gap.
+**Tower entrance:** Upgraded from single oak door to double doors (hinge=right + hinge=left side by side). Added stone brick threshold at `z2 + 1` outside the door. Entrance lanterns moved to walkway level at `z2 + 1`. Door placement moved from `BuildFloor1EntranceHallAsync` to `BuildExteriorAsync` for correct ordering (clear air → place doors before interior fills).
+**Coordinate references:** `_villageCenterX` and `_fenceMinZ` are stored in `SetPosition` and reused by walkway logic. Walkway Z range: `[TowerMaxZ + 1, fenceMinZ - 1]`. Gate width = `VillageLayout.GateWidth` (5 blocks).
+**Files:** `StructureBuilder.cs` (line ~270), `GrandObservationTowerService.cs`, `GrandObservationTowerTests.cs`

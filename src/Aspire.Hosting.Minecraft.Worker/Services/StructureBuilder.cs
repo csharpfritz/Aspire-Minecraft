@@ -266,8 +266,9 @@ internal sealed class StructureBuilder(
             var fenceY = VillageLayout.SurfaceY + 1;
             var gateWidth = VillageLayout.GateWidth;
 
-            // South side (low Z) — two segments with a gate gap in the center
-            var gateX = VillageLayout.BaseX + VillageLayout.StructureSize; // center of the boulevard
+            // South side (low Z) — two segments with a gate gap centered on the village midpoint
+            var villageCenterX = (fMinX + fMaxX) / 2;
+            var gateX = villageCenterX - gateWidth / 2;
             await rcon.SendCommandAsync(
                 $"fill {fMinX} {fenceY} {fMinZ} {gateX - 1} {fenceY} {fMinZ} minecraft:oak_fence", ct);
             await rcon.SendCommandAsync(
