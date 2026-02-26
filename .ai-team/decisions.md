@@ -5482,3 +5482,15 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 - `GrandObservationTowerService.cs`: New fields `_villageCenterX`/`_fenceMinZ`, extended forceload, new `BuildWalkwayAsync`, entrance refactored with double doors and threshold
 - `GrandObservationTowerTests.cs`: `Tower_AllBlocksWithinFootprint` updated to allow walkway blocks south of tower
 
+
+
+### 2026-02-26: Grand Observation Tower Spiral Staircase Redesign
+
+**By:** Rocket
+
+**What:** Redesigned the tower's spiral staircase to be 2 blocks wide, centered on each wall (using midX and midZ), with 5×5 stairwell holes and 2×3 landing platforms at floor transitions. Moved stairs away from cramped corners to improve accessibility and player experience.
+
+**Why:** The original 1-block-wide stairs crammed against corner buttresses (x1+3, right next to x1-x1+2 deepslate) were too narrow for comfortable navigation. Small 3×4 stairwell holes caused players to bump heads when ascending. No landing platforms meant awkward corner transitions. The redesign centers each flight on its wall (Flight 1 at x1+7-13 instead of x1+3-9), doubles the width for comfortable walking, and adds generous openings so players can easily walk from ground to roof without precision jumps or frustration.
+
+**Impact:** All 81 tower tests pass. Players can now navigate the full 32-block height without fighting tight corners or narrow passages. The centered layout also looks more intentional and grand — stairs are a feature, not hidden in corners.
+
