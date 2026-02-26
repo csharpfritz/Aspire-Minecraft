@@ -140,3 +140,5 @@
 - Bridge canal blockage issue documented  stone_brick support blocks at water level block boat passage; recommended solution is open supports (fences/walls)
 - Grand Observation Tower test API contract defined  proactive tests for GrandObservationTowerService with expected public API, constructor signature, and expected behaviors
 
+
+ Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket

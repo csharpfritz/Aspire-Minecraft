@@ -346,3 +346,5 @@ Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  C
  **Team update (2026-02-26):**
 - Grand Observation Tower architecture plan merged into team decisions  detailed specifications for tower implementation (2121, 32 blocks, 5-floor spiral staircase, ~280320 RCON commands)
 
+
+ Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket

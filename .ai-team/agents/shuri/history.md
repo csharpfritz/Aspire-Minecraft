@@ -323,3 +323,5 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
  **Team update (2026-02-26):**
 - VillagerService integration requirements documented  three NPC villagers (Maddy, Damien, Fowler) spawned as easter egg fruit stand; requires Program.cs wiring: DI registration, constructor parameter, async initialization call
 
+
+ Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket
