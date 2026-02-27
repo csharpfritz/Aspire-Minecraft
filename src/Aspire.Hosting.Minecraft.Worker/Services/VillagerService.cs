@@ -32,9 +32,9 @@ internal sealed class VillagerService(
     [
         ("Maddy",   "farmer",    1, 1),   // behind the counter
         ("Damian",  "butcher",   3, 1),   // behind the counter
-        ("Fowler",  "fisherman", 2, -1),  // in front, greeting customers
-        ("Brady",   "librarian", 0, -1),  // browsing the stand
-        ("Scott",   "armorer",   4, -1),  // passing byas a
+        ("Fowler",  "fisherman", 2, 0),   // in front, greeting customers
+        ("Brady",   "librarian", 0, 0),   // browsing the stand
+        ("Scott",   "armorer",   4, 0),   // passing by
     ];
 
     /// <summary>
@@ -54,7 +54,9 @@ internal sealed class VillagerService(
             var resourceCount = 10; // Default fallback
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetVillageBounds(resourceCount);
             _standX = (fMinX + fMaxX) / 2 - 2; // Center X, offset for 5-wide stand
-            _standZ = (fMinZ + fMaxZ) / 2;     // Center Z
+            // Offset stand south to avoid canals (which run at ~minZ + StructureSize + 4)
+            // Place stand in the southern boulevard area
+            _standZ = fMinZ - 5;
         }
         
         var sx = _standX.Value;

@@ -329,6 +329,9 @@ internal sealed class GrandObservationTowerService(
 
     private async Task BuildSpiralStaircaseAsync(int x1, int y, int z1, int x2, int z2, CancellationToken ct)
     {
+        // Clear stairwell holes in floor platforms FIRST so stairs can fill in solid parts
+        await ClearStairwellHolesAsync(x1, y, z1, x2, z2, ct);
+
         // Flight 1: South wall, moving East (y+1 to y+7)
         // Stairs along z1+2 (inner south wall), x ascending eastward
         await BuildFlight1Async(x1, y, z1, ct);
@@ -344,9 +347,6 @@ internal sealed class GrandObservationTowerService(
 
         // Flight 5: Final climb — South wall again, to roof (y+25 to y+31)
         await BuildFlight5Async(x1, y, z1, ct);
-
-        // Clear stairwell holes in floor platforms so stairs connect
-        await ClearStairwellHolesAsync(x1, y, z1, x2, z2, ct);
 
         // Safety fences on inside edge of staircase flights
         await BuildStairFencesAsync(x1, y, z1, x2, z2, ct);
