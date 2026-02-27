@@ -864,3 +864,4 @@ Fix: Added a pending-change buffer to ErrorBoatService. When canals aren't ready
 Files changed:
 - src/Aspire.Hosting.Minecraft.Worker/Services/ErrorBoatService.cs
 - src/Aspire.Hosting.Minecraft.Worker/Program.cs (line 354-356)
+-  Team update (2026-02-27): ErrorBoatService uses buffering pattern to handle initialization race  health changes arrive before canals build, so service buffers unhealthy transitions and replays after CanalService.InitializeAsync() completes  decided by Rocket
