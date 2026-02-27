@@ -39,7 +39,16 @@ var cosmosDb = builder.AddAzureCosmosDB("cosmos")
 // --- .NET projects (Watchtower grand buildings) ---
 var api = builder.AddProject<Projects.GrandVillageDemo_ApiService>("api")
     .WithReference(redis)
-    .WithReference(blobs);
+    .WithReference(blobs)
+    .WithHttpHealthCheck("/health")
+    .WithHttpCommand("/trigger-error", "Trigger Error", commandName: "trigger-error", commandOptions: new HttpCommandOptions
+    {
+        IconName = "ErrorCircle",
+        IconVariant = IconVariant.Filled,
+        Description = "Simulates a failure on the API service to trigger an error boat in the Minecraft canal",
+        ConfirmationMessage = "This will simulate a failure on the API service. Continue?",
+        IsHighlighted = true
+    });
 
 var web = builder.AddProject<Projects.GrandVillageDemo_Web>("web")
     .WithReference(api)

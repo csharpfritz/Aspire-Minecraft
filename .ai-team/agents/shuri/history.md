@@ -337,3 +337,12 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
  Team update (2026-02-27): SmallVillageDemo sample created as minimal 2-resource test (web app + PostgreSQL). Validates spacing, fence perimeter, and building placement scale correctly for small resource counts. Serves as copy-paste starting point for simple Aspire+Minecraft integrations.  decided by Shuri
 
  Team update (2026-02-27): Minecart-boats design review completed. 8 decisions finalized: native physics (no RCON tp), fix 4 critical bugs first (spawn position, rail type, canal entrance, boat propulsion), powered rails before ramps, entity lifecycle checks, rail path dedup, accept best-effort movement testing, ErrorBoatServiceCanalService dependency, forceload audit for canal transit  decided by Rhodey
+
+### Aspire Dashboard "Trigger Error" Command (2026-02-27)
+
+- Added `WithHttpCommand` + `WithHttpHealthCheck` to the `api` resource in `GrandVillageDemo.AppHost/Program.cs`. Uses Aspire 13.1's `WithHttpCommand("/trigger-error", "Trigger Error")` API with `HttpCommandOptions` for icon, confirmation, and highlight.
+- Added `POST /trigger-error` endpoint to `GrandVillageDemo.ApiService/Program.cs` — sets a `var isHealthy` flag to `false` and returns 200 OK. The existing `/health` GET endpoint now returns 503 when `isHealthy` is false.
+- `WithHttpHealthCheck("/health")` on the `api` resource tells Aspire to poll the health endpoint. When `/trigger-error` is invoked, the next health poll returns 503 → Aspire marks the resource unhealthy → Minecraft worker detects it → error boat spawns.
+- `WithHttpCommand` defaults to POST method — matches the `MapPost` on the API side. No need to set `HttpCommandOptions.Method` explicitly.
+- Icon: `ErrorCircle` (FluentUI), `IconVariant.Filled`, `IsHighlighted = true` for dashboard visibility.
+- Key insight: `WithHttpCommand` is the clean Aspire 13.1 way to add dashboard buttons that call resource endpoints. It handles endpoint resolution, HTTP client creation, and result reporting automatically. Prefer it over `WithCommand` + manual `HttpClient` wiring whenever the command target is an HTTP endpoint on the same resource.
