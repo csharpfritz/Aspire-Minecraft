@@ -770,3 +770,9 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Wall torches:** Every other step along the back wall of each flight (z1+1, x2-1, z2-1, x1+1) for lighting.
 **Key insight:** Centering on midX/midZ moves stairs away from 3×3 corner buttresses, creating clear approach paths. 2-wide stairs allow comfortable walking without precision jumps. Large stairwell holes (5×4-5) enable easy ascent/descent without head bumps.
 **Files:** `GrandObservationTowerService.cs` — `BuildFlight[1-5]Async`, `ClearStairwellHolesAsync`, `BuildStairFencesAsync`, `BuildStaircaseLightingAsync`
+
+### Fruit Stand at Town Center, Tower Floor Platform Edges (2026-02-27)
+**Fruit stand relocation:** Moved from fixed position `BaseX + 12, BaseZ - 8` to dynamically calculated town center. Position computed as `(fMinX + fMaxX) / 2, (fMinZ + fMaxZ) / 2` from `VillageLayout.GetVillageBounds()`. Stand stores `_standX` and `_standZ` as nullable ints computed at first spawn. 5-wide stand centered with `-2` offset on X for proper centering.
+**Tower floor platforms:** Extended from inset `x1+2 to x2-2, z1+2 to z2-2` to edges `x1+1 to x2-1, z1+1 to z2-1`. Floors now reach 1 block from interior walls instead of 2, eliminating the edge gap. Corner buttresses (3×3 deepslate at each corner) remain unaffected — they're placed after or coexist with floors. Floors affected: y+7, y+12, y+17, y+24 oak planks/deepslate tiles.
+**Rationale:** Fruit stand at town center provides centralized landmark, visible from all village quadrants. Tower floor edge extension improves walkability — players no longer step off platform edge near walls.
+**Files:** `VillagerService.cs` (lines 25-50), `GrandObservationTowerService.cs` (`BuildFloorPlatformsAsync`), tests pass without modification.
