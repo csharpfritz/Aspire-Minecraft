@@ -44,22 +44,67 @@ internal sealed class BridgeService(
         var orderedNames = VillageLayout.ReorderByDependency(resources);
         if (orderedNames.Count == 0) return;
 
-        // Boulevard center X — midpoint of the gap between column 0 and column 1
-        var boulevardCenterX = VillageLayout.BaseX + VillageLayout.StructureSize
-            + (VillageLayout.Spacing - VillageLayout.StructureSize) / 2;
+        // Collect actual building column X positions from real structure origins
+        var columnXPositions = new SortedSet<int>();
+        for (var i = 0; i < orderedNames.Count; i++)
+        {
+            var (ox, _, _) = VillageLayout.GetStructureOrigin(orderedNames[i], i);
+            columnXPositions.Add(ox);
+        }
+
+        // If fewer than 2 unique columns, no boulevard exists — skip boulevard bridges
+        if (columnXPositions.Count < 2)
+        {
+            logger.LogInformation("Single-column layout detected ({Count} resource(s)) — skipping boulevard bridges",
+                orderedNames.Count);
+            return;
+        }
+
+        // Compute boulevard centers between each pair of adjacent columns
+        var sortedColumns = columnXPositions.ToList();
+        var boulevardCenters = new List<int>();
+        for (var c = 0; c < sortedColumns.Count - 1; c++)
+        {
+            var leftColumnMaxX = sortedColumns[c] + VillageLayout.StructureSize - 1;
+            var rightColumnMinX = sortedColumns[c + 1];
+            boulevardCenters.Add((leftColumnMaxX + rightColumnMinX) / 2);
+        }
+
+        // Fence perimeter for bounds checking
+        var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetFencePerimeter(orderedNames.Count);
+        const int bridgeWidth = 5;
+        var halfW = bridgeWidth / 2;
 
         // Track unique canal Z values to avoid duplicate boulevard bridges (same-row buildings share Z)
         var bridgedCanalZs = new HashSet<int>();
 
         for (var i = 0; i < orderedNames.Count; i++)
         {
-            var (ox, _, oz) = VillageLayout.GetStructureOrigin(orderedNames[i], i);
+            var (_, _, oz) = VillageLayout.GetStructureOrigin(orderedNames[i], i);
             var canalCenterZ = oz + VillageLayout.StructureSize + 4;
 
-            // Boulevard bridge — one per unique canal Z
-            if (bridgedCanalZs.Add(canalCenterZ))
+            if (!bridgedCanalZs.Add(canalCenterZ)) continue;
+
+            foreach (var boulevardCenterX in boulevardCenters)
             {
-                await BuildNorthSouthBridgeAsync(boulevardCenterX, canalCenterZ, 5, ct);
+                // Compute full bridge extents (deck + ramps)
+                var bridgeWestX = boulevardCenterX - halfW;
+                var bridgeEastX = boulevardCenterX + halfW;
+                var wallZSouth = canalCenterZ - VillageLayout.CanalWaterWidth / 2 - 1;
+                var wallZNorth = canalCenterZ + VillageLayout.CanalWaterWidth / 2 + 1;
+                var bridgeZMin = wallZSouth - 2;
+                var bridgeZMax = wallZNorth + 2;
+
+                // Skip bridges that extend past or overlap the fence perimeter
+                if (bridgeWestX <= fMinX || bridgeEastX >= fMaxX ||
+                    bridgeZMin <= fMinZ || bridgeZMax >= fMaxZ)
+                {
+                    logger.LogInformation("Skipping bridge at X={X}, Z={Z} — outside fence bounds",
+                        boulevardCenterX, canalCenterZ);
+                    continue;
+                }
+
+                await BuildNorthSouthBridgeAsync(boulevardCenterX, canalCenterZ, bridgeWidth, ct);
                 logger.LogInformation("Boulevard walkway bridge at X={X}, Z={Z}", boulevardCenterX, canalCenterZ);
             }
         }

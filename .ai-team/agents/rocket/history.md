@@ -816,3 +816,20 @@ Result: Stairwell holes destroyed the top stair steps and landing platforms with
 3. Updated `Program.cs` to call `villagers.SetResourceCount(actualResourceCount)` before `SpawnVillagersAsync`
 
 **Key learning:** Services that position things relative to village bounds need the real resource count — never hardcode it. Follow the `SetPosition`/`SetResourceCount` pattern used by `GrandObservationTowerService`. Also, `fMinZ` is the NORTH edge, not the center — always use `(min + max) / 2` for true center.
+
+### Bridge Placement Fix — Dynamic Column Detection + Fence Bounds (2026-02-27)
+
+**Issue:** BridgeService computed `boulevardCenterX` using a static formula: `BaseX + StructureSize + (Spacing - StructureSize) / 2 = 35`. When neighborhoods put all buildings in column 0 (e.g., SmallVillageDemo with 2 resources), the "boulevard" doesn't exist and X=35 is outside the east fence (fMaxX=34). Bridges straddled the fence and sat 10 blocks away from actual canal water.
+
+**Root causes:**
+- A: `boulevardCenterX` was a static formula ignoring actual building positions
+- B: No validation against fence perimeter before building bridges
+- C: Only "boulevard bridges" were supported — no awareness of actual layout geometry
+
+**Fix (2 parts):**
+1. **Dynamic column detection:** Collect actual building X origins via `GetStructureOrigin()`, find unique column positions. If <2 columns exist, skip boulevard bridges entirely (no boulevard to bridge). If 2+ columns, compute boulevard center(s) as midpoint between each pair of adjacent columns' structure edges. This handles standard 2-column, neighborhood multi-zone, and single-column layouts.
+2. **Fence bounds checking:** Before building each bridge, compute its full extent (deck + ramps) and validate all corners are strictly inside `GetFencePerimeter()`. Skip any bridge that would overlap or extend past the fence.
+
+**MinecartRailService check:** Rail bridges use `CanalPositions` from CanalService for dynamic crossing detection — no hardcoded boulevard X. Not affected by this bug.
+
+**Key learning:** Never hardcode layout geometry (column positions, boulevard centers) in per-feature services. Always derive positions from actual building placements via `VillageLayout.GetStructureOrigin()`. The village grid is dynamic — neighborhoods, different resource counts, and zone layouts all change where buildings actually end up. Any placement formula that assumes "column 0 at BaseX, column 1 at BaseX + Spacing" will break when the layout doesn't fill both columns.
