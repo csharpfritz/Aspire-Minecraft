@@ -21,11 +21,24 @@ internal sealed class VillagerService(
     ILogger<VillagerService> logger)
 {
     private bool _villagersSpawned;
+    private int? _resourceCount;
 
     // Fruit stand origin — town center position (between village quadrants).
     // We'll calculate center from village bounds at spawn time.
     private int? _standX;
     private int? _standZ;
+
+    /// <summary>
+    /// Sets the actual resource count so the fruit stand is positioned at the true village center.
+    /// Call before <see cref="SpawnVillagersAsync"/> with the same count used for village bounds.
+    /// </summary>
+    public void SetResourceCount(int resourceCount)
+    {
+        _resourceCount = resourceCount;
+        // Reset cached position so it's recalculated with the new count
+        _standX = null;
+        _standZ = null;
+    }
 
     // Villager definitions: (name, profession, spawn offset from stand)
     private static readonly (string Name, string Profession, int OffsetX, int OffsetZ)[] Villagers =
@@ -51,12 +64,10 @@ internal sealed class VillagerService(
         // Calculate town center position if not yet done
         if (_standX is null || _standZ is null)
         {
-            var resourceCount = 10; // Default fallback
+            var resourceCount = _resourceCount ?? 10;
             var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetVillageBounds(resourceCount);
             _standX = (fMinX + fMaxX) / 2 - 2; // Center X, offset for 5-wide stand
-            // Offset stand south to avoid canals (which run at ~minZ + StructureSize + 4)
-            // Place stand in the southern boulevard area
-            _standZ = fMinZ - 5;
+            _standZ = (fMinZ + fMaxZ) / 2;      // Center Z — actual village midpoint
         }
         
         var sx = _standX.Value;

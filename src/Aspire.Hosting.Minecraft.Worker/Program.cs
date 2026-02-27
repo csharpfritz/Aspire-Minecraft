@@ -338,7 +338,10 @@ file sealed class MinecraftWorldWorker(
                 await structures.UpdateStructuresAsync(stoppingToken);
                 await horseSpawn.SpawnHorsesAsync(stoppingToken);
                 if (villagers is not null)
+                {
+                    villagers.SetResourceCount(actualResourceCount);
                     await villagers.SpawnVillagersAsync(stoppingToken);
+                }
 
                 // Build canals first so CanalPositions is populated for bridge and rail detection,
                 // then walkway bridges, then rails. All run AFTER structures so they aren't paved over.

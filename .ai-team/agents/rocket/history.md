@@ -803,3 +803,16 @@ Result: Stairwell holes destroyed the top stair steps and landing platforms with
 3. Build fences + lighting
 
 **Key learning:** When building multi-level structures with floor openings, the order matters. Clear holes FIRST, then build solid features that will occupy part of that hole space. This gives you both the opening for head clearance AND the solid stairs/platforms for walking.
+
+### Fruit Stand Center Regression Fix (2026-02-27)
+
+**Issue:** The fruit stand was at `fMinZ - 5`, which is 5 blocks south of the northern fence edge — right inside the town gate, NOT at the village center. The previous fix overshot: it moved from an overlapping canal center to the gate area.
+
+**Root cause:** `_standZ = fMinZ - 5` calculates from the MINIMUM Z bound, which is the northernmost edge. Also, `resourceCount = 10` was hardcoded, ignoring the actual number of Aspire resources.
+
+**Fix:**
+1. Added `SetResourceCount(int resourceCount)` method (same pattern as `GrandObservationTowerService.SetPosition`)
+2. Changed Z calculation to `_standZ = (fMinZ + fMaxZ) / 2` — the true vertical center of the village bounds
+3. Updated `Program.cs` to call `villagers.SetResourceCount(actualResourceCount)` before `SpawnVillagersAsync`
+
+**Key learning:** Services that position things relative to village bounds need the real resource count — never hardcode it. Follow the `SetPosition`/`SetResourceCount` pattern used by `GrandObservationTowerService`. Also, `fMinZ` is the NORTH edge, not the center — always use `(min + max) / 2` for true center.

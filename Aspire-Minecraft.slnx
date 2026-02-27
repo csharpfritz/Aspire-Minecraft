@@ -5,6 +5,10 @@
     <Project Path="samples/GrandVillageDemo/GrandVillageDemo.AppHost/GrandVillageDemo.AppHost.csproj" />
     <Project Path="samples/GrandVillageDemo/GrandVillageDemo.Web/GrandVillageDemo.Web.csproj" />
   </Folder>
+  <Folder Name="/samples/SmallVillageDemo/">
+    <Project Path="samples/SmallVillageDemo/SmallVillageDemo.AppHost/SmallVillageDemo.AppHost.csproj" />
+    <Project Path="samples/SmallVillageDemo/SmallVillageDemo.Web/SmallVillageDemo.Web.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Aspire.Hosting.Minecraft.Rcon/Aspire.Hosting.Minecraft.Rcon.csproj" />
     <Project Path="src/Aspire.Hosting.Minecraft.Worker/Aspire.Hosting.Minecraft.Worker.csproj" />

@@ -325,3 +325,11 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 
 
  Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket
+
+### SmallVillageDemo Sample Added (2026-02-27)
+
+- Created `samples/SmallVillageDemo/`  a minimal Aspire solution with only 2 monitored resources (a web app and PostgreSQL) to test that the village layout adapts to small resource counts.
+- AppHost uses `AddPostgres`, a single web project, and `WithAllFeatures()` + `WithMonitoredResource()` for both.
+- Web project is bare-bones (`MapGet` returning HTML, health endpoint). No actual DB usage  the point is having 2 resources for Minecraft to monitor.
+- Added both projects to `Aspire-Minecraft.slnx` under a `/samples/SmallVillageDemo/` folder.
+- Build verified: `dotnet build -c Release` succeeds with zero new warnings.
