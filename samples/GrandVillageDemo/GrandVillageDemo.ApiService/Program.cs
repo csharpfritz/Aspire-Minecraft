@@ -4,7 +4,9 @@ var app = builder.Build();
 
 var isHealthy = true;
 
-app.MapGet("/", () => "Grand Village Demo API");
+app.MapGet("/", () => isHealthy
+    ? Results.Ok("Grand Village Demo API")
+    : Results.Json(new { status = "unhealthy", message = "API service is not healthy" }, statusCode: 503));
 
 app.MapGet("/health", () => isHealthy
     ? Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow })

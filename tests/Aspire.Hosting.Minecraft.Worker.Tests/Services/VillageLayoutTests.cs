@@ -87,9 +87,9 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["A"] = new ResourceInfo("A", "Project", "", "", 0, ResourceStatus.Unknown, []),
-            ["B"] = new ResourceInfo("B", "Container", "", "", 0, ResourceStatus.Unknown, []),
-            ["C"] = new ResourceInfo("C", "Executable", "", "", 0, ResourceStatus.Unknown, [])
+            ["A"] = new ResourceInfo("A", "Project", "", "", 0, "", ResourceStatus.Unknown, []),
+            ["B"] = new ResourceInfo("B", "Container", "", "", 0, "", ResourceStatus.Unknown, []),
+            ["C"] = new ResourceInfo("C", "Executable", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);
@@ -105,8 +105,8 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["child"] = new ResourceInfo("child", "Project", "", "", 0, ResourceStatus.Unknown, ["parent"]),
-            ["parent"] = new ResourceInfo("parent", "Container", "", "", 0, ResourceStatus.Unknown, [])
+            ["child"] = new ResourceInfo("child", "Project", "", "", 0, "", ResourceStatus.Unknown, ["parent"]),
+            ["parent"] = new ResourceInfo("parent", "Container", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);
@@ -121,9 +121,9 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["C"] = new ResourceInfo("C", "Project", "", "", 0, ResourceStatus.Unknown, ["B"]),
-            ["B"] = new ResourceInfo("B", "Container", "", "", 0, ResourceStatus.Unknown, ["A"]),
-            ["A"] = new ResourceInfo("A", "Executable", "", "", 0, ResourceStatus.Unknown, [])
+            ["C"] = new ResourceInfo("C", "Project", "", "", 0, "", ResourceStatus.Unknown, ["B"]),
+            ["B"] = new ResourceInfo("B", "Container", "", "", 0, "", ResourceStatus.Unknown, ["A"]),
+            ["A"] = new ResourceInfo("A", "Executable", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);
@@ -139,9 +139,9 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["child"] = new ResourceInfo("child", "Project", "", "", 0, ResourceStatus.Unknown, ["parent1", "parent2"]),
-            ["parent1"] = new ResourceInfo("parent1", "Container", "", "", 0, ResourceStatus.Unknown, []),
-            ["parent2"] = new ResourceInfo("parent2", "Executable", "", "", 0, ResourceStatus.Unknown, [])
+            ["child"] = new ResourceInfo("child", "Project", "", "", 0, "", ResourceStatus.Unknown, ["parent1", "parent2"]),
+            ["parent1"] = new ResourceInfo("parent1", "Container", "", "", 0, "", ResourceStatus.Unknown, []),
+            ["parent2"] = new ResourceInfo("parent2", "Executable", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);
@@ -160,10 +160,10 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["D"] = new ResourceInfo("D", "Project", "", "", 0, ResourceStatus.Unknown, ["B", "C"]),
-            ["C"] = new ResourceInfo("C", "Container", "", "", 0, ResourceStatus.Unknown, ["A"]),
-            ["B"] = new ResourceInfo("B", "Container", "", "", 0, ResourceStatus.Unknown, ["A"]),
-            ["A"] = new ResourceInfo("A", "Executable", "", "", 0, ResourceStatus.Unknown, [])
+            ["D"] = new ResourceInfo("D", "Project", "", "", 0, "", ResourceStatus.Unknown, ["B", "C"]),
+            ["C"] = new ResourceInfo("C", "Container", "", "", 0, "", ResourceStatus.Unknown, ["A"]),
+            ["B"] = new ResourceInfo("B", "Container", "", "", 0, "", ResourceStatus.Unknown, ["A"]),
+            ["A"] = new ResourceInfo("A", "Executable", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);
@@ -183,8 +183,8 @@ public class VillageLayoutTests
     {
         var resources = new Dictionary<string, ResourceInfo>
         {
-            ["child"] = new ResourceInfo("child", "Project", "", "", 0, ResourceStatus.Unknown, ["PARENT"]),
-            ["parent"] = new ResourceInfo("parent", "Container", "", "", 0, ResourceStatus.Unknown, [])
+            ["child"] = new ResourceInfo("child", "Project", "", "", 0, "", ResourceStatus.Unknown, ["PARENT"]),
+            ["parent"] = new ResourceInfo("parent", "Container", "", "", 0, "", ResourceStatus.Unknown, [])
         };
         
         var result = VillageLayout.ReorderByDependency(resources);

@@ -81,7 +81,7 @@ public class StateTransitionTrackingTests
     [Fact]
     public void ResourceInfo_WithStatus_CreatesNewRecordWithUpdatedStatus()
     {
-        var info = new ResourceInfo("api", "Project", "http://localhost:5000", "", 0, ResourceStatus.Healthy);
+        var info = new ResourceInfo("api", "Project", "http://localhost:5000", "", 0, "", ResourceStatus.Healthy);
         var updated = info with { Status = ResourceStatus.Unhealthy };
 
         Assert.Equal(ResourceStatus.Healthy, info.Status);
@@ -92,8 +92,8 @@ public class StateTransitionTrackingTests
     [Fact]
     public void ResourceInfo_Equality_WorksForRecordSemantics()
     {
-        var a = new ResourceInfo("api", "Project", "http://localhost", "", 0, ResourceStatus.Healthy);
-        var b = new ResourceInfo("api", "Project", "http://localhost", "", 0, ResourceStatus.Healthy);
+        var a = new ResourceInfo("api", "Project", "http://localhost", "", 0, "", ResourceStatus.Healthy);
+        var b = new ResourceInfo("api", "Project", "http://localhost", "", 0, "", ResourceStatus.Healthy);
 
         Assert.Equal(a, b);
     }
@@ -101,7 +101,7 @@ public class StateTransitionTrackingTests
     [Fact]
     public void ResourceInfo_Inequality_OnStatusChange()
     {
-        var a = new ResourceInfo("api", "Project", "http://localhost", "", 0, ResourceStatus.Healthy);
+        var a = new ResourceInfo("api", "Project", "http://localhost", "", 0, "", ResourceStatus.Healthy);
         var b = a with { Status = ResourceStatus.Unhealthy };
 
         Assert.NotEqual(a, b);

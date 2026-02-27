@@ -378,6 +378,14 @@ public static class MinecraftServerBuilderExtensions
                         // HTTP/HTTPS endpoint — use URL for HTTP health check
                         context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_URL"] =
                             httpRef.Property(EndpointProperty.Url);
+                        
+                        // If the resource has a health check annotation, extract the path
+                        if (resource.Resource.TryGetLastAnnotation<HealthCheckAnnotation>(out var healthCheck))
+                        {
+                            // Health check path defaults to "/health" if not specified
+                            var healthPath = healthCheck.Key ?? "/health";
+                            context.EnvironmentVariables[$"ASPIRE_RESOURCE_{name.ToUpperInvariant()}_HEALTH_PATH"] = healthPath;
+                        }
                     }
                     else if (firstRef is not null)
                     {
