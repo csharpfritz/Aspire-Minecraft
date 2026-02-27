@@ -335,3 +335,5 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 - Build verified: `dotnet build -c Release` succeeds with zero new warnings.
 
  Team update (2026-02-27): SmallVillageDemo sample created as minimal 2-resource test (web app + PostgreSQL). Validates spacing, fence perimeter, and building placement scale correctly for small resource counts. Serves as copy-paste starting point for simple Aspire+Minecraft integrations.  decided by Shuri
+
+ Team update (2026-02-27): Minecart-boats design review completed. 8 decisions finalized: native physics (no RCON tp), fix 4 critical bugs first (spawn position, rail type, canal entrance, boat propulsion), powered rails before ramps, entity lifecycle checks, rail path dedup, accept best-effort movement testing, ErrorBoatServiceCanalService dependency, forceload audit for canal transit  decided by Rhodey

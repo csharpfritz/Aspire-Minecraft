@@ -348,3 +348,18 @@ Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  C
 
 
  Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket
+
+### 2026-02-27: Minecart Tracks & Boat Movement Design Review
+
+- **Design review facilitated** for Jeff's two features: minecart tracks between dependent resources, and minecart/boat movement. Participants: Rocket, Shuri, Nebula.
+- **Key finding: Most infrastructure already exists but has critical bugs.** MinecartRailService already builds L-shaped dependency rail connections with bridge detection. ErrorBoatService spawns boats on errors. CanalService builds canals with blue_ice. The work is bug-fixing and polish, not greenfield.
+- **Four critical bugs identified:**
+  1. Minecart spawns on detector_rail (won't start) — must spawn on powered_rail at z+1
+  2. DisableRailsAsync replaces powered rails with `air` (derails cart) — must use `minecraft:rail`
+  3. GetCanalEntrance returns wrong coordinates — boats spawn on dry land
+  4. Boats have no propulsion — need Motion NBT or water flow
+- **8 decisions made:** No RCON movement (use physics), fix bugs first, powered rails before ramps, entity lifecycle tracking, rail spatial reservation for fan-in deps, best-effort movement testing, ErrorBoatService→CanalService dependency, verify forceload coverage.
+- **Architecture principle established:** Use Minecraft native physics for entity movement. RCON is for construction and state management, not animation. This keeps RCON budget available for health updates and building.
+- **Key files:** MinecartRailService.cs (rail connections, bridge detection, health-reactive), CanalService.cs (per-building canals, trunk, lake), ErrorBoatService.cs (error boats), BridgeService.cs (walkway bridges), VillageLayout.cs (positions, canal entrance coords).
+- **Decisions logged:** `.ai-team/decisions/inbox/rhodey-minecart-boats-design.md`
+- **Ceremony log:** `.ai-team/log/2026-02-27-minecart-boats-design-review.md`

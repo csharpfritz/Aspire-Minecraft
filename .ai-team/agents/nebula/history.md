@@ -142,3 +142,5 @@
 
 
  Team update (2026-02-26): Tower position computed dynamically from village layout  removed hardcoded TowerOriginX=25, TowerOriginZ=-45; now calculated via SetPosition() using VillageLayout.GetFencePerimeter()  decided by Rocket
+
+ Team update (2026-02-27): Minecart-boats design review completed. 8 decisions finalized: native physics (no RCON tp), fix 4 critical bugs first (spawn position, rail type, canal entrance, boat propulsion), powered rails before ramps, entity lifecycle checks, rail path dedup, accept best-effort movement testing, ErrorBoatServiceCanalService dependency, forceload audit for canal transit  decided by Rhodey

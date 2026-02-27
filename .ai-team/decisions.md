@@ -5505,3 +5505,46 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 **Date:** 2026-02-27
 **What:** Created samples/SmallVillageDemo/ with just a web app + PostgreSQL, monitoring both via .WithMonitoredResource(). This is the smallest possible Aspire+Minecraft integration sample.
 **Why:** The existing GrandVillageDemo has 13 monitored resources. We need a sample that exercises the village layout with only 2 resources to verify spacing, fence perimeter, and building placement scale down correctly. Also serves as a copy-paste starting point for users who want a simple setup.
+
+
+
+
+
+# Decisions: Minecart Tracks & Boat Movement Design Review
+**Date:** 2026-02-27
+**By:** Rhodey (Design Review facilitator)
+**Participants:** Rocket, Shuri, Nebula
+
+---
+
+### Decision 1: No RCON-based entity movement  use Minecraft native physics
+**What:** Minecarts move via powered rails. Boats move via water flow + blue_ice. No RCON 	p commands for entity movement.
+**Why:** RCON 	p at scale (20 boats  2/s = 40 cmd/s) consumes entire burst budget and produces jittery results. Minecraft's physics engine handles rail and water movement natively with zero RCON cost.
+
+### Decision 2: Fix four critical bugs before implementing movement
+**What:** (a) Spawn minecarts on powered_rail not detector_rail, (b) DisableRailsAsync must use minecraft:rail not ir, (c) Fix GetCanalEntrance coordinates, (d) Add boat propulsion via Motion NBT or water flow.
+**Why:** Movement features are meaningless if the underlying track/canal infrastructure has bugs. ErrorBoatService currently spawns boats on dry land due to incorrect canal entrance coordinates.
+
+### Decision 3: Powered rails before every bridge ramp
+**What:** Insert powered_rail immediately before each elevation change (bridge ramp-up), not just every 8th block.
+**Why:** 1-block elevation changes kill minecart momentum. Without pre-ramp power, carts stall on bridges over canals.
+
+### Decision 4: Entity lifecycle management via periodic RCON queries
+**What:** Add periodic /execute if entity checks and respawn logic for minecarts and boats. Budget ~1 query per connection per update cycle.
+**Why:** Entities can vanish (chunk unload, player kill, server restart). Neither service currently detects or recovers from entity loss.
+
+### Decision 5: Rail path spatial reservation for fan-in dependencies
+**What:** Track all placed rail positions and offset or reroute when multiple connections would overlap.
+**Why:** Multiple services depending on the same resource (e.g., postgres) create overlapping L-shaped paths. setblock silently overwrites other connections' rails, corrupting the network.
+
+### Decision 6: Accept movement as best-effort for testing
+**What:** Track placement and entity spawning are testable. Entity movement/arrival is not assertable via RCON. Accept this limitation for v1.
+**Why:** Minecraft RCON provides no entity position query API. Testing movement would require Anvil/NBT file parsing or screen capture  disproportionate effort for v1.
+
+### Decision 7: ErrorBoatService must depend on CanalService
+**What:** Add CanalService? injection to ErrorBoatService. Gate boat spawning on canal readiness.
+**Why:** Currently spawns boats without verifying canals exist, resulting in boats on dry land.
+
+### Decision 8: Verify forceload coverage for canal transit
+**What:** Audit force-loaded chunk boundaries before implementing boat movement. Canal routes from buildings through trunk to lake may cross unloaded chunks.
+**Why:** Entities despawn in unloaded chunks. Boats disappearing mid-canal defeats the feature.
