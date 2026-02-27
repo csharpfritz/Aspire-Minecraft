@@ -130,6 +130,17 @@ internal sealed class GrandObservationTowerService(
         // ============================
         await BuildWalkwayAsync(y, ct);
 
+        // ============================
+        // PHASE 6: WORLD SPAWN POINT
+        // ============================
+        // Players spawn on the rooftop with a bird's-eye view of the village, facing south.
+        var spawnX = _villageCenterX;
+        var spawnY = y + TowerHeight + 1;   // one block above the roof
+        var spawnZ = _towerOriginZ + TowerSize / 2;
+        await rcon.SendCommandAsync($"setworldspawn {spawnX} {spawnY} {spawnZ} 0", ct);
+        logger.LogInformation("World spawn set to tower rooftop at ({X},{Y},{Z}) facing south",
+            spawnX, spawnY, spawnZ);
+
         _built = true;
         logger.LogInformation("Grand Observation Tower complete — 5 floors, spiral staircase, walkway, full decorations");
     }
