@@ -529,3 +529,34 @@ Files changed:
 2. Added `Rotation:[270f,0f]` to the summon NBT in ErrorBoatService — boats face west (270°) toward the trunk canal, matching their motion vector.
 
 **Key learning:** Minecraft entities spawn at the Y coordinate you specify. Water blocks are solid placement surfaces, so entities inside water appear underwater. To float on water, spawn at water_level + 1. Rotation NBT uses `[yaw, pitch]` format where yaw=270 is west-facing (0=south, 90=west, 180=north, 270=west). Visual orientation should match motion direction for best UX.
+
+### 2026-02-27: Error boat creeper passenger and motion improvements
+
+**Issue:** Two visual bugs: (1) Creeper passenger was invisible — the `Passengers` NBT tag in `/summon` doesn't work reliably on Paper servers. (2) Boats barely moved — `Motion:[-0.5,0.0,0.0]` gave a brief push but boats stopped almost immediately due to high water friction.
+
+**Root causes:**
+1. Paper server NBT handling: The `Passengers:[{...}]` tag on entity spawn is unreliable on Paper. It may be processed before the passenger entity exists, causing it to be ignored.
+2. Boat physics: Boats on water have HIGH friction. Blue ice is under the water layer, so boats don't interact with it (ice friction only applies when entities are directly on ice blocks). A motion value of -0.5 gives ~2 block movement before stopping.
+
+**Fix:**
+1. **Separate summon + /ride approach:** Spawn boat and creeper separately with temporary tags (`eb_new`, `ec_new`), then use `/ride @e[type=creeper,tag=ec_new] mount @e[type=boat,tag=eb_new]` to mount the creeper. Clean up temp tags afterward. The `/ride` command (available since 1.20.2) is reliable on Paper.
+2. **Stronger motion:** Changed from `Motion:[-0.5,0.0,0.0]` to `Motion:[-3.0,0.0,0.5]` — 6x westward force to push boats through water friction toward trunk canal, slight southward component (+Z) to flow toward lake after reaching trunk.
+3. **Persistent tagging:** Boats keep the `error_boat` tag for reliable cleanup targeting — `kill @e[type=boat,tag=error_boat,...]` won't accidentally kill player boats.
+
+**Commands issued (7 total per boat):**
+```
+summon minecraft:oak_boat X Y Z {Rotation:[270f,0f],Tags:["error_boat","eb_new"]}
+summon minecraft:creeper X Y Z {NoAI:1b,Silent:1b,Tags:["ec_new"]}
+ride @e[type=creeper,tag=ec_new,limit=1] mount @e[type=boat,tag=eb_new,limit=1]
+data merge entity @e[type=boat,tag=eb_new,limit=1] {Motion:[-3.0,0.0,0.5]}
+tag @e[tag=eb_new] remove eb_new
+tag @e[tag=ec_new] remove ec_new
+```
+
+**Key learning:** For complex entity spawns (passengers, initial motion) on Paper servers:
+- **Don't rely on NBT tags alone** — use separate summons + explicit mount commands
+- **Apply motion after spawn** — `data merge entity` is more reliable than spawn-time Motion NBT
+- **Use temporary tags** for multi-command setup, persistent tags for lifecycle management
+- **Water friction is STRONG** — boats need much higher initial velocity (3-5 blocks/tick) to travel visible distances through canals before stopping
+
+**Files:** `ErrorBoatService.cs` — `SpawnBoatCoreAsync`, `CleanupBoatsAsync`
