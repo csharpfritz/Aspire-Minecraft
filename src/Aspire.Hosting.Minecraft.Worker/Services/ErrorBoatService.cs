@@ -111,9 +111,34 @@ internal sealed class ErrorBoatService(
 
         var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
 
-        // Summon with westward motion toward the trunk canal; blue ice floor keeps them sliding
+        // Summon boat and creeper separately, then use /ride command (Paper server compatible)
+        // Tag entities for reliable targeting and cleanup
         await rcon.SendCommandAsync(
-            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Motion:[-0.5,0.0,0.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
+            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Tags:[\"error_boat\",\"eb_new\"]}}",
+            CommandPriority.Normal, ct);
+        
+        await rcon.SendCommandAsync(
+            $"summon minecraft:creeper {cx} {cy} {cz} {{NoAI:1b,Silent:1b,Tags:[\"ec_new\"]}}",
+            CommandPriority.Normal, ct);
+        
+        // Mount creeper onto boat using /ride command (1.20.2+)
+        await rcon.SendCommandAsync(
+            $"ride @e[type=minecraft:creeper,tag=ec_new,limit=1] mount @e[type=minecraft:boat,tag=eb_new,limit=1]",
+            CommandPriority.Normal, ct);
+        
+        // Apply strong southwest motion: boats on water have high friction, need big initial push
+        // -3.0 westward to reach trunk canal, +0.5 southward to flow toward lake
+        await rcon.SendCommandAsync(
+            $"data merge entity @e[type=minecraft:boat,tag=eb_new,limit=1] {{Motion:[-3.0,0.0,0.5]}}",
+            CommandPriority.Normal, ct);
+        
+        // Clean up temporary spawn tags
+        await rcon.SendCommandAsync(
+            $"tag @e[tag=eb_new] remove eb_new",
+            CommandPriority.Normal, ct);
+        
+        await rcon.SendCommandAsync(
+            $"tag @e[tag=ec_new] remove ec_new",
             CommandPriority.Normal, ct);
 
         _boatsPerResource[resourceName] = resourceBoats + 1;
@@ -140,8 +165,9 @@ internal sealed class ErrorBoatService(
             var lakeCenterX = lakeX + VillageLayout.LakeWidth / 2;
             var lakeCenterZ = lakeZ + VillageLayout.LakeLength / 2;
 
+            // Kill error boats near the lake using the "error_boat" tag for reliable targeting
             await rcon.SendCommandAsync(
-                $"kill @e[type=minecraft:boat,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
+                $"kill @e[type=minecraft:boat,tag=error_boat,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
                 CommandPriority.Low, ct);
 
             // Periodically reset counters to avoid stale tracking
