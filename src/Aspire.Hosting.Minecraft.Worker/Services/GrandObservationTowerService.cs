@@ -298,21 +298,21 @@ internal sealed class GrandObservationTowerService(
 
     private async Task BuildFloorPlatformsAsync(int x1, int y, int z1, int x2, int z2, CancellationToken ct)
     {
-        // Floor 2 platform at y+7 (oak planks)
+        // Floor 2 platform at y+7 (oak planks) — extends to interior edges (x1+1, x2-1, z1+1, z2-1)
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 7} {z1 + 2} {x2 - 2} {y + 7} {z2 - 2} minecraft:oak_planks", ct);
+            $"fill {x1 + 1} {y + 7} {z1 + 1} {x2 - 1} {y + 7} {z2 - 1} minecraft:oak_planks", ct);
 
         // Floor 3 platform at y+12 (oak planks)
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 12} {z1 + 2} {x2 - 2} {y + 12} {z2 - 2} minecraft:oak_planks", ct);
+            $"fill {x1 + 1} {y + 12} {z1 + 1} {x2 - 1} {y + 12} {z2 - 1} minecraft:oak_planks", ct);
 
         // Floor 4 platform at y+17 (deepslate tiles — prestige floor)
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 17} {z1 + 2} {x2 - 2} {y + 17} {z2 - 2} minecraft:deepslate_tiles", ct);
+            $"fill {x1 + 1} {y + 17} {z1 + 1} {x2 - 1} {y + 17} {z2 - 1} minecraft:deepslate_tiles", ct);
 
         // Floor 5 / Roof platform at y+24 (oak planks — ceremonial landing)
         await rcon.SendCommandAsync(
-            $"fill {x1 + 2} {y + 24} {z1 + 2} {x2 - 2} {y + 24} {z2 - 2} minecraft:oak_planks", ct);
+            $"fill {x1 + 1} {y + 24} {z1 + 1} {x2 - 1} {y + 24} {z2 - 1} minecraft:oak_planks", ct);
 
         // Roof floor at y+31 (stone bricks — open battlements platform)
         // Already placed as parapet ring, just fill walkable area

@@ -22,10 +22,10 @@ internal sealed class VillagerService(
 {
     private bool _villagersSpawned;
 
-    // Fruit stand origin — east of the horse spawn area, in the south clearance zone.
-    // Horses occupy x=11–15 at z=-6, so we place the stand at x=22, z=-8.
-    private static int StandX => VillageLayout.BaseX + 12;
-    private static int StandZ => VillageLayout.BaseZ - 8;
+    // Fruit stand origin — town center position (between village quadrants).
+    // We'll calculate center from village bounds at spawn time.
+    private int? _standX;
+    private int? _standZ;
 
     // Villager definitions: (name, profession, spawn offset from stand)
     private static readonly (string Name, string Profession, int OffsetX, int OffsetZ)[] Villagers =
@@ -34,7 +34,7 @@ internal sealed class VillagerService(
         ("Damian",  "butcher",   3, 1),   // behind the counter
         ("Fowler",  "fisherman", 2, -1),  // in front, greeting customers
         ("Brady",   "librarian", 0, -1),  // browsing the stand
-        ("Scott",   "armorer",   4, -1),  // passing by
+        ("Scott",   "armorer",   4, -1),  // passing byas a
     ];
 
     /// <summary>
@@ -47,8 +47,18 @@ internal sealed class VillagerService(
             return;
 
         var y = VillageLayout.SurfaceY + 1;
-        var sx = StandX;
-        var sz = StandZ;
+        
+        // Calculate town center position if not yet done
+        if (_standX is null || _standZ is null)
+        {
+            var resourceCount = 10; // Default fallback
+            var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetVillageBounds(resourceCount);
+            _standX = (fMinX + fMaxX) / 2 - 2; // Center X, offset for 5-wide stand
+            _standZ = (fMinZ + fMaxZ) / 2;     // Center Z
+        }
+        
+        var sx = _standX.Value;
+        var sz = _standZ.Value;
 
         await BuildFruitStandAsync(sx, y, sz, ct);
         await SpawnVillagerEntitiesAsync(sx, y, sz, ct);
