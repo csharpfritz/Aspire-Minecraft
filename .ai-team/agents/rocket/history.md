@@ -776,3 +776,30 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 **Tower floor platforms:** Extended from inset `x1+2 to x2-2, z1+2 to z2-2` to edges `x1+1 to x2-1, z1+1 to z2-1`. Floors now reach 1 block from interior walls instead of 2, eliminating the edge gap. Corner buttresses (3×3 deepslate at each corner) remain unaffected — they're placed after or coexist with floors. Floors affected: y+7, y+12, y+17, y+24 oak planks/deepslate tiles.
 **Rationale:** Fruit stand at town center provides centralized landmark, visible from all village quadrants. Tower floor edge extension improves walkability — players no longer step off platform edge near walls.
 **Files:** `VillagerService.cs` (lines 25-50), `GrandObservationTowerService.cs` (`BuildFloorPlatformsAsync`), tests pass without modification.
+## Learnings
+
+### Villager Spawn Position Bug Fix (2026-02-26)
+
+**Issue:** Three villagers (Fowler, Brady, Scott) with OffsetZ=-1 spawned one block south of the fruit stand, landing in the canal. Additionally, the stand itself was positioned at (fMinZ + fMaxZ) / 2, which placed it right at the canal line (canals run at oz + StructureSize + 4 behind each building row).
+
+**Fix:**
+1. Changed front villagers from OffsetZ=-1 to OffsetZ=0  keeps them on the stand platform (which spans sz to sz+2)
+2. Repositioned fruit stand from center Z to MinZ - 5 (southern boulevard area, well clear of canals)
+
+**Key learning:** When spawning entities or placing structures in village center, check against canal positions. Canals run behind buildings at predictable Z coordinates. Use MinZ - offset to place things in the southern boulevard area, not center which can overlap canal zones.
+
+### Tower Stairwell Hole Ordering Bug Fix (2026-02-26)
+
+**Issue:** The spiral staircase build order was:
+1. Build flights (stairs + landing platforms)
+2. Clear stairwell holes (punch openings in floor platforms)
+3. Build fences + lighting
+
+Result: Stairwell holes destroyed the top stair steps and landing platforms with AIR, making the tower unclimbable.
+
+**Fix:** Moved ClearStairwellHolesAsync() to run BEFORE all flight methods:
+1. Clear stairwell holes (punch openings)
+2. Build flights (stairs fill in solid parts where needed)
+3. Build fences + lighting
+
+**Key learning:** When building multi-level structures with floor openings, the order matters. Clear holes FIRST, then build solid features that will occupy part of that hole space. This gives you both the opening for head clearance AND the solid stairs/platforms for walking.
