@@ -352,6 +352,11 @@ file sealed class MinecraftWorldWorker(
                 if (minecartRails is not null)
                     await minecartRails.InitializeAsync(stoppingToken);
 
+                // After canals are built, replay any buffered error boat spawns
+                // (ErrorBoatService buffers health changes that arrived before canals were ready)
+                if (errorBoats is not null && canals is not null && canals.CanalPositions.Count > 0)
+                    await errorBoats.SpawnBoatsForChangesAsync(Array.Empty<ResourceStatusChange>(), stoppingToken);
+
                 // Continuous fleet-health features(update every cycle, but only change on transitions)
                 if (weather is not null)
                     await weather.UpdateWeatherAsync(stoppingToken);

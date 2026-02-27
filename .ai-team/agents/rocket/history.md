@@ -851,3 +851,16 @@ Result: Stairwell holes destroyed the top stair steps and landing platforms with
 4. Spawn Y now uses `CanalY` from the entrance tuple (water level) instead of `SurfaceY` (grass level).
 
 **Key learning:** Always cross-reference layout helper methods against the service that actually builds the geometry. `GetCanalEntrance` was written with an early design assumption (west-side canals) that didn't match the final `CanalService` implementation (back-of-building E-W canals). When a helper returns coordinates, verify them against the fill commands that create the physical structure.
+
+
+### 2026-02-27: Error boat timing bug  buffering pattern fixes race condition
+
+Bug: ErrorBoatService.SpawnBoatsForChangesAsync() was silently failing when the API health flipped to unhealthy on the first worker loop iteration. The service has a gate (canals.CanalPositions.Count == 0) that exits early when canals aren't ready. Canals are built AFTER structures in the main loop, so on iteration 1: health poll  change detected  ErrorBoatService exits (no canals)  structures build  canals build. By iteration 2, the API is already unhealthy and no new change event fires.
+
+Root cause: Temporal dependency  health changes detected before canals exist, and changes are lost because the monitor doesn't re-emit events for already-unhealthy resources.
+
+Fix: Added a pending-change buffer to ErrorBoatService. When canals aren't ready, unhealthy transitions are buffered. After canals.InitializeAsync() completes, Program.cs calls errorBoats.SpawnBoatsForChangesAsync(empty) to replay buffered changes.
+
+Files changed:
+- src/Aspire.Hosting.Minecraft.Worker/Services/ErrorBoatService.cs
+- src/Aspire.Hosting.Minecraft.Worker/Program.cs (line 354-356)

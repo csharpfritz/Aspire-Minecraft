@@ -21,6 +21,7 @@ internal sealed class ErrorBoatService(
 
     private readonly Dictionary<string, int> _boatsPerResource = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastSpawnTime = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ResourceStatusChange> _pendingChanges = new();
     private int _totalBoats;
     private DateTime _lastCountReset = DateTime.UtcNow;
 
@@ -36,17 +37,39 @@ internal sealed class ErrorBoatService(
     /// <summary>
     /// Spawns error boats for resources that transitioned to Unhealthy.
     /// Boats are only spawned when canals have been built (CanalPositions populated).
+    /// If canals aren't ready yet, changes are buffered and replayed when canals become available.
     /// </summary>
     public async Task SpawnBoatsForChangesAsync(IReadOnlyList<ResourceStatusChange> changes, CancellationToken ct = default)
     {
         if (changes.Count == 0) return;
 
-        // Gate on canal readiness — no canals means boats would spawn on dry land
-        if (canals is null || canals.CanalPositions.Count == 0) return;
+        // Gate on canal readiness — if canals aren't built yet, buffer the changes for later
+        if (canals is null || canals.CanalPositions.Count == 0)
+        {
+            // Buffer unhealthy transitions so we can spawn boats once canals are ready
+            foreach (var change in changes)
+            {
+                if (change.NewStatus == ResourceStatus.Unhealthy)
+                {
+                    // Only buffer if not already in the pending list
+                    if (!_pendingChanges.Any(pc => pc.Name.Equals(change.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _pendingChanges.Add(change);
+                        logger.LogInformation("Buffering error boat spawn for {Resource} (canals not ready yet)", change.Name);
+                    }
+                }
+            }
+            return;
+        }
+
+        // Canals are ready! Process both new changes and any buffered changes
+        var allChanges = new List<ResourceStatusChange>(_pendingChanges);
+        allChanges.AddRange(changes);
+        _pendingChanges.Clear();
 
         var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
 
-        foreach (var change in changes)
+        foreach (var change in allChanges)
         {
             if (change.NewStatus != ResourceStatus.Unhealthy) continue;
 
