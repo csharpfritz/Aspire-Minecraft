@@ -836,3 +836,18 @@ Result: Stairwell holes destroyed the top stair steps and landing platforms with
  Team update (2026-02-27): BridgeService now uses dynamic column detection + fence bounds checking to handle single-column layouts correctly (SmallVillageDemo with 2 resources). Boulevard bridges skip placement when outside fence bounds. All 558 tests pass.  decided by Rocket
 
  Team update (2026-02-27): Minecart-boats design review completed. 8 decisions finalized: native physics (no RCON tp), fix 4 critical bugs first (spawn position, rail type, canal entrance, boat propulsion), powered rails before ramps, entity lifecycle checks, rail path dedup, accept best-effort movement testing, ErrorBoatServiceCanalService dependency, forceload audit for canal transit  decided by Rhodey
+
+### ErrorBoatService Critical Bug Fix (2026-02-27)
+
+**Issue:** Three bugs made error boats useless:
+1. `VillageLayout.GetCanalEntrance` returned `(ox - 2, CanalY, oz + StructureSize / 2)` — west side of building at Z midpoint. But canals actually run E-W *behind* buildings at `oz + StructureSize + 4`, starting from the building's east edge (`ox + StructureSize`). Boats spawned on dry land.
+2. Boats summoned without `{Motion}` NBT — still water on blue ice doesn't push entities. Boats just sat there.
+3. No CanalService dependency — boats could spawn before canals were built, landing on raw terrain.
+
+**Fix:**
+1. Fixed both `GetCanalEntrance` overloads in VillageLayout to return `(ox + StructureSize, CanalY, oz + StructureSize + 4)` — matching where CanalService actually builds per-building canals.
+2. Added `{Motion:[-0.5,0.0,0.0]}` to boat summon command — westward push toward the trunk canal on blue ice.
+3. Injected `CanalService?` (nullable) into ErrorBoatService; gated `SpawnBoatsForChangesAsync` on `canals.CanalPositions.Count > 0`.
+4. Spawn Y now uses `CanalY` from the entrance tuple (water level) instead of `SurfaceY` (grass level).
+
+**Key learning:** Always cross-reference layout helper methods against the service that actually builds the geometry. `GetCanalEntrance` was written with an early design assumption (west-side canals) that didn't match the final `CanalService` implementation (back-of-building E-W canals). When a helper returns coordinates, verify them against the fill commands that create the physical structure.
