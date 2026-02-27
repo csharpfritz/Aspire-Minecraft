@@ -113,7 +113,7 @@ internal sealed class ErrorBoatService(
 
         // Summon with westward motion toward the trunk canal; blue ice floor keeps them sliding
         await rcon.SendCommandAsync(
-            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Motion:[-0.5,0.0,0.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
+            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Motion:[-0.5,0.0,0.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
             CommandPriority.Normal, ct);
 
         _boatsPerResource[resourceName] = resourceBoats + 1;

@@ -447,7 +447,7 @@ internal static class VillageLayout
     public static (int x, int y, int z) GetCanalEntrance(int index)
     {
         var (ox, _, oz) = GetStructureOrigin(index);
-        return (ox + StructureSize, CanalY, oz + StructureSize + 4);
+        return (ox + StructureSize, CanalY + 1, oz + StructureSize + 4);
     }
 
     /// <summary>
@@ -457,7 +457,7 @@ internal static class VillageLayout
     public static (int x, int y, int z) GetCanalEntrance(string resourceName, int fallbackIndex)
     {
         var (ox, _, oz) = GetStructureOrigin(resourceName, fallbackIndex);
-        return (ox + StructureSize, CanalY, oz + StructureSize + 4);
+        return (ox + StructureSize, CanalY + 1, oz + StructureSize + 4);
     }
 
     /// <summary>
