@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
 // OpenTelemetry setup
 builder.Services.AddOpenTelemetry()
@@ -130,8 +130,37 @@ if (builder.Configuration["ASPIRE_FEATURE_REDSTONE_DASHBOARD"] == "true")
 // Background worker
 builder.Services.AddHostedService<MinecraftWorldWorker>();
 
-var host = builder.Build();
-await host.RunAsync();
+var app = builder.Build();
+
+// OTel error notification endpoint — monitored services POST here when error-level logs occur.
+// This triggers creeper boat spawns in the Minecraft canal system.
+app.MapPost("/error-notification", async (HttpContext context, ILogger<Program> logger) =>
+{
+    var errorBoats = context.RequestServices.GetService<ErrorBoatService>();
+    if (errorBoats is null)
+        return Results.Ok(new { status = "ignored", reason = "error boats not enabled" });
+
+    try
+    {
+        var body = await context.Request.ReadFromJsonAsync<ErrorNotification>();
+        if (body?.ResourceName is null)
+            return Results.BadRequest(new { error = "resourceName is required" });
+
+        logger.LogInformation("Error notification received for {Resource}: {Message}",
+            body.ResourceName, body.Message ?? "(no message)");
+
+        await errorBoats.SpawnBoatForErrorLogAsync(body.ResourceName);
+
+        return Results.Ok(new { status = "boat_spawned", resource = body.ResourceName });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to process error notification");
+        return Results.StatusCode(500);
+    }
+});
+
+await app.RunAsync();
 
 static (string host, int port, string password) ParseConnectionString(string cs)
 {
@@ -151,6 +180,9 @@ static (string host, int port, string password) ParseConnectionString(string cs)
     }
     return (host, port, password);
 }
+
+/// <summary>JSON body for the /error-notification webhook.</summary>
+file record ErrorNotification(string? ResourceName, string? Message, string? SeverityText);
 
 /// <summary>
 /// Background service that polls game metrics and updates in-world displays.

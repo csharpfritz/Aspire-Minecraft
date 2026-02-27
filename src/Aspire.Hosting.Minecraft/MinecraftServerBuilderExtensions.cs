@@ -263,6 +263,7 @@ public static class MinecraftServerBuilderExtensions
         // Internally create the worker project resource
         var workerName = $"{builder.Resource.Name}-worker";
         var workerBuilder = builder.ApplicationBuilder.AddProject<TWorkerProject>(workerName)
+            .WithHttpEndpoint(name: "http")
             .WithReference(builder)
             .WaitFor(builder)
             .WithParentRelationship(builder);
@@ -397,6 +398,19 @@ public static class MinecraftServerBuilderExtensions
                     }
                 }
             });
+        }
+
+        // Set the error notification webhook URL on the monitored service so it can
+        // notify the worker when OpenTelemetry error-level log entries occur.
+        // Only set for resources that have HTTP endpoints (they run the .NET OTel SDK).
+        if (!isExecutable)
+        {
+            var workerHttp = new EndpointReference(workerBuilder.Resource, "http");
+            resource.Resource.Annotations.Add(new EnvironmentCallbackAnnotation(context =>
+            {
+                context.EnvironmentVariables["ASPIRE_MINECRAFT_ERROR_WEBHOOK"] =
+                    ReferenceExpression.Create($"{workerHttp.Property(EndpointProperty.Url)}/error-notification");
+            }));
         }
 
         return builder;

@@ -1,8 +1,10 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
 var isHealthy = true;
+var errorWebhookUrl = app.Configuration["ASPIRE_MINECRAFT_ERROR_WEBHOOK"];
 
 app.MapGet("/", () => isHealthy
     ? Results.Ok("Grand Village Demo API")
@@ -13,11 +15,30 @@ app.MapGet("/health", () => isHealthy
     : Results.Json(new { status = "unhealthy", timestamp = DateTime.UtcNow }, statusCode: 503));
 
 // Called by the Aspire dashboard "Trigger Error" command to simulate a failure.
-// Sets the health check to unhealthy so the Minecraft worker detects it and spawns an error boat.
-app.MapPost("/trigger-error", () =>
+// Emits an OpenTelemetry error-level log entry which the Minecraft worker detects
+// and responds to by spawning a creeper boat in the canal system.
+app.MapPost("/trigger-error", async (ILogger<Program> logger, IHttpClientFactory httpClientFactory) =>
 {
+    // Emit an OTel error-level log entry
+    logger.LogError("User-triggered error on API service — simulating application failure");
+
+    // Notify the Minecraft worker via webhook to spawn an error boat
+    if (!string.IsNullOrEmpty(errorWebhookUrl))
+    {
+        try
+        {
+            var client = httpClientFactory.CreateClient();
+            await client.PostAsJsonAsync(errorWebhookUrl,
+                new { resourceName = "api", message = "User-triggered error", severityText = "Error" });
+        }
+        catch
+        {
+            // Best-effort notification — don't fail the trigger if worker is unreachable
+        }
+    }
+
     isHealthy = false;
-    return Results.Ok(new { message = "Error triggered — API service is now unhealthy" });
+    return Results.Ok(new { message = "Error triggered — OTel error log emitted and error boat spawned" });
 });
 
 app.Run();

@@ -35,6 +35,23 @@ internal sealed class ErrorBoatService(
     }
 
     /// <summary>
+    /// Spawns an error boat for a specific resource triggered by an OpenTelemetry error-level log entry.
+    /// Applies the same rate limiting and canal readiness gating as health-based spawns.
+    /// </summary>
+    public async Task SpawnBoatForErrorLogAsync(string resourceName, CancellationToken ct = default)
+    {
+        // Gate on canal readiness
+        if (canals is null || canals.CanalPositions.Count == 0)
+        {
+            logger.LogInformation("Buffering error boat for {Resource} (canals not ready)", resourceName);
+            _pendingChanges.Add(new ResourceStatusChange(resourceName, "unknown", ResourceStatus.Healthy, ResourceStatus.Unhealthy));
+            return;
+        }
+
+        await SpawnBoatCoreAsync(resourceName, ct);
+    }
+
+    /// <summary>
     /// Spawns error boats for resources that transitioned to Unhealthy.
     /// Boats are only spawned when canals have been built (CanalPositions populated).
     /// If canals aren't ready yet, changes are buffered and replayed when canals become available.
@@ -67,41 +84,44 @@ internal sealed class ErrorBoatService(
         allChanges.AddRange(changes);
         _pendingChanges.Clear();
 
-        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
-
         foreach (var change in allChanges)
         {
             if (change.NewStatus != ResourceStatus.Unhealthy) continue;
-
-            var index = orderedNames.IndexOf(change.Name);
-            if (index < 0) continue;
-
-            // Per-resource cooldown
-            if (_lastSpawnTime.TryGetValue(change.Name, out var lastSpawn)
-                && DateTime.UtcNow - lastSpawn < SpawnCooldown)
-                continue;
-
-            // Per-resource cap
-            _boatsPerResource.TryGetValue(change.Name, out var resourceBoats);
-            if (resourceBoats >= MaxBoatsPerResource) continue;
-
-            // Global cap
-            if (_totalBoats >= MaxTotalBoats) continue;
-
-            var (cx, cy, cz) = VillageLayout.GetCanalEntrance(change.Name, index);
-
-            // Summon with westward motion toward the trunk canal; blue ice floor keeps them sliding
-            await rcon.SendCommandAsync(
-                $"summon minecraft:oak_boat {cx} {cy} {cz} {{Motion:[-0.5,0.0,0.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
-                CommandPriority.Normal, ct);
-
-            _boatsPerResource[change.Name] = resourceBoats + 1;
-            _totalBoats++;
-            _lastSpawnTime[change.Name] = DateTime.UtcNow;
-
-            logger.LogInformation("Error boat spawned at ({X},{Y},{Z}) for {Resource}",
-                cx, cy, cz, change.Name);
+            await SpawnBoatCoreAsync(change.Name, ct);
         }
+    }
+
+    private async Task SpawnBoatCoreAsync(string resourceName, CancellationToken ct)
+    {
+        var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
+        var index = orderedNames.IndexOf(resourceName);
+        if (index < 0) return;
+
+        // Per-resource cooldown
+        if (_lastSpawnTime.TryGetValue(resourceName, out var lastSpawn)
+            && DateTime.UtcNow - lastSpawn < SpawnCooldown)
+            return;
+
+        // Per-resource cap
+        _boatsPerResource.TryGetValue(resourceName, out var resourceBoats);
+        if (resourceBoats >= MaxBoatsPerResource) return;
+
+        // Global cap
+        if (_totalBoats >= MaxTotalBoats) return;
+
+        var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
+
+        // Summon with westward motion toward the trunk canal; blue ice floor keeps them sliding
+        await rcon.SendCommandAsync(
+            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Motion:[-0.5,0.0,0.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}]}}",
+            CommandPriority.Normal, ct);
+
+        _boatsPerResource[resourceName] = resourceBoats + 1;
+        _totalBoats++;
+        _lastSpawnTime[resourceName] = DateTime.UtcNow;
+
+        logger.LogInformation("Error boat spawned at ({X},{Y},{Z}) for {Resource}",
+            cx, cy, cz, resourceName);
     }
 
     /// <summary>
