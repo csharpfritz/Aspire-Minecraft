@@ -511,3 +511,21 @@ Files changed:
 - src/Aspire.Hosting.Minecraft.Worker/Services/ErrorBoatService.cs
 - src/Aspire.Hosting.Minecraft.Worker/Program.cs (line 354-356)
 -  Team update (2026-02-27): ErrorBoatService uses buffering pattern to handle initialization race  health changes arrive before canals build, so service buffers unhealthy transitions and replays after CanalService.InitializeAsync() completes  decided by Rocket
+
+## Learnings
+
+### 2026-02-27: Error boat position and rotation fixes
+
+**Issue:** Boats spawned underwater and faced the wrong direction.
+
+1. **Underwater spawn:** `VillageLayout.GetCanalEntrance()` returned `CanalY` (water/ice level at `SurfaceY - 1`), so boats spawned *inside* the water block instead of floating on top.
+
+2. **Wrong rotation:** The summon command had westward motion (`Motion:[-0.5,0.0,0.0]`) but no `Rotation` NBT, so boats faced random directions despite moving west.
+
+**Fix:**
+
+1. Changed both `GetCanalEntrance` overloads to return `CanalY + 1` instead of `CanalY` — boats now spawn on the water surface.
+
+2. Added `Rotation:[270f,0f]` to the summon NBT in ErrorBoatService — boats face west (270°) toward the trunk canal, matching their motion vector.
+
+**Key learning:** Minecraft entities spawn at the Y coordinate you specify. Water blocks are solid placement surfaces, so entities inside water appear underwater. To float on water, spawn at water_level + 1. Rotation NBT uses `[yaw, pitch]` format where yaw=270 is west-facing (0=south, 90=west, 180=north, 270=west). Visual orientation should match motion direction for best UX.
