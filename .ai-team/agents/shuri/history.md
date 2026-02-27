@@ -333,3 +333,5 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 - Web project is bare-bones (`MapGet` returning HTML, health endpoint). No actual DB usage  the point is having 2 resources for Minecraft to monitor.
 - Added both projects to `Aspire-Minecraft.slnx` under a `/samples/SmallVillageDemo/` folder.
 - Build verified: `dotnet build -c Release` succeeds with zero new warnings.
+
+ Team update (2026-02-27): SmallVillageDemo sample created as minimal 2-resource test (web app + PostgreSQL). Validates spacing, fence perimeter, and building placement scale correctly for small resource counts. Serves as copy-paste starting point for simple Aspire+Minecraft integrations.  decided by Shuri

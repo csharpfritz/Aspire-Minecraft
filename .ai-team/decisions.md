@@ -5494,3 +5494,14 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 
 **Impact:** All 81 tower tests pass. Players can now navigate the full 32-block height without fighting tight corners or narrow passages. The centered layout also looks more intentional and grand — stairs are a feature, not hidden in corners.
 
+
+### 2026-02-27: BridgeService  dynamic column detection + fence bounds checking
+**By:** Rocket
+**What:** Replaced static boulevard center formula with dynamic column detection from actual building positions. Added fence perimeter bounds validation before placing each bridge. Single-column layouts (e.g., SmallVillageDemo with 2 resources) now correctly skip boulevard bridges instead of placing them outside the fence. Multi-column layouts (e.g., GrandVillageDemo with 13 resources) continue to work as before.
+**Why:** The old formula BaseX + StructureSize + (Spacing - StructureSize) / 2 always produced X=35 regardless of actual building positions. When neighborhoods placed all buildings in column 0, this X was outside the east fence (fMaxX=34), creating bridges straddling the fence 10 blocks from any canal water. The fix derives boulevard positions from real geometry and validates against fence bounds, making bridge placement robust for any resource count (1, 2, 3, 10, 13+).
+
+### SmallVillageDemo: Minimal 2-resource sample
+**By:** Shuri
+**Date:** 2026-02-27
+**What:** Created samples/SmallVillageDemo/ with just a web app + PostgreSQL, monitoring both via .WithMonitoredResource(). This is the smallest possible Aspire+Minecraft integration sample.
+**Why:** The existing GrandVillageDemo has 13 monitored resources. We need a sample that exercises the village layout with only 2 resources to verify spacing, fence perimeter, and building placement scale down correctly. Also serves as a copy-paste starting point for users who want a simple setup.
