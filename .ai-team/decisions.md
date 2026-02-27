@@ -1,3 +1,13 @@
+### 2026-02-27: Aspire dashboard "Trigger Error" command added to GrandVillageDemo API service
+**By:** Shuri
+**What:** Added a `WithHttpCommand("/trigger-error", "Trigger Error")` to the `api` resource in `GrandVillageDemo.AppHost/Program.cs`, paired with a `POST /trigger-error` endpoint in the API service and `WithHttpHealthCheck("/health")` for Aspire health monitoring. Clicking "Trigger Error" in the Aspire dashboard POSTs to the API, which flips its health to unhealthy (503). Aspire detects the state change, and the Minecraft worker spawns an error boat.
+**Why:** Jeff wants a one-click way to demo the error→boat pipeline from the Aspire dashboard. `WithHttpCommand` is the idiomatic Aspire 13.1 pattern for dashboard buttons that call resource endpoints — cleaner than `WithCommand` + manual HTTP plumbing.
+
+### 2026-02-27: ErrorBoatService — fixed canal entrance coordinates, added propulsion and CanalService gate
+**By:** Rocket
+**What:** Fixed three critical bugs in ErrorBoatService: (1) `VillageLayout.GetCanalEntrance` now returns `(ox + StructureSize, CanalY, oz + StructureSize + 4)` — the actual per-building canal position behind the building. (2) Boat summon includes `{Motion:[-0.5,0.0,0.0]}` for westward propulsion toward the trunk canal. (3) ErrorBoatService takes nullable `CanalService?` dependency and gates spawning on `CanalPositions.Count > 0`.
+**Why:** Boats were spawning on dry land at wrong coordinates, had no motion on still water, and could spawn before canals existed. All three bugs combined meant error boats were completely non-functional.
+
 ### 2026-02-27: Grand Observation Tower repositioned north of village, entrance rotated south
 **By:** Rocket
 **What:** Tower moved from (20, -36) to (25, -45) — horizontally centered on the village x-axis (x=35) and placed 15 blocks north of the northern fence line (z=-10). Entrance rotated 180° from the min-Z (north) wall to the max-Z (south) wall so it faces toward the village. Tower now spans x=25-45, z=-45 to -25.

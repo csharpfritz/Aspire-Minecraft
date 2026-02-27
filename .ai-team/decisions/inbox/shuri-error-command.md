@@ -1,4 +1,0 @@
-### 2026-02-27: Aspire dashboard "Trigger Error" command added to GrandVillageDemo API service
-**By:** Shuri
-**What:** Added a `WithHttpCommand("/trigger-error", "Trigger Error")` to the `api` resource in `GrandVillageDemo.AppHost/Program.cs`, paired with a `POST /trigger-error` endpoint in the API service and `WithHttpHealthCheck("/health")` for Aspire health monitoring. Clicking "Trigger Error" in the Aspire dashboard POSTs to the API, which flips its health to unhealthy (503). Aspire detects the state change, and the Minecraft worker spawns an error boat.
-**Why:** Jeff wants a one-click way to demo the error→boat pipeline from the Aspire dashboard. `WithHttpCommand` is the idiomatic Aspire 13.1 pattern for dashboard buttons that call resource endpoints — cleaner than `WithCommand` + manual HTTP plumbing.
