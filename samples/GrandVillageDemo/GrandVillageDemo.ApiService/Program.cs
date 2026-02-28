@@ -37,7 +37,6 @@ app.MapPost("/trigger-error", async (ILogger<Program> logger, IHttpClientFactory
         }
     }
 
-    isHealthy = false;
     return Results.Ok(new { message = "Error triggered — OTel error log emitted and error boat spawned" });
 });
 
