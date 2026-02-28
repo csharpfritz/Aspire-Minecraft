@@ -560,3 +560,33 @@ tag @e[tag=ec_new] remove ec_new
 - **Water friction is STRONG** — boats need much higher initial velocity (3-5 blocks/tick) to travel visible distances through canals before stopping
 
 **Files:** `ErrorBoatService.cs` — `SpawnBoatCoreAsync`, `CleanupBoatsAsync`
+
+### 2026-02-28: Atomic boat spawn and trigger-error decoupling
+
+**Issue:** Three bugs after initial testing: (1) No creeper visible in boat. (2) Boat doesn't move. (3) API stuck offline permanently after clicking "Trigger Error".
+
+**Root causes:**
+1. **Missing creeper:** Multi-command RCON approach (summon boat → summon creeper → /ride) has timing issues. The `/ride` command executes before the server has fully spawned both entities on the game thread. Entity spawning from RCON isn't instantaneous even though commands are sequential.
+2. **No motion:** `data merge entity` with `Motion` on boats in water is immediately overridden by Minecraft's physics engine. Boats on water recalculate velocity every game tick — the injected Motion value lasts ~0 ticks.
+3. **Stuck offline:** `trigger-error` endpoint set `isHealthy = false` and never reset it. The `/health` endpoint returned 503 forever, causing permanent rain/lightning. Error boats are OTel-driven (via webhook), NOT health-driven — these are separate demo concerns.
+
+**Fix:**
+1. **Atomic spawn with Passengers NBT:** Reverted to SINGLE `summon` command with `Passengers:[{id:"minecraft:creeper",...}]` NBT. This spawns boat + passenger in one server tick. Earlier hypothesis that "Passengers doesn't work on Paper" was WRONG — the creeper was invisible because the boat was underwater (spawned at CanalY instead of CanalY+1). Now that the boat spawns ON the water surface, the Passengers approach works perfectly.
+2. **Motion at spawn time:** Included `Motion:[-5.0,0.0,0.5]` directly in the summon NBT. When Motion is set during entity creation, it gets the FIRST physics tick before water dampening applies. With a high value like -5.0, the boat visibly slides several blocks westward before friction stops it. This is the best we can do with water-surface boats.
+3. **Remove isHealthy toggle:** Deleted `isHealthy = false;` line from `trigger-error` endpoint in Program.cs. Clicking "Trigger Error" now spawns a boat (via OTel + webhook) WITHOUT breaking the health endpoint. To demo weather effects (rain/lightning from unhealthy service), users stop the service in the Aspire dashboard.
+
+**Single atomic command (replaces 6 separate commands):**
+```csharp
+await rcon.SendCommandAsync(
+    $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Motion:[-5.0,0.0,0.5],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\"]}}",
+    CommandPriority.Normal, ct);
+```
+
+**Key learnings:**
+- Multi-command RCON entity spawning has timing issues — prefer atomic `summon` with NBT when possible
+- `data merge entity` Motion on boats in water is immediately overridden by physics — set Motion at spawn time instead
+- Passengers NBT in summon DOES work on Paper servers — earlier hypothesis was wrong (boats were underwater, not a Paper limitation)
+- Increased Motion to -5.0 (from -3.0) for visible westward travel through high water friction
+- Error boats (OTel-driven) and health status (weather effects) are separate demo concerns — don't couple them
+
+**Files:** `ErrorBoatService.cs` — `SpawnBoatCoreAsync`; `GrandVillageDemo.ApiService/Program.cs` — `/trigger-error` endpoint
