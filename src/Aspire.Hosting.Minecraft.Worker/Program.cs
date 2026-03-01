@@ -417,7 +417,10 @@ file sealed class MinecraftWorldWorker(
                 if (bridges is not null)
                     await bridges.UpdateAsync(stoppingToken);
                 if (errorBoats is not null)
+                {
+                    await errorBoats.MoveBoatsAsync(stoppingToken);
                     await errorBoats.CleanupBoatsAsync(stoppingToken);
+                }
 
                 // Periodic status broadcast
                 if (DateTime.UtcNow - _lastStatusBroadcast > StatusBroadcastInterval)

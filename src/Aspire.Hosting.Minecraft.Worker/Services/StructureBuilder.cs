@@ -560,8 +560,9 @@ internal sealed class StructureBuilder(
             $"setblock {x + 7} {y + 6} {z + 1} minecraft:oak_stairs[facing=east]", ct);
         // Landing at y+7 — already covered by second floor platform
         // Clear stairwell hole in second floor for access
+        // Only need headroom at top 3 steps (x+5..x+7) where player head hits ceiling
         await rcon.SendCommandAsync(
-            $"fill {x + 2} {y + 7} {z + 1} {x + 7} {y + 7} {z + 2} minecraft:air", ct);
+            $"fill {x + 5} {y + 7} {z + 1} {x + 7} {y + 7} {z + 2} minecraft:air", ct);
 
         // Flight 2 (second to third floor): along east wall (x+s-1 side), going south
         await rcon.SendCommandAsync(
@@ -577,8 +578,9 @@ internal sealed class StructureBuilder(
         await rcon.SendCommandAsync(
             $"setblock {x + s - 1} {y + 13} {z + 7} minecraft:oak_stairs[facing=south]", ct);
         // Clear stairwell hole in third floor for access
+        // Only need headroom at top 3 steps (z+5..z+7) where player head hits ceiling
         await rcon.SendCommandAsync(
-            $"fill {x + s - 2} {y + 13} {z + 2} {x + s - 1} {y + 13} {z + 7} minecraft:air", ct);
+            $"fill {x + s - 2} {y + 13} {z + 5} {x + s - 1} {y + 13} {z + 7} minecraft:air", ct);
 
         // === GROUND FLOOR FURNITURE (y+1 to y+6) ===
         // Crafting table
