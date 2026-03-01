@@ -5611,3 +5611,9 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 **Why:** Health monitoring happens at the start of each worker loop, but canal construction happens mid-loop after structures are built (to avoid being paved over). If a resource transitions to unhealthy during iteration 1 (before canals exist), the change event was lost because AspireResourceMonitor only emits transition events — by iteration 2, the resource is already unhealthy and no new event fires. Buffering pending changes ensures no transitions are missed, while preserving the "structures before canals" ordering constraint.
 
 **Pattern:** When service A depends on service B's initialization and both are idempotent, use a pending-change buffer in A rather than reordering initialization. This works when B must run after C for spatial reasons (canals after structures), but health events arrive before C completes.
+
+
+### 2026-03-01: User directive  ice-only canals
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Remove water from canals entirely. Use blue_ice-only canals so boats slide through town to the lake naturally via Minecraft ice physics. The lake at the end still has water  boats transition from ice to water at the lake junction.
+**Why:** User request  boats can't move on water (Minecraft overrides Motion NBT every tick), but blue_ice has near-zero friction so Motion works perfectly. Simpler and more reliable than teleportation.
