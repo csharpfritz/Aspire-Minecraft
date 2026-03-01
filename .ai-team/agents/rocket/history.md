@@ -443,6 +443,12 @@ Implemented `AnvilRegionReader` in `tests/Aspire.Hosting.Minecraft.Integration.T
 
 Result: Stairwell holes destroyed the top stair steps and landing platforms with AIR, making the tower unclimbable.
 
+## Learnings
+- Minecraft boat Motion NBT is a no-op on water — Minecraft physics engine overrides boat velocity every tick when a boat is on a water surface, making any Motion value useless
+- Use `execute as @e[tag=X] at @s run tp @s ~dx ~ ~dz` for reliable entity movement — teleportation works where Motion NBT fails
+- Tower stairwell holes should be smallest possible opening covering only the top 2-3 steps of each flight where player head hits ceiling, not the entire flight width
+- Passengers NBT in boat summon commands works on vanilla Minecraft Java but may fail on Paper/Spigot servers with entity riding restrictions
+
 **Fix:** Moved ClearStairwellHolesAsync() to run BEFORE all flight methods:
 1. Clear stairwell holes (punch openings)
 2. Build flights (stairs fill in solid parts where needed)
