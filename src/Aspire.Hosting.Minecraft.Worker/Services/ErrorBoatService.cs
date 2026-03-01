@@ -126,13 +126,22 @@ internal sealed class ErrorBoatService(
     }
 
     /// <summary>
-    /// No-op: boats now move via Motion NBT physics on blue_ice (near-zero friction).
-    /// Teleportation was a workaround for water friction that's no longer needed.
-    /// Kept as a no-op for backward compatibility with existing wiring in Program.cs.
+    /// Redirects westbound error boats to southbound when they reach the trunk canal.
+    /// Uses a detection zone around TrunkCanalX to catch boats and change their Motion to [0,0,5].
+    /// Applies a "turned" tag to prevent re-redirect.
     /// </summary>
-    public Task MoveBoatsAsync(CancellationToken ct = default)
+    public async Task MoveBoatsAsync(CancellationToken ct = default)
     {
-        return Task.CompletedTask;
+        if (canals is null || canals.TrunkCanalX == 0) return;
+
+        var trunkX = canals.TrunkCanalX;
+        var canalY = VillageLayout.CanalY;
+
+        // Redirect westbound boats to southbound when they reach the trunk canal
+        // x=N,dx=M selects entities with X between N and N+M
+        await rcon.SendCommandAsync(
+            $"execute as @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4] run data merge entity @s {{Motion:[0.0,0.0,5.0],Tags:[\"error_boat\",\"turned\"]}}",
+            CommandPriority.Normal, ct);
     }
 
     /// <summary>

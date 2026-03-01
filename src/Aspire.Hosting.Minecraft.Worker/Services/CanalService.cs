@@ -23,6 +23,12 @@ internal sealed class CanalService(
     public HashSet<(int x, int z)> CanalPositions { get; } = new();
 
     /// <summary>
+    /// X coordinate of the trunk canal center, set during initialization.
+    /// Used by ErrorBoatService to redirect boats from westward to southward.
+    /// </summary>
+    public int TrunkCanalX { get; private set; }
+
+    /// <summary>
     /// One-time initialization: builds canals and lake. Called after DiscoverResources.
     /// </summary>
     public async Task InitializeAsync(CancellationToken ct = default)
@@ -54,6 +60,7 @@ internal sealed class CanalService(
 
         // Side trunk X position: west of all structures
         var trunkX = minX - VillageLayout.CanalTotalWidth - 2;
+        TrunkCanalX = trunkX;
 
         // Build the massive lake first (needed for trunk endpoint calculation)
         await BuildLakeAsync(resourceCount, ct);
