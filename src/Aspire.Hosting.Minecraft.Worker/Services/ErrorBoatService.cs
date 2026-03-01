@@ -112,9 +112,9 @@ internal sealed class ErrorBoatService(
         var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
 
         // Atomic spawn: boat + creeper passenger in single command to avoid RCON timing issues
-        // Motion NBT is a no-op for boats on water (Minecraft overrides every tick), removed
+        // Motion works on blue_ice — near-zero friction. Westward to trunk canal, slight south to lake.
         await rcon.SendCommandAsync(
-            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\"]}}",
+            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Motion:[-5.0,0.0,0.5],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\"]}}",
             CommandPriority.Normal, ct);
 
         _boatsPerResource[resourceName] = resourceBoats + 1;
@@ -126,19 +126,13 @@ internal sealed class ErrorBoatService(
     }
 
     /// <summary>
-    /// Moves all error boats westward through branch canals toward the trunk canal.
-    /// Uses periodic teleportation via RCON execute/tp commands — Motion NBT doesn't work
-    /// for boats on water (Minecraft physics overrides every game tick).
+    /// No-op: boats now move via Motion NBT physics on blue_ice (near-zero friction).
+    /// Teleportation was a workaround for water friction that's no longer needed.
+    /// Kept as a no-op for backward compatibility with existing wiring in Program.cs.
     /// </summary>
-    public async Task MoveBoatsAsync(CancellationToken ct = default)
+    public Task MoveBoatsAsync(CancellationToken ct = default)
     {
-        if (_totalBoats <= 0) return;
-
-        // Move error boats westward (-X direction) through branch canals toward the trunk canal
-        // ~-2 ~ ~0.1 moves each boat 2 blocks west and 0.1 blocks south per cycle
-        await rcon.SendCommandAsync(
-            "execute as @e[tag=error_boat] at @s run tp @s ~-2 ~ ~0.1",
-            CommandPriority.Low, ct);
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -111,7 +111,7 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds a horizontal (E-W) canal segment with stone brick walls, blue_ice floor, and water.
+    /// Builds a horizontal (E-W) canal segment with stone brick walls and blue_ice floor.
     /// Fill commands are clipped against protected building regions to avoid damaging structures.
     /// </summary>
     private async Task BuildCanalSegmentEastWestAsync(int x1, int z, int x2, int canalY, int depth,
@@ -140,10 +140,6 @@ internal sealed class CanalService(
         await SendProtectedFillAsync(minX, canalY - 1, wallZMax, maxX, VillageLayout.SurfaceY, wallZMax,
             "minecraft:stone_bricks", ct);
 
-        // Water
-        await SendProtectedFillAsync(minX, canalY, waterZMin, maxX, canalY, waterZMax,
-            "minecraft:water", ct);
-
         // Track intended canal positions (full range, not clipped —
         // the building itself acts as a "bridge" for rail detection)
         for (var x = minX; x <= maxX; x++)
@@ -152,7 +148,7 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds a vertical (N-S) canal segment with stone brick walls, blue_ice floor, and water.
+    /// Builds a vertical (N-S) canal segment with stone brick walls and blue_ice floor.
     /// </summary>
     private async Task BuildCanalSegmentNorthSouthAsync(int x, int z1, int z2, int canalY, int depth,
         int waterWidth, CancellationToken ct)
@@ -184,11 +180,6 @@ internal sealed class CanalService(
             $"fill {wallXMax} {canalY - 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
             CommandPriority.Normal, ct);
 
-        // Water
-        await rcon.SendCommandAsync(
-            $"fill {waterXMin} {canalY} {minZ} {waterXMax} {canalY} {maxZ} minecraft:water",
-            CommandPriority.Normal, ct);
-
         // Track positions
         for (var xx = wallXMin; xx <= wallXMax; xx++)
             for (var zz = minZ; zz <= maxZ; zz++)
@@ -214,7 +205,7 @@ internal sealed class CanalService(
 
     /// <summary>
     /// Opens the junction where a per-building canal (E-W) meets the side trunk (N-S).
-    /// Removes the trunk's east wall where the building canal arrives to allow water flow.
+    /// Removes the trunk's east wall where the building canal arrives to allow boat passage.
     /// </summary>
     private async Task OpenPerBuildingJunctionAsync(int trunkX, int buildingCanalZ, CancellationToken ct)
     {
@@ -236,11 +227,6 @@ internal sealed class CanalService(
         await rcon.SendCommandAsync(
             $"fill {trunkEastWall} {canalY - 1} {waterZMin} {trunkEastWall} {canalY - 1} {waterZMax} minecraft:blue_ice",
             CommandPriority.Normal, ct);
-        
-        // Water connection
-        await rcon.SendCommandAsync(
-            $"fill {trunkEastWall} {canalY} {waterZMin} {trunkEastWall} {canalY} {waterZMax} minecraft:water",
-            CommandPriority.Normal, ct);
 
         logger.LogInformation("Per-building junction opened at X={X}, Z={Z}", trunkX, buildingCanalZ);
     }
@@ -248,7 +234,7 @@ internal sealed class CanalService(
     /// <summary>
     /// Opens the junction where the side trunk canal meets the lake.
     /// Removes the lake's north wall where the trunk arrives and fills water at both
-    /// canal depth and lake depth for a smooth transition between the shallow canal and deep lake.
+    /// canal depth and lake depth for a smooth ice-to-water transition where boats enter the lake.
     /// </summary>
     private async Task OpenLakeJunctionAsync(int trunkX, int lakeZ, CancellationToken ct)
     {
