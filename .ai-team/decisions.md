@@ -5613,7 +5613,58 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 **Pattern:** When service A depends on service B's initialization and both are idempotent, use a pending-change buffer in A rather than reordering initialization. This works when B must run after C for spatial reasons (canals after structures), but health events arrive before C completes.
 
 
-### 2026-03-01: User directive  ice-only canals
+
 **By:** Jeffrey T. Fritz (via Copilot)
 **What:** Remove water from canals entirely. Use blue_ice-only canals so boats slide through town to the lake naturally via Minecraft ice physics. The lake at the end still has water  boats transition from ice to water at the lake junction.
 **Why:** User request  boats can't move on water (Minecraft overrides Motion NBT every tick), but blue_ice has near-zero friction so Motion works perfectly. Simpler and more reliable than teleportation.
+
+
+**By:** Jeffrey T. Fritz (via research + testing)
+**What:** After extensive testing (Motion NBT on summon, data merge entity, kill-and-resummon), boats on blue_ice CANNOT be made to turn corners without player input in vanilla Minecraft. The only vanilla vehicle that follows curved paths autonomously is minecarts on rails. The team must switch error visualization from boats to minecarts, use teleportation, or adopt a hybrid approach.
+**Why:** Minecraft physics overrides boat Motion NBT every tick on water and after data merge on ice. Even kill-and-resummon (which preserves initial Motion on new entities) doesn't produce reliable turns. Minecarts with curved rails + powered rails handle turning natively and support mob passengers (creepers). This is a fundamental Minecraft engine limitation, not a code bug.
+
+### 2026-03-02: No canals — just rails on ground
+**By:** Jeffrey T. Fritz (via Copilot)
+**What:** Remove all canal infrastructure (excavation, stone brick walls, blue ice floors). Since we switched to minecarts on rails, there's no need for canals. Just lay rails directly on the ground surface behind buildings and down to the lake.
+**Why:** User request — canals were designed for boats on water/ice. Minecarts on rails don't need any of that infrastructure.
+
+
+**By:** Rocket
+**What:** Replaced `minecraft:oak_boat` with `minecraft:minecart` for error visualization entities in canal system. Added powered rails on blue_ice floors in all canal segments (E-W and N-S) and curved junction rails where per-building canals meet the trunk. MoveBoatsAsync is now a no-op — minecarts follow rails autonomously including curves. Entity tag changed from `error_boat` to `error_cart`. Cleanup selector updated to `type=minecraft:minecart`.
+**Why:** Boats cannot autonomously turn corners in vanilla Minecraft. No combination of Motion NBT, data merge, or kill-and-resummon reliably redirects boats at canal junctions. Minecarts on rails are the only vanilla entity that follows curved paths (including L-shaped turns) without any per-tick intervention. This eliminates the brittle junction redirect logic entirely and lets the rail network handle all pathing.
+
+
+**By:** Rocket
+**What:** CanalService no longer excavates trenches, builds stone_brick walls, or lays blue_ice floors. Rails are placed at SurfaceY + 1 (on top of ground) instead of CanalY (below ground). Junction curves use regular `minecraft:rail` blocks instead of `powered_rail` since powered rails cannot curve. The lake landing zone is preserved.
+**Why:** Minecarts on rails don't need canal infrastructure — that was designed for boats on water/ice. Removing it eliminates ~8 RCON commands per building segment (excavation, floor, 2 walls) and 4 per trunk segment. Junction curves were broken because powered_rail only goes straight; regular rails auto-detect perpendicular neighbors and form L-turns. The E-W rail now ends at trunkX+1 (directly adjacent to junction corner at trunkX) instead of trunkX+2, ensuring proper curve neighbor detection.
+
+
+### 2026-03-02: Minecart rails on ground surface  final architecture (consolidated)
+
+**By:** Rocket, Jeffrey T. Fritz
+
+**What:** Final architecture for error visualization using minecarts on rails:
+- Rails placed directly on ground surface (SurfaceY + 1) instead of in trenches
+- CanalService no longer excavates, builds stone brick walls, or lays blue ice floors
+- Junction curves use minecraft:rail (not powered_rail) for auto-curving
+- E-W rail ends at trunkX+1 to enable proper neighbor detection for L-shaped turns
+- Lake landing zone preserved; boats transition from ice to water at lake junction
+- Entity type changed from rror_boat to rror_cart; MoveBoatsAsync is now a no-op
+
+**Why:** 
+- **Boats cannot autonomously turn:** Extensive testing (Motion NBT, data merge, kill-and-resummon) proved boats on blue_ice cannot be made to turn corners without player input. This is a fundamental Minecraft physics limitation.
+- **Minecarts on rails are vanilla solution:** Only vanilla entity that follows curved paths (including L-shaped turns) autonomously without intervention. Powered rails handle elevation changes; regular rails auto-detect perpendicular neighbors for curves.
+- **No canal infrastructure needed:** Canals were designed for boats on water/ice. Minecarts on rail don't need excavation, walls, or ice floors. Eliminates ~8 RCON commands per building segment + 4 per trunk segment.
+- **Ground-level rails simplify geometry:** No trench excavation, no complex multi-level routing. Rails sit on natural ground, reducing collision detection issues and improving visual clarity.
+
+**Evolution:** 
+- 2026-02-xx: Initial decision to use minecarts instead of boats for error visualization
+- 2026-03-01: Evaluated ice-only canals as workaround for boat turning problem
+- 2026-02-28 & 2026-03-02: Rocket implemented and verified ground-level rails; Jeffrey T. Fritz confirmed boats cannot turn, directing team to finalize minecart-only approach
+- 2026-03-02: Architecture locked  no more canals, rails on ground, minecarts autonomous
+
+**Impact:**
+- CanalService.cs: Removed excavation, wall building, blue_ice placement; simplified to ground-level rail placement
+- MinecartRailService.cs: Verified rail curves work with regular rails at ground level
+- ErrorVisualizationService.cs: Changed entity type from boat to minecart; removed boat propulsion logic
+- Tests: All minecart rail tests pass; boat movement tests removed as superseded

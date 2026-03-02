@@ -363,3 +363,5 @@ Team update (2026-02-18): BlueMap + Playwright Testing Feasibility Assessment  C
 - **Key files:** MinecartRailService.cs (rail connections, bridge detection, health-reactive), CanalService.cs (per-building canals, trunk, lake), ErrorBoatService.cs (error boats), BridgeService.cs (walkway bridges), VillageLayout.cs (positions, canal entrance coords).
 - **Decisions logged:** `.ai-team/decisions/inbox/rhodey-minecart-boats-design.md`
 - **Ceremony log:** `.ai-team/log/2026-02-27-minecart-boats-design-review.md`
+
+ Team update (2026-03-02): Minecart rails on ground surface  final architecture locked. Boats cannot autonomously turn corners in vanilla Minecraft; minecarts on rails are sole solution. CanalService no longer excavates or builds infrastructure; rails placed at ground surface (SurfaceY + 1). Junction curves use regular rails for auto-corner-detection. No more blue ice floors or stone brick walls  minecarts handle all routing natively.  decided by Rocket, Jeffrey T. Fritz

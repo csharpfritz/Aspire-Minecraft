@@ -1,4 +1,0 @@
-### 2026-02-28: Rails placed directly on ground, canal infrastructure removed
-**By:** Rocket
-**What:** CanalService no longer excavates trenches, builds stone_brick walls, or lays blue_ice floors. Rails are placed at SurfaceY + 1 (on top of ground) instead of CanalY (below ground). Junction curves use regular `minecraft:rail` blocks instead of `powered_rail` since powered rails cannot curve. The lake landing zone is preserved.
-**Why:** Minecarts on rails don't need canal infrastructure — that was designed for boats on water/ice. Removing it eliminates ~8 RCON commands per building segment (excavation, floor, 2 walls) and 4 per trunk segment. Junction curves were broken because powered_rail only goes straight; regular rails auto-detect perpendicular neighbors and form L-turns. The E-W rail now ends at trunkX+1 (directly adjacent to junction corner at trunkX) instead of trunkX+2, ensuring proper curve neighbor detection.

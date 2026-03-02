@@ -636,3 +636,5 @@ await rcon.SendCommandAsync(
 - Lake and lake junction preserved as the minecart landing zone.
 - CanalPositions HashSet still populated (MinecartRailService bridge detection depends on it).
 
+
+ Team update (2026-03-02): Minecart rails on ground surface  final architecture locked. Boats cannot autonomously turn corners in vanilla Minecraft; minecarts on rails are sole solution. CanalService no longer excavates or builds infrastructure; rails placed at ground surface (SurfaceY + 1). Junction curves use regular rails for auto-corner-detection. No more blue ice floors or stone brick walls  minecarts handle all routing natively.  decided by Rocket, Jeffrey T. Fritz
