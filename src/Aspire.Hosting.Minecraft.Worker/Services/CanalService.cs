@@ -6,7 +6,9 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 /// Builds an individual per-building canal system with a side trunk connecting to a massive lake.
 /// - Per-building canals (E-W): Each building gets its own short canal running along its BACK (Z-max / north side)
 /// - Side trunk (N-S): Single trunk canal on the WEST side collecting all per-building canals
-/// - Lake: Massive town-width lake at the back (Z-max) of town where the trunk connects (creeper boat landing zone)
+/// - Lake: Massive town-width lake at the back (Z-max) of town where the trunk connects (creeper minecart landing zone)
+/// Rails are placed on top of blue_ice floors for minecart propulsion. Powered rails every ~8 blocks
+/// with redstone torches for activation. Curved rails at junctions allow autonomous turning.
 /// Called by MinecraftWorldWorker after RCON is connected and resources are discovered.
 /// </summary>
 internal sealed class CanalService(
@@ -24,9 +26,14 @@ internal sealed class CanalService(
 
     /// <summary>
     /// X coordinate of the trunk canal center, set during initialization.
-    /// Used by ErrorBoatService to redirect boats from westward to southward.
+    /// Used by ErrorBoatService to detect when minecarts reach the trunk.
     /// </summary>
     public int TrunkCanalX { get; private set; }
+
+    /// <summary>
+    /// Spacing (in blocks) between powered rails for sustained minecart speed.
+    /// </summary>
+    private const int PoweredRailInterval = 8;
 
     /// <summary>
     /// One-time initialization: builds canals and lake. Called after DiscoverResources.
@@ -118,8 +125,9 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds a horizontal (E-W) canal segment with stone brick walls and blue_ice floor.
+    /// Builds a horizontal (E-W) canal segment with stone brick walls, blue_ice floor, and powered rails.
     /// Fill commands are clipped against protected building regions to avoid damaging structures.
+    /// Powered rails on blue_ice propel minecarts westward to the trunk canal.
     /// </summary>
     private async Task BuildCanalSegmentEastWestAsync(int x1, int z, int x2, int canalY, int depth,
         int waterWidth, CancellationToken ct)
@@ -147,6 +155,9 @@ internal sealed class CanalService(
         await SendProtectedFillAsync(minX, canalY - 1, wallZMax, maxX, VillageLayout.SurfaceY, wallZMax,
             "minecraft:stone_bricks", ct);
 
+        // Place powered rails on top of blue_ice along the canal center (at canalY, on the ice at canalY-1)
+        await PlaceEastWestRailsAsync(minX, maxX, canalY, z, ct);
+
         // Track intended canal positions (full range, not clipped —
         // the building itself acts as a "bridge" for rail detection)
         for (var x = minX; x <= maxX; x++)
@@ -155,7 +166,8 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds a vertical (N-S) canal segment with stone brick walls and blue_ice floor.
+    /// Builds a vertical (N-S) canal segment with stone brick walls, blue_ice floor, and powered rails.
+    /// Powered rails on blue_ice propel minecarts southward toward the lake.
     /// </summary>
     private async Task BuildCanalSegmentNorthSouthAsync(int x, int z1, int z2, int canalY, int depth,
         int waterWidth, CancellationToken ct)
@@ -187,6 +199,9 @@ internal sealed class CanalService(
             $"fill {wallXMax} {canalY - 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
             CommandPriority.Normal, ct);
 
+        // Place powered rails on top of blue_ice along the canal center
+        await PlaceNorthSouthRailsAsync(minZ, maxZ, canalY, x, ct);
+
         // Track positions
         for (var xx = wallXMin; xx <= wallXMax; xx++)
             for (var zz = minZ; zz <= maxZ; zz++)
@@ -212,7 +227,8 @@ internal sealed class CanalService(
 
     /// <summary>
     /// Opens the junction where a per-building canal (E-W) meets the side trunk (N-S).
-    /// Removes the trunk's east wall where the building canal arrives to allow boat passage.
+    /// Removes the trunk's east wall where the building canal arrives to allow minecart passage.
+    /// Places curved rails at the junction corner so minecarts turn from E-W to N-S automatically.
     /// </summary>
     private async Task OpenPerBuildingJunctionAsync(int trunkX, int buildingCanalZ, CancellationToken ct)
     {
@@ -235,13 +251,30 @@ internal sealed class CanalService(
             $"fill {trunkEastWall} {canalY - 1} {waterZMin} {trunkEastWall} {canalY - 1} {waterZMax} minecraft:blue_ice",
             CommandPriority.Normal, ct);
 
-        logger.LogInformation("Per-building junction opened at X={X}, Z={Z}", trunkX, buildingCanalZ);
+        // Place curved junction rails: an L-shaped rail pattern at the junction corner.
+        // The E-W rail ends at trunkEastWall, then a regular rail at the corner auto-curves
+        // to connect with the N-S trunk rail. Minecraft auto-detects the curve.
+        // Place rail on the junction floor tile to bridge E-W into N-S
+        await rcon.SendCommandAsync(
+            $"setblock {trunkEastWall} {canalY} {buildingCanalZ} minecraft:rail",
+            CommandPriority.Normal, ct);
+        // Place rail on the trunk center at the same Z to complete the L-turn
+        await rcon.SendCommandAsync(
+            $"setblock {trunkX} {canalY} {buildingCanalZ} minecraft:rail",
+            CommandPriority.Normal, ct);
+
+        // Redstone torch on the wall to power nearby rails at the junction
+        await rcon.SendCommandAsync(
+            $"setblock {trunkEastWall} {canalY} {waterZMax + 1} minecraft:redstone_torch",
+            CommandPriority.Normal, ct);
+
+        logger.LogInformation("Per-building junction opened with curved rails at X={X}, Z={Z}", trunkX, buildingCanalZ);
     }
 
     /// <summary>
     /// Opens the junction where the side trunk canal meets the lake.
     /// Removes the lake's north wall where the trunk arrives and fills water at both
-    /// canal depth and lake depth for a smooth ice-to-water transition where boats enter the lake.
+    /// canal depth and lake depth for a smooth ice-to-water transition where minecarts enter the lake.
     /// </summary>
     private async Task OpenLakeJunctionAsync(int trunkX, int lakeZ, CancellationToken ct)
     {
@@ -341,6 +374,50 @@ internal sealed class CanalService(
             CommandPriority.Normal, ct);
 
         logger.LogInformation("Lake built at ({X}, {Z}) with dock", lakeX, lakeZ);
+    }
+
+    /// <summary>
+    /// Places powered rails along an E-W canal segment at the canal center Z.
+    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches on the south wall for activation.
+    /// </summary>
+    private async Task PlaceEastWestRailsAsync(int minX, int maxX, int canalY, int centerZ, CancellationToken ct)
+    {
+        for (var x = minX; x <= maxX; x++)
+        {
+            // Powered rail on top of blue_ice — rails sit at canalY (ice is at canalY-1)
+            await rcon.SendCommandAsync(
+                $"setblock {x} {canalY} {centerZ} minecraft:powered_rail[shape=east_west]",
+                CommandPriority.Normal, ct);
+
+            // Redstone torch on the south wall every PoweredRailInterval blocks to activate powered rails
+            if ((x - minX) % PoweredRailInterval == 0)
+            {
+                await rcon.SendCommandAsync(
+                    $"setblock {x} {canalY} {centerZ + 2} minecraft:redstone_torch",
+                    CommandPriority.Normal, ct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Places powered rails along a N-S canal segment at the canal center X.
+    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches on the west wall for activation.
+    /// </summary>
+    private async Task PlaceNorthSouthRailsAsync(int minZ, int maxZ, int canalY, int centerX, CancellationToken ct)
+    {
+        for (var z = minZ; z <= maxZ; z++)
+        {
+            await rcon.SendCommandAsync(
+                $"setblock {centerX} {canalY} {z} minecraft:powered_rail[shape=north_south]",
+                CommandPriority.Normal, ct);
+
+            if ((z - minZ) % PoweredRailInterval == 0)
+            {
+                await rcon.SendCommandAsync(
+                    $"setblock {centerX - 2} {canalY} {z} minecraft:redstone_torch",
+                    CommandPriority.Normal, ct);
+            }
+        }
     }
 
     /// <summary>

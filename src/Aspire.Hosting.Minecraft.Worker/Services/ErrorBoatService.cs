@@ -3,10 +3,11 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Spawns boats carrying creeper passengers when resources transition to Unhealthy.
-/// Boats appear in the canal water behind the erroring building and slide toward the trunk canal on blue ice.
-/// Anti-pileup caps limit per-resource and global boat counts.
-/// Requires CanalService to have built canals before spawning.
+/// Spawns minecarts carrying creeper passengers when resources transition to Unhealthy.
+/// Minecarts spawn on powered rails behind the erroring building and ride the rail network
+/// through curved junctions to the trunk canal and into the lake.
+/// Anti-pileup caps limit per-resource and global minecart counts.
+/// Requires CanalService to have built canals (with rails) before spawning.
 /// </summary>
 internal sealed class ErrorBoatService(
     RconService rcon,
@@ -14,15 +15,15 @@ internal sealed class ErrorBoatService(
     ILogger<ErrorBoatService> logger,
     CanalService? canals = null)
 {
-    private const int MaxBoatsPerResource = 3;
-    private const int MaxTotalBoats = 20;
+    private const int MaxCartsPerResource = 3;
+    private const int MaxTotalCarts = 20;
     private static readonly TimeSpan SpawnCooldown = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CountResetInterval = TimeSpan.FromSeconds(30);
 
-    private readonly Dictionary<string, int> _boatsPerResource = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _cartsPerResource = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastSpawnTime = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceStatusChange> _pendingChanges = new();
-    private int _totalBoats;
+    private int _totalCarts;
     private DateTime _lastCountReset = DateTime.UtcNow;
 
     /// <summary>
@@ -30,12 +31,12 @@ internal sealed class ErrorBoatService(
     /// </summary>
     public Task InitializeAsync(CancellationToken ct = default)
     {
-        logger.LogInformation("Error boat service initialized");
+        logger.LogInformation("Error minecart service initialized");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Spawns an error boat for a specific resource triggered by an OpenTelemetry error-level log entry.
+    /// Spawns an error minecart for a specific resource triggered by an OpenTelemetry error-level log entry.
     /// Applies the same rate limiting and canal readiness gating as health-based spawns.
     /// </summary>
     public async Task SpawnBoatForErrorLogAsync(string resourceName, CancellationToken ct = default)
@@ -43,17 +44,17 @@ internal sealed class ErrorBoatService(
         // Gate on canal readiness
         if (canals is null || canals.CanalPositions.Count == 0)
         {
-            logger.LogInformation("Buffering error boat for {Resource} (canals not ready)", resourceName);
+            logger.LogInformation("Buffering error minecart for {Resource} (canals not ready)", resourceName);
             _pendingChanges.Add(new ResourceStatusChange(resourceName, "unknown", ResourceStatus.Healthy, ResourceStatus.Unhealthy));
             return;
         }
 
-        await SpawnBoatCoreAsync(resourceName, ct);
+        await SpawnCartCoreAsync(resourceName, ct);
     }
 
     /// <summary>
-    /// Spawns error boats for resources that transitioned to Unhealthy.
-    /// Boats are only spawned when canals have been built (CanalPositions populated).
+    /// Spawns error minecarts for resources that transitioned to Unhealthy.
+    /// Minecarts are only spawned when canals have been built (CanalPositions populated).
     /// If canals aren't ready yet, changes are buffered and replayed when canals become available.
     /// </summary>
     public async Task SpawnBoatsForChangesAsync(IReadOnlyList<ResourceStatusChange> changes, CancellationToken ct = default)
@@ -63,16 +64,14 @@ internal sealed class ErrorBoatService(
         // Gate on canal readiness — if canals aren't built yet, buffer the changes for later
         if (canals is null || canals.CanalPositions.Count == 0)
         {
-            // Buffer unhealthy transitions so we can spawn boats once canals are ready
             foreach (var change in changes)
             {
                 if (change.NewStatus == ResourceStatus.Unhealthy)
                 {
-                    // Only buffer if not already in the pending list
                     if (!_pendingChanges.Any(pc => pc.Name.Equals(change.Name, StringComparison.OrdinalIgnoreCase)))
                     {
                         _pendingChanges.Add(change);
-                        logger.LogInformation("Buffering error boat spawn for {Resource} (canals not ready yet)", change.Name);
+                        logger.LogInformation("Buffering error minecart spawn for {Resource} (canals not ready yet)", change.Name);
                     }
                 }
             }
@@ -87,11 +86,11 @@ internal sealed class ErrorBoatService(
         foreach (var change in allChanges)
         {
             if (change.NewStatus != ResourceStatus.Unhealthy) continue;
-            await SpawnBoatCoreAsync(change.Name, ct);
+            await SpawnCartCoreAsync(change.Name, ct);
         }
     }
 
-    private async Task SpawnBoatCoreAsync(string resourceName, CancellationToken ct)
+    private async Task SpawnCartCoreAsync(string resourceName, CancellationToken ct)
     {
         var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
         var index = orderedNames.IndexOf(resourceName);
@@ -103,63 +102,40 @@ internal sealed class ErrorBoatService(
             return;
 
         // Per-resource cap
-        _boatsPerResource.TryGetValue(resourceName, out var resourceBoats);
-        if (resourceBoats >= MaxBoatsPerResource) return;
+        _cartsPerResource.TryGetValue(resourceName, out var resourceCarts);
+        if (resourceCarts >= MaxCartsPerResource) return;
 
         // Global cap
-        if (_totalBoats >= MaxTotalBoats) return;
+        if (_totalCarts >= MaxTotalCarts) return;
 
         var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
 
-        // Atomic spawn: boat + creeper passenger in single command to avoid RCON timing issues
-        // Motion works on blue_ice — near-zero friction. Westward to trunk canal, slight south to lake.
+        // Spawn minecart on the powered rail — rails provide propulsion, no Motion needed.
+        // Creeper passenger rides through all curves including the trunk junction.
         await rcon.SendCommandAsync(
-            $"summon minecraft:oak_boat {cx} {cy} {cz} {{Rotation:[270f,0f],Motion:[-5.0,0.0,0.5],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\"]}}",
+            $"summon minecraft:minecart {cx} {cy} {cz} {{Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_cart\"]}}",
             CommandPriority.Normal, ct);
 
-        _boatsPerResource[resourceName] = resourceBoats + 1;
-        _totalBoats++;
+        _cartsPerResource[resourceName] = resourceCarts + 1;
+        _totalCarts++;
         _lastSpawnTime[resourceName] = DateTime.UtcNow;
 
-        logger.LogInformation("Error boat spawned at ({X},{Y},{Z}) for {Resource}",
+        logger.LogInformation("Error minecart spawned at ({X},{Y},{Z}) for {Resource}",
             cx, cy, cz, resourceName);
     }
 
     /// <summary>
-    /// Redirects westbound error boats to southbound when they reach the trunk canal.
-    /// Minecraft physics overrides Motion set via "data merge" on the next tick, so we use
-    /// a kill-and-resummon strategy: destroy the arriving boat and summon a fresh one facing
-    /// south with Motion:[0,0,5]. Freshly summoned entities retain their initial Motion on
-    /// blue_ice before physics takes over. A "turned" tag prevents re-processing.
+    /// Minecarts follow rails autonomously including curves — no redirect logic needed.
+    /// This method is kept as a no-op stub to preserve the call site in the worker loop.
     /// </summary>
-    public async Task MoveBoatsAsync(CancellationToken ct = default)
-    {
-        if (canals is null || canals.TrunkCanalX == 0) return;
-
-        var trunkX = canals.TrunkCanalX;
-        var canalY = VillageLayout.CanalY;
-
-        // Step 1: For each unturned boat at the trunk canal, summon a southbound replacement
-        // at the same Z but centered in the trunk canal (fixed X). "at @s" gives us the
-        // arriving boat's position; we use absolute X/Y but relative Z (~).
-        await rcon.SendCommandAsync(
-            $"execute as @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4] at @s run " +
-            $"summon minecraft:oak_boat {trunkX} {canalY} ~ " +
-            $"{{Rotation:[0f,0f],Motion:[0.0,0.0,5.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\",\"turned\"]}}",
-            CommandPriority.Normal, ct);
-
-        // Step 2: Kill the original westbound boats (their creeper passengers get ejected)
-        await rcon.SendCommandAsync(
-            $"kill @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4]",
-            CommandPriority.Normal, ct);
-    }
+    public Task MoveBoatsAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     /// <summary>
-    /// Despawns boats near the lake and periodically resets tracking counters.
+    /// Despawns minecarts near the lake and periodically resets tracking counters.
     /// </summary>
     public async Task CleanupBoatsAsync(CancellationToken ct = default)
     {
-        if (_totalBoats <= 0 && _boatsPerResource.Count == 0) return;
+        if (_totalCarts <= 0 && _cartsPerResource.Count == 0) return;
 
         try
         {
@@ -170,12 +146,12 @@ internal sealed class ErrorBoatService(
             var lakeCenterX = lakeX + VillageLayout.LakeWidth / 2;
             var lakeCenterZ = lakeZ + VillageLayout.LakeLength / 2;
 
-            // Kill error boats near the lake using the "error_boat" tag for reliable targeting
+            // Kill error minecarts near the lake
             await rcon.SendCommandAsync(
-                $"kill @e[type=minecraft:boat,tag=error_boat,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
+                $"kill @e[type=minecraft:minecart,tag=error_cart,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
                 CommandPriority.Low, ct);
 
-            // Clean up orphaned NoAI creepers ejected during boat kill-and-resummon at trunk canal
+            // Clean up orphaned NoAI creepers ejected when minecarts despawn
             await rcon.SendCommandAsync(
                 $"kill @e[type=minecraft:creeper,nbt={{NoAI:1b,Silent:1b}},x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..200]",
                 CommandPriority.Low, ct);
@@ -183,14 +159,14 @@ internal sealed class ErrorBoatService(
             // Periodically reset counters to avoid stale tracking
             if (DateTime.UtcNow - _lastCountReset > CountResetInterval)
             {
-                _boatsPerResource.Clear();
-                _totalBoats = 0;
+                _cartsPerResource.Clear();
+                _totalCarts = 0;
                 _lastCountReset = DateTime.UtcNow;
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error cleaning up error boats");
+            logger.LogError(ex, "Error cleaning up error minecarts");
         }
     }
 }

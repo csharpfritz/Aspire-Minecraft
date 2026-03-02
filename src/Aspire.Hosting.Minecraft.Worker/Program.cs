@@ -151,7 +151,7 @@ app.MapPost("/error-notification", async (HttpContext context, ILogger<Program> 
 
         await errorBoats.SpawnBoatForErrorLogAsync(body.ResourceName);
 
-        return Results.Ok(new { status = "boat_spawned", resource = body.ResourceName });
+        return Results.Ok(new { status = "cart_spawned", resource = body.ResourceName });
     }
     catch (Exception ex)
     {
