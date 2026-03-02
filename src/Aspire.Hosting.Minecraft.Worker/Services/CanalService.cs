@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Builds an individual per-building canal system with a side trunk connecting to a massive lake.
-/// - Per-building canals (E-W): Each building gets its own short canal running along its BACK (Z-max / north side)
-/// - Side trunk (N-S): Single trunk canal on the WEST side collecting all per-building canals
-/// - Lake: Massive town-width lake at the back (Z-max) of town where the trunk connects (creeper minecart landing zone)
-/// Rails are placed on top of blue_ice floors for minecart propulsion. Powered rails every ~8 blocks
-/// with redstone torches for activation. Curved rails at junctions allow autonomous turning.
+/// Builds a rail network with per-building segments and a side trunk connecting to a massive lake.
+/// - Per-building rails (E-W): Each building gets its own rail segment running along its BACK (Z-max / north side)
+/// - Side trunk (N-S): Single trunk rail on the WEST side collecting all per-building rails
+/// - Lake: Massive town-width lake at the back (Z-max) of town (creeper minecart landing zone)
+/// Rails are placed directly on the ground surface (SurfaceY + 1). Powered rails every ~8 blocks
+/// with redstone torches for activation. Regular rails at junctions allow autonomous curve turning.
 /// Called by MinecraftWorldWorker after RCON is connected and resources are discovered.
 /// </summary>
 internal sealed class CanalService(
@@ -23,6 +23,12 @@ internal sealed class CanalService(
     /// Tracks all canal (x, z) positions so MinecartRailService can detect bridges.
     /// </summary>
     public HashSet<(int x, int z)> CanalPositions { get; } = new();
+
+    /// <summary>
+    /// Z coordinates where per-building E-W rails meet the N-S trunk.
+    /// Used by PlaceNorthSouthRailsAsync to place regular rails (instead of powered) at junctions.
+    /// </summary>
+    private readonly HashSet<int> _junctionZPositions = new();
 
     /// <summary>
     /// X coordinate of the trunk canal center, set during initialization.
@@ -78,6 +84,7 @@ internal sealed class CanalService(
         {
             var (_, _, oz) = VillageLayout.GetStructureOrigin(orderedNames[i], i);
             var backZ = oz + VillageLayout.StructureSize + 4; // Must match per-building canal offset
+            _junctionZPositions.Add(backZ);
             trunkStartZ = Math.Min(trunkStartZ, backZ);
         }
         trunkStartZ -= 4; // Gap south of the first building canal
@@ -94,42 +101,39 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds an individual canal for a specific building.
-    /// The canal runs along the BACK (Z-max / north side) of the building,
-    /// then turns east to connect to the side trunk canal.
+    /// Builds an individual rail segment for a specific building.
+    /// The segment runs along the BACK (Z-max / north side) of the building,
+    /// heading west to connect to the side trunk rail.
     /// </summary>
     private async Task BuildPerBuildingCanalAsync(string resourceName, int index, int trunkX, CancellationToken ct)
     {
         var (ox, _, oz) = VillageLayout.GetStructureOrigin(resourceName, index);
-        var canalY = VillageLayout.CanalY;
-        var depth = VillageLayout.CanalDepth;
         var waterWidth = VillageLayout.CanalWaterWidth;
         var structureSize = VillageLayout.StructureSize;
 
-        // Canal runs behind (north of) the building at Z-max side
-        // +4 clearance so canal walls don't overlap building decorations/footprint
+        // Rail runs behind (north of) the building at Z-max side
+        // +4 clearance so rails don't overlap building decorations/footprint
         var buildingBackZ = oz + structureSize + 4;
         
-        // E-W segment: from building's east edge across to the trunk's east wall
+        // E-W segment: from building's east edge to one block east of the trunk junction corner
         var canalStartX = ox + structureSize;
-        var trunkEastWall = trunkX + waterWidth / 2 + 1;
-        var canalEndX = trunkEastWall;
+        var canalEndX = trunkX + 1;
 
-        // Build the horizontal (E-W) canal segment behind the building
-        await BuildCanalSegmentEastWestAsync(canalStartX, buildingBackZ, canalEndX, canalY, depth, waterWidth, ct);
+        // Build the horizontal (E-W) rail segment behind the building
+        await BuildCanalSegmentEastWestAsync(canalStartX, buildingBackZ, canalEndX, waterWidth, ct);
 
-        // Open the junction where this building's canal meets the trunk
+        // Open the junction where this building's rail meets the trunk
         await OpenPerBuildingJunctionAsync(trunkX, buildingBackZ, ct);
 
-        logger.LogInformation("Per-building canal built for {ResourceName} at Z={Z}", resourceName, buildingBackZ);
+        logger.LogInformation("Rail segment built for {ResourceName} at Z={Z}", resourceName, buildingBackZ);
     }
 
     /// <summary>
-    /// Builds a horizontal (E-W) canal segment with stone brick walls, blue_ice floor, and powered rails.
-    /// Fill commands are clipped against protected building regions to avoid damaging structures.
-    /// Powered rails on blue_ice propel minecarts westward to the trunk canal.
+    /// Builds a horizontal (E-W) rail segment with powered rails on the ground surface.
+    /// Powered rails propel minecarts westward to the trunk. The westernmost rail is a
+    /// regular rail to enable auto-curving at the trunk junction.
     /// </summary>
-    private async Task BuildCanalSegmentEastWestAsync(int x1, int z, int x2, int canalY, int depth,
+    private async Task BuildCanalSegmentEastWestAsync(int x1, int z, int x2,
         int waterWidth, CancellationToken ct)
     {
         var minX = Math.Min(x1, x2);
@@ -138,38 +142,23 @@ internal sealed class CanalService(
 
         var wallZMin = z - waterWidth / 2 - 1;
         var wallZMax = z + waterWidth / 2 + 1;
-        var waterZMin = z - waterWidth / 2;
-        var waterZMax = z + waterWidth / 2;
 
-        // Excavate (clipped around protected buildings)
-        await SendProtectedFillAsync(minX, canalY - depth + 1, wallZMin, maxX, VillageLayout.SurfaceY, wallZMax,
-            "minecraft:air", ct);
+        // Place rails on top of the ground surface (no canal excavation needed for minecarts)
+        await PlaceEastWestRailsAsync(minX, maxX, VillageLayout.SurfaceY + 1, z, ct);
 
-        // Floor: blue_ice
-        await SendProtectedFillAsync(minX, canalY - 1, wallZMin, maxX, canalY - 1, wallZMax,
-            "minecraft:blue_ice", ct);
-
-        // Walls
-        await SendProtectedFillAsync(minX, canalY - 1, wallZMin, maxX, VillageLayout.SurfaceY, wallZMin,
-            "minecraft:stone_bricks", ct);
-        await SendProtectedFillAsync(minX, canalY - 1, wallZMax, maxX, VillageLayout.SurfaceY, wallZMax,
-            "minecraft:stone_bricks", ct);
-
-        // Place powered rails on top of blue_ice along the canal center (at canalY, on the ice at canalY-1)
-        await PlaceEastWestRailsAsync(minX, maxX, canalY, z, ct);
-
-        // Track intended canal positions (full range, not clipped —
-        // the building itself acts as a "bridge" for rail detection)
+        // Track intended positions (full range —
+        // MinecartRailService uses this for bridge detection)
         for (var x = minX; x <= maxX; x++)
             for (var zz = wallZMin; zz <= wallZMax; zz++)
                 CanalPositions.Add((x, zz));
     }
 
     /// <summary>
-    /// Builds a vertical (N-S) canal segment with stone brick walls, blue_ice floor, and powered rails.
-    /// Powered rails on blue_ice propel minecarts southward toward the lake.
+    /// Builds a vertical (N-S) rail segment with powered rails on the ground surface.
+    /// Powered rails propel minecarts southward toward the lake. At junction Z positions,
+    /// regular rails are used to allow auto-curving at per-building junctions.
     /// </summary>
-    private async Task BuildCanalSegmentNorthSouthAsync(int x, int z1, int z2, int canalY, int depth,
+    private async Task BuildCanalSegmentNorthSouthAsync(int x, int z1, int z2,
         int waterWidth, CancellationToken ct)
     {
         var minZ = Math.Min(z1, z2);
@@ -178,29 +167,9 @@ internal sealed class CanalService(
 
         var wallXMin = x - waterWidth / 2 - 1;
         var wallXMax = x + waterWidth / 2 + 1;
-        var waterXMin = x - waterWidth / 2;
-        var waterXMax = x + waterWidth / 2;
 
-        // Excavate
-        await rcon.SendCommandAsync(
-            $"fill {wallXMin} {canalY - depth + 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:air",
-            CommandPriority.Normal, ct);
-
-        // Floor
-        await rcon.SendCommandAsync(
-            $"fill {wallXMin} {canalY - 1} {minZ} {wallXMax} {canalY - 1} {maxZ} minecraft:blue_ice",
-            CommandPriority.Normal, ct);
-
-        // Walls
-        await rcon.SendCommandAsync(
-            $"fill {wallXMin} {canalY - 1} {minZ} {wallXMin} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
-            CommandPriority.Normal, ct);
-        await rcon.SendCommandAsync(
-            $"fill {wallXMax} {canalY - 1} {minZ} {wallXMax} {VillageLayout.SurfaceY} {maxZ} minecraft:stone_bricks",
-            CommandPriority.Normal, ct);
-
-        // Place powered rails on top of blue_ice along the canal center
-        await PlaceNorthSouthRailsAsync(minZ, maxZ, canalY, x, ct);
+        // Place rails on top of the ground surface (no canal excavation needed for minecarts)
+        await PlaceNorthSouthRailsAsync(minZ, maxZ, VillageLayout.SurfaceY + 1, x, ct);
 
         // Track positions
         for (var xx = wallXMin; xx <= wallXMax; xx++)
@@ -209,66 +178,42 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Builds the side trunk canal (N-S) running from the back canal down to the lake.
+    /// Builds the side trunk rail (N-S) running from the back rail down to the lake.
     /// Extends 2 blocks into the lake (beyond the north wall) to ensure visual connection.
     /// </summary>
     private async Task BuildTrunkCanalAsync(int trunkX, int backCanalZ, int lakeZ, CancellationToken ct)
     {
-        var canalY = VillageLayout.CanalY;
-        var depth = VillageLayout.CanalDepth;
         var waterWidth = VillageLayout.CanalWaterWidth;
 
-        // Extend trunk canal 2 blocks into the lake to ensure connection beyond the north wall
-        await BuildCanalSegmentNorthSouthAsync(trunkX, backCanalZ, lakeZ + 2, canalY, depth, waterWidth, ct);
+        // Extend trunk rail 2 blocks into the lake to ensure connection beyond the north wall
+        await BuildCanalSegmentNorthSouthAsync(trunkX, backCanalZ, lakeZ + 2, waterWidth, ct);
 
-        logger.LogInformation("Side trunk canal built at X={X} from Z={BackZ} to Z={LakeZ}+2", 
+        logger.LogInformation("Trunk rail built at X={X} from Z={BackZ} to Z={LakeZ}+2", 
             trunkX, backCanalZ, lakeZ);
     }
 
     /// <summary>
-    /// Opens the junction where a per-building canal (E-W) meets the side trunk (N-S).
-    /// Removes the trunk's east wall where the building canal arrives to allow minecart passage.
-    /// Places curved rails at the junction corner so minecarts turn from E-W to N-S automatically.
+    /// Opens the junction where a per-building rail (E-W) meets the side trunk (N-S).
+    /// Places a regular rail at the corner so minecarts auto-curve from westbound to southbound.
+    /// The regular rail detects perpendicular neighbors and forms an L-turn automatically.
     /// </summary>
     private async Task OpenPerBuildingJunctionAsync(int trunkX, int buildingCanalZ, CancellationToken ct)
     {
-        var waterWidth = VillageLayout.CanalWaterWidth;
-        var canalY = VillageLayout.CanalY;
-        var depth = VillageLayout.CanalDepth;
+        var railY = VillageLayout.SurfaceY + 1;
 
-        // Building canal (E-W) arrives at the trunk's east wall
-        var waterZMin = buildingCanalZ - waterWidth / 2;
-        var waterZMax = buildingCanalZ + waterWidth / 2;
-        var trunkEastWall = trunkX + waterWidth / 2 + 1;
-
-        // Open east wall of trunk where building canal arrives
+        // Place a regular rail at the corner where E-W meets N-S.
+        // With perpendicular neighbors (east from E-W segment, south from N-S trunk),
+        // Minecraft auto-curves this rail for the westbound-to-southbound turn.
         await rcon.SendCommandAsync(
-            $"fill {trunkEastWall} {canalY - depth + 1} {waterZMin} {trunkEastWall} {VillageLayout.SurfaceY} {waterZMax} minecraft:air",
-            CommandPriority.Normal, ct);
-        
-        // Restore floor continuity
-        await rcon.SendCommandAsync(
-            $"fill {trunkEastWall} {canalY - 1} {waterZMin} {trunkEastWall} {canalY - 1} {waterZMax} minecraft:blue_ice",
+            $"setblock {trunkX} {railY} {buildingCanalZ} minecraft:rail",
             CommandPriority.Normal, ct);
 
-        // Place curved junction rails: an L-shaped rail pattern at the junction corner.
-        // The E-W rail ends at trunkEastWall, then a regular rail at the corner auto-curves
-        // to connect with the N-S trunk rail. Minecraft auto-detects the curve.
-        // Place rail on the junction floor tile to bridge E-W into N-S
+        // Redstone torch near junction to power adjacent powered rails
         await rcon.SendCommandAsync(
-            $"setblock {trunkEastWall} {canalY} {buildingCanalZ} minecraft:rail",
-            CommandPriority.Normal, ct);
-        // Place rail on the trunk center at the same Z to complete the L-turn
-        await rcon.SendCommandAsync(
-            $"setblock {trunkX} {canalY} {buildingCanalZ} minecraft:rail",
+            $"setblock {trunkX + 1} {railY} {buildingCanalZ + 2} minecraft:redstone_torch",
             CommandPriority.Normal, ct);
 
-        // Redstone torch on the wall to power nearby rails at the junction
-        await rcon.SendCommandAsync(
-            $"setblock {trunkEastWall} {canalY} {waterZMax + 1} minecraft:redstone_torch",
-            CommandPriority.Normal, ct);
-
-        logger.LogInformation("Per-building junction opened with curved rails at X={X}, Z={Z}", trunkX, buildingCanalZ);
+        logger.LogInformation("Rail junction with curve at X={X}, Z={Z}", trunkX, buildingCanalZ);
     }
 
     /// <summary>
@@ -377,20 +322,25 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Places powered rails along an E-W canal segment at the canal center Z.
-    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches on the south wall for activation.
+    /// Places rails along an E-W segment at the given Y and center Z.
+    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches for activation.
+    /// The westernmost rail (at minX) is a regular rail to enable auto-curving at the trunk junction.
     /// </summary>
     private async Task PlaceEastWestRailsAsync(int minX, int maxX, int canalY, int centerZ, CancellationToken ct)
     {
         for (var x = minX; x <= maxX; x++)
         {
-            // Powered rail on top of blue_ice — rails sit at canalY (ice is at canalY-1)
+            // Last rail (westernmost, approaching junction) is regular rail for auto-curving at the corner
+            var block = x == minX
+                ? "minecraft:rail[shape=east_west]"
+                : "minecraft:powered_rail[shape=east_west]";
+
             await rcon.SendCommandAsync(
-                $"setblock {x} {canalY} {centerZ} minecraft:powered_rail[shape=east_west]",
+                $"setblock {x} {canalY} {centerZ} {block}",
                 CommandPriority.Normal, ct);
 
-            // Redstone torch on the south wall every PoweredRailInterval blocks to activate powered rails
-            if ((x - minX) % PoweredRailInterval == 0)
+            // Redstone torch every PoweredRailInterval blocks to activate powered rails (skip regular rail at minX)
+            if (x != minX && (x - minX) % PoweredRailInterval == 0)
             {
                 await rcon.SendCommandAsync(
                     $"setblock {x} {canalY} {centerZ + 2} minecraft:redstone_torch",
@@ -400,15 +350,22 @@ internal sealed class CanalService(
     }
 
     /// <summary>
-    /// Places powered rails along a N-S canal segment at the canal center X.
-    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches on the west wall for activation.
+    /// Places rails along a N-S segment at the given Y and center X.
+    /// Powered rails every <see cref="PoweredRailInterval"/> blocks, with redstone torches for activation.
+    /// At junction Z positions, regular rails are used instead of powered rails so the adjacent
+    /// junction corner rail can auto-curve.
     /// </summary>
     private async Task PlaceNorthSouthRailsAsync(int minZ, int maxZ, int canalY, int centerX, CancellationToken ct)
     {
         for (var z = minZ; z <= maxZ; z++)
         {
+            // At junction Z positions, use regular rail so the corner rail can auto-curve
+            var block = _junctionZPositions.Contains(z)
+                ? "minecraft:rail[shape=north_south]"
+                : "minecraft:powered_rail[shape=north_south]";
+
             await rcon.SendCommandAsync(
-                $"setblock {centerX} {canalY} {z} minecraft:powered_rail[shape=north_south]",
+                $"setblock {centerX} {canalY} {z} {block}",
                 CommandPriority.Normal, ct);
 
             if ((z - minZ) % PoweredRailInterval == 0)

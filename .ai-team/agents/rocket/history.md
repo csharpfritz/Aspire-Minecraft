@@ -611,3 +611,28 @@ await rcon.SendCommandAsync(
 - Junction detection zone: `x={trunkX-2},dx=6` creates a 6-block capture zone around trunk canal
 - Motion change from westward `[-5.0,0.0,0.5]` to pure southward `[0.0,0.0,5.0]` for smooth trunk canal flow
 
+### Boats→Minecarts switch (2026-02-xx)
+- Boats CANNOT autonomously turn corners in vanilla Minecraft — no NBT trick works. Kill-and-resummon is unreliable.
+- Minecarts on rails follow curved paths natively including L-shaped junctions. This is the correct entity for canal systems.
+- `minecraft:powered_rail[shape=east_west]` on blue_ice provides propulsion. Needs redstone signal (redstone_torch on adjacent wall).
+- `minecraft:rail` at junctions auto-curves when two perpendicular rail segments meet — Minecraft handles the curve geometry.
+- Powered rails need activation every ~8 blocks for sustained speed. Redstone torch on the canal wall suffices.
+- Minecart summon needs no Motion or Rotation NBT — rails handle direction. Passengers NBT works identically to boats.
+- MoveBoatsAsync became a no-op: minecarts follow rails through curves, no kill-and-resummon redirect needed.
+- Entity tag renamed from `error_boat` to `error_cart`; cleanup selector changed from `type=minecraft:boat` to `type=minecraft:minecart`.
+- Rail Y coordinate: rails at `canalY` (SurfaceY-1), ice floor at `canalY-1` — rails sit ON TOP of ice.
+
+### Canal Infrastructure Removal (2026-02-28)
+
+- Canal excavation, stone_brick walls, and blue_ice floors are unnecessary for minecarts on rails — all removed from CanalService.
+- Rails now placed at `SurfaceY + 1` (on ground surface) instead of `CanalY` (below ground in the canal trench).
+- `GetCanalEntrance` Y changed from `CanalY` to `SurfaceY + 1` so error minecarts spawn ON the rails.
+- Junction curves fixed: `powered_rail` cannot curve in Minecraft, only `minecraft:rail` (regular) auto-curves with perpendicular neighbors.
+- E-W rails end one block east of the trunk (at `trunkX + 1`) instead of at `trunkEastWall` (`trunkX + 2`) — this puts the last E-W rail directly adjacent to the junction corner.
+- The westernmost E-W rail is a regular `minecraft:rail` (not powered) to allow curve detection at the junction.
+- N-S trunk uses regular rails at junction Z positions so the corner rail's auto-curve has compatible neighbors.
+- Junction corner at `(trunkX, SurfaceY+1, buildingCanalZ)` is a single regular rail that auto-curves east-to-south.
+- `_junctionZPositions` HashSet tracks per-building Z positions; populated before trunk construction so PlaceNorthSouthRailsAsync can use it.
+- Lake and lake junction preserved as the minecart landing zone.
+- CanalPositions HashSet still populated (MinecartRailService bridge detection depends on it).
+

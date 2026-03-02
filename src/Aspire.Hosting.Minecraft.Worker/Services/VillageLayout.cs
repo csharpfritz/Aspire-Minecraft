@@ -442,22 +442,24 @@ internal static class VillageLayout
 
     /// <summary>
     /// Gets the canal entrance position for a resource (behind the building).
-    /// Canal runs E-W behind the building at oz + StructureSize + 4, starting at the building's east edge.
+    /// Rail runs E-W behind the building at oz + StructureSize + 4, starting at the building's east edge.
+    /// Y is at SurfaceY + 1 (on top of the ground where rails sit).
     /// </summary>
     public static (int x, int y, int z) GetCanalEntrance(int index)
     {
         var (ox, _, oz) = GetStructureOrigin(index);
-        return (ox + StructureSize, CanalY, oz + StructureSize + 4);
+        return (ox + StructureSize, SurfaceY + 1, oz + StructureSize + 4);
     }
 
     /// <summary>
     /// Gets the canal entrance position for a named resource using the active neighborhood plan.
-    /// Canal runs E-W behind the building at oz + StructureSize + 4, starting at the building's east edge.
+    /// Rail runs E-W behind the building at oz + StructureSize + 4, starting at the building's east edge.
+    /// Y is at SurfaceY + 1 (on top of the ground where rails sit).
     /// </summary>
     public static (int x, int y, int z) GetCanalEntrance(string resourceName, int fallbackIndex)
     {
         var (ox, _, oz) = GetStructureOrigin(resourceName, fallbackIndex);
-        return (ox + StructureSize, CanalY, oz + StructureSize + 4);
+        return (ox + StructureSize, SurfaceY + 1, oz + StructureSize + 4);
     }
 
     /// <summary>
