@@ -127,8 +127,10 @@ internal sealed class ErrorBoatService(
 
     /// <summary>
     /// Redirects westbound error boats to southbound when they reach the trunk canal.
-    /// Uses a detection zone around TrunkCanalX to catch boats and change their Motion to [0,0,5].
-    /// Applies a "turned" tag to prevent re-redirect.
+    /// Minecraft physics overrides Motion set via "data merge" on the next tick, so we use
+    /// a kill-and-resummon strategy: destroy the arriving boat and summon a fresh one facing
+    /// south with Motion:[0,0,5]. Freshly summoned entities retain their initial Motion on
+    /// blue_ice before physics takes over. A "turned" tag prevents re-processing.
     /// </summary>
     public async Task MoveBoatsAsync(CancellationToken ct = default)
     {
@@ -137,10 +139,18 @@ internal sealed class ErrorBoatService(
         var trunkX = canals.TrunkCanalX;
         var canalY = VillageLayout.CanalY;
 
-        // Redirect westbound boats to southbound when they reach the trunk canal
-        // x=N,dx=M selects entities with X between N and N+M
+        // Step 1: For each unturned boat at the trunk canal, summon a southbound replacement
+        // at the same Z but centered in the trunk canal (fixed X). "at @s" gives us the
+        // arriving boat's position; we use absolute X/Y but relative Z (~).
         await rcon.SendCommandAsync(
-            $"execute as @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4] run data merge entity @s {{Motion:[0.0,0.0,5.0],Tags:[\"error_boat\",\"turned\"]}}",
+            $"execute as @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4] at @s run " +
+            $"summon minecraft:oak_boat {trunkX} {canalY} ~ " +
+            $"{{Rotation:[0f,0f],Motion:[0.0,0.0,5.0],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_boat\",\"turned\"]}}",
+            CommandPriority.Normal, ct);
+
+        // Step 2: Kill the original westbound boats (their creeper passengers get ejected)
+        await rcon.SendCommandAsync(
+            $"kill @e[tag=error_boat,tag=!turned,x={trunkX - 2},dx=6,y={canalY - 2},dy=4]",
             CommandPriority.Normal, ct);
     }
 
@@ -163,6 +173,11 @@ internal sealed class ErrorBoatService(
             // Kill error boats near the lake using the "error_boat" tag for reliable targeting
             await rcon.SendCommandAsync(
                 $"kill @e[type=minecraft:boat,tag=error_boat,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
+                CommandPriority.Low, ct);
+
+            // Clean up orphaned NoAI creepers ejected during boat kill-and-resummon at trunk canal
+            await rcon.SendCommandAsync(
+                $"kill @e[type=minecraft:creeper,nbt={{NoAI:1b,Silent:1b}},x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..200]",
                 CommandPriority.Low, ct);
 
             // Periodically reset counters to avoid stale tracking

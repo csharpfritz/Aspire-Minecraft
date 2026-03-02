@@ -599,3 +599,15 @@ await rcon.SendCommandAsync(
 - Error boats (OTel-driven) and health status (weather effects) are separate demo concerns — don't couple them
 
 **Files:** `ErrorBoatService.cs` — `SpawnBoatCoreAsync`; `GrandVillageDemo.ApiService/Program.cs` — `/trigger-error` endpoint
+
+
+## Learnings
+
+### Boat junction redirect at trunk canal (2026-02-xx)
+- Boats on blue_ice need explicit Motion redirection at canal junctions  ice physics preserve momentum direction
+- Used `@e[tag=!turned]` selector with `data merge` to apply one-time direction changes
+- `x=N,dx=M` selector targets entities in an X range (N to N+M)
+- `data merge` with `Tags:[...]` replaces the entire tags list, so must include ALL tags (both existing and new)
+- Junction detection zone: `x={trunkX-2},dx=6` creates a 6-block capture zone around trunk canal
+- Motion change from westward `[-5.0,0.0,0.5]` to pure southward `[0.0,0.0,5.0]` for smooth trunk canal flow
+
