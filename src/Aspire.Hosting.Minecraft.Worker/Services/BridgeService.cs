@@ -4,8 +4,8 @@ namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
 /// Builds walkway bridges wherever village streets cross canals, so NPCs and horses
-/// can traverse the town without falling into water. Each bridge arches up 2 blocks
-/// above the canal water surface to allow boats to pass underneath.
+/// can traverse the town without falling into water. Each bridge arches up 4 blocks
+/// above the canal water surface to allow minecarts and boats to pass underneath.
 ///
 /// Bridge locations:
 /// - Central boulevard bridges: where the main boulevard between column 0 and column 1 crosses each E-W canal
@@ -92,8 +92,8 @@ internal sealed class BridgeService(
                 var bridgeEastX = boulevardCenterX + halfW;
                 var wallZSouth = canalCenterZ - VillageLayout.CanalWaterWidth / 2 - 1;
                 var wallZNorth = canalCenterZ + VillageLayout.CanalWaterWidth / 2 + 1;
-                var bridgeZMin = wallZSouth - 2;
-                var bridgeZMax = wallZNorth + 2;
+                var bridgeZMin = wallZSouth - 3;
+                var bridgeZMax = wallZNorth + 3;
 
                 // Skip bridges that extend past or overlap the fence perimeter
                 if (bridgeWestX <= fMinX || bridgeEastX >= fMaxX ||
@@ -112,15 +112,15 @@ internal sealed class BridgeService(
 
     /// <summary>
     /// Builds a N-S walkway bridge arching over an E-W canal.
-    /// Shape: 2-step ramp up → flat deck over canal → 2-step ramp down.
-    /// Deck height: SurfaceY+2 (2 blocks of air above canal water at SurfaceY-1).
-    /// Materials: stone brick deck, stone brick stairs for ramps, stone brick wall railings.
+    /// Shape: 3-step ramp up → flat deck over canal → 3-step ramp down.
+    /// Deck height: SurfaceY+4 (3 blocks of clearance above rails at SurfaceY+1).
+    /// Materials: stone brick deck, stone brick stairs for ramps, oak_fence supports, stone brick wall railings.
     /// </summary>
     private async Task BuildNorthSouthBridgeAsync(int centerX, int canalCenterZ, int width, CancellationToken ct)
     {
         var halfW = width / 2;
         var sy = VillageLayout.SurfaceY;
-        var deckY = sy + 2;
+        var deckY = sy + 4;
 
         var westX = centerX - halfW;
         var eastX = centerX + halfW;
@@ -129,19 +129,23 @@ internal sealed class BridgeService(
         var wallZSouth = canalCenterZ - VillageLayout.CanalWaterWidth / 2 - 1;
         var wallZNorth = canalCenterZ + VillageLayout.CanalWaterWidth / 2 + 1;
 
-        // Clear air above bridge area so ramps and deck have room
+        // Clear air above bridge area so ramps and deck have room (start at sy+2 to preserve rails at sy+1)
         await rcon.SendCommandAsync(
-            $"fill {westX} {sy + 1} {wallZSouth - 2} {eastX} {deckY + 1} {wallZNorth + 2} minecraft:air",
+            $"fill {westX} {sy + 2} {wallZSouth - 3} {eastX} {deckY + 1} {wallZNorth + 3} minecraft:air",
             CommandPriority.Normal, ct);
 
         // --- South ramp (approaching from lower Z) ---
         // Step 1: stairs at SurfaceY+1
         await rcon.SendCommandAsync(
-            $"fill {westX} {sy + 1} {wallZSouth - 2} {eastX} {sy + 1} {wallZSouth - 2} minecraft:stone_brick_stairs[facing=south,half=bottom]",
+            $"fill {westX} {sy + 1} {wallZSouth - 3} {eastX} {sy + 1} {wallZSouth - 3} minecraft:stone_brick_stairs[facing=south,half=bottom]",
             CommandPriority.Normal, ct);
         // Step 2: stairs at SurfaceY+2
         await rcon.SendCommandAsync(
-            $"fill {westX} {deckY} {wallZSouth - 1} {eastX} {deckY} {wallZSouth - 1} minecraft:stone_brick_stairs[facing=south,half=bottom]",
+            $"fill {westX} {sy + 2} {wallZSouth - 2} {eastX} {sy + 2} {wallZSouth - 2} minecraft:stone_brick_stairs[facing=south,half=bottom]",
+            CommandPriority.Normal, ct);
+        // Step 3: stairs at SurfaceY+3
+        await rcon.SendCommandAsync(
+            $"fill {westX} {sy + 3} {wallZSouth - 1} {eastX} {sy + 3} {wallZSouth - 1} minecraft:stone_brick_stairs[facing=south,half=bottom]",
             CommandPriority.Normal, ct);
 
         // --- Bridge deck (spans the full canal width including walls) ---
@@ -150,19 +154,25 @@ internal sealed class BridgeService(
             CommandPriority.Normal, ct);
 
         // --- North ramp (exiting toward higher Z) ---
+        // Step 1: stairs at SurfaceY+3
         await rcon.SendCommandAsync(
-            $"fill {westX} {deckY} {wallZNorth + 1} {eastX} {deckY} {wallZNorth + 1} minecraft:stone_brick_stairs[facing=north,half=bottom]",
+            $"fill {westX} {sy + 3} {wallZNorth + 1} {eastX} {sy + 3} {wallZNorth + 1} minecraft:stone_brick_stairs[facing=north,half=bottom]",
             CommandPriority.Normal, ct);
+        // Step 2: stairs at SurfaceY+2
         await rcon.SendCommandAsync(
-            $"fill {westX} {sy + 1} {wallZNorth + 2} {eastX} {sy + 1} {wallZNorth + 2} minecraft:stone_brick_stairs[facing=north,half=bottom]",
+            $"fill {westX} {sy + 2} {wallZNorth + 2} {eastX} {sy + 2} {wallZNorth + 2} minecraft:stone_brick_stairs[facing=north,half=bottom]",
+            CommandPriority.Normal, ct);
+        // Step 3: stairs at SurfaceY+1
+        await rcon.SendCommandAsync(
+            $"fill {westX} {sy + 1} {wallZNorth + 3} {eastX} {sy + 1} {wallZNorth + 3} minecraft:stone_brick_stairs[facing=north,half=bottom]",
             CommandPriority.Normal, ct);
 
-        // --- Support pillars (extend canal walls up to deck under the bridge) ---
+        // --- Support pillars (oak_fence so minecarts can pass through at rail height) ---
         await rcon.SendCommandAsync(
-            $"fill {westX} {sy + 1} {wallZSouth} {eastX} {sy + 1} {wallZSouth} minecraft:stone_bricks",
+            $"fill {westX} {sy + 1} {wallZSouth} {eastX} {deckY - 1} {wallZSouth} minecraft:oak_fence",
             CommandPriority.Normal, ct);
         await rcon.SendCommandAsync(
-            $"fill {westX} {sy + 1} {wallZNorth} {eastX} {sy + 1} {wallZNorth} minecraft:stone_bricks",
+            $"fill {westX} {sy + 1} {wallZNorth} {eastX} {deckY - 1} {wallZNorth} minecraft:oak_fence",
             CommandPriority.Normal, ct);
 
         // --- Railings (stone brick walls on the outer bridge edges) ---
