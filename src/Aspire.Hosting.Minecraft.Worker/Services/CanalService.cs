@@ -290,7 +290,7 @@ internal sealed class CanalService(
             if (x != minX && (x - minX) % PoweredRailInterval == 0)
             {
                 await rcon.SendCommandAsync(
-                    $"setblock {x} {canalY} {centerZ + 2} minecraft:redstone_torch",
+                    $"setblock {x} {canalY} {centerZ + 1} minecraft:redstone_torch",
                     CommandPriority.Normal, ct);
             }
         }
