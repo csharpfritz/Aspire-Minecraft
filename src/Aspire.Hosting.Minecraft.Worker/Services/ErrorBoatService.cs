@@ -59,7 +59,7 @@ internal sealed class ErrorBoatService(
     /// </summary>
     public async Task SpawnBoatsForChangesAsync(IReadOnlyList<ResourceStatusChange> changes, CancellationToken ct = default)
     {
-        if (changes.Count == 0) return;
+        if (changes.Count == 0 && _pendingChanges.Count == 0) return;
 
         // Gate on canal readiness — if canals aren't built yet, buffer the changes for later
         if (canals is null || canals.CanalPositions.Count == 0)
