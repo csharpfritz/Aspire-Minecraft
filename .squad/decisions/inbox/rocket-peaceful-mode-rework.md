@@ -1,5 +1,0 @@
-### 2026-03-04: Peaceful mode reworked — difficulty easy + doMobSpawning false
-**By:** Rocket
-**What:** Changed peaceful mode from `difficulty peaceful` to a 3-step sequence: `difficulty peaceful` (one-shot hostile mob clear) → `difficulty easy` → `gamerule doMobSpawning false`. Also added thread-safety locks to ErrorBoatService and a `GetFruitStandBounds()` method to VillageLayout for shared fruit stand positioning.
-**Why:** `difficulty peaceful` was silently despawning summoned creepers in error minecarts. The new approach clears existing hostiles on startup, then keeps the world in easy mode with no natural mob spawning — summoned entities (creepers, villagers, horses, guardians) all persist. Bridge/fruit stand collision avoidance added via VillageLayout.GetFruitStandBounds so both BridgeService and VillagerService use canonical positions.
-**Impact:** Any service that summons hostile mobs now works correctly with peaceful mode enabled. The `doMobSpawning false` gamerule also prevents natural passive mob spawning, but all village mobs are summoned explicitly so this has no user-facing effect.

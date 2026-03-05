@@ -5668,3 +5668,108 @@ The village fence gate was positioned at `BaseX + StructureSize` (aligned with t
 - MinecartRailService.cs: Verified rail curves work with regular rails at ground level
 - ErrorVisualizationService.cs: Changed entity type from boat to minecart; removed boat propulsion logic
 - Tests: All minecart rail tests pass; boat movement tests removed as superseded
+
+### Proactive Milestone Feature Tests — Test Contract Patterns
+
+**By:** Nebula
+**Date:** 2026-02-27
+
+**What:**
+- Squad agent name parsing tests use a local reference implementation of the parsing logic. When Shuri's actual parser lands, these tests should be rewired to call the real implementation instead of the test-local `ParseSquadAgentNames` method.
+- Bridge collision tests define `BridgeOverlapsFruitStand` and `ShiftBridgeAwayFromStand` locally. When Rocket adds collision avoidance to `BridgeService`, these helpers should be replaced with the real methods.
+- ErrorCreeperSpawnTests exercise `ErrorBoatService` directly — these are integration tests that work today and require no rewiring.
+
+**Why:**
+Proactive test patterns (writing tests before implementation) require a local contract definition. This is intentional — the local helpers serve as executable specifications. When the real code lands, the team should:
+1. Replace local parsing/collision helpers with the real implementation
+2. Verify all existing assertions still hold
+3. Add any additional tests for edge cases discovered during implementation
+
+
+### 2026-03-04: Peaceful mode reworked — difficulty easy + doMobSpawning false
+**By:** Rocket
+**What:** Changed peaceful mode from `difficulty peaceful` to a 3-step sequence: `difficulty peaceful` (one-shot hostile mob clear) → `difficulty easy` → `gamerule doMobSpawning false`. Also added thread-safety locks to ErrorBoatService and a `GetFruitStandBounds()` method to VillageLayout for shared fruit stand positioning.
+**Why:** `difficulty peaceful` was silently despawning summoned creepers in error minecarts. The new approach clears existing hostiles on startup, then keeps the world in easy mode with no natural mob spawning — summoned entities (creepers, villagers, horses, guardians) all persist. Bridge/fruit stand collision avoidance added via VillageLayout.GetFruitStandBounds so both BridgeService and VillagerService use canonical positions.
+**Impact:** Any service that summons hostile mobs now works correctly with peaceful mode enabled. The `doMobSpawning false` gamerule also prevents natural passive mob spawning, but all village mobs are summoned explicitly so this has no user-facing effect.
+
+
+# Decision: Squad Villager NPC Spawning in Worker
+
+**Author:** Rocket
+**Date:** 2026-03-05
+**Status:** Implemented
+
+## Context
+
+Shuri implemented `WithSquadVillagers()` on the hosting side, which parses `.squad/team.md` and injects agent names as the `ASPIRE_SQUAD_AGENTS` environment variable. The worker needed a service to consume this and spawn corresponding NPC villagers in the Minecraft village.
+
+## Decision
+
+- Created `SquadVillagerService` as a singleton following the existing `VillagerService` pattern.
+- Registered conditionally in `Program.cs` — only when `ASPIRE_SQUAD_AGENTS` is present (no allocation if unused).
+- Villagers are spread around building entrances and pathways, avoiding the fruit stand area where the 5 existing NPCs (Maddy, Damian, Fowler, Brady, Scott) live.
+- Each villager is tagged `squad_villager` for easy cleanup via `kill @e[tag=squad_villager]`.
+- Villagers are `Invulnerable:1b` so players can't kill them, and `NoAI:0` so they wander naturally.
+- Runs after structures are built (same timing as `VillagerService`).
+
+## Impact
+
+- New file: `src/Aspire.Hosting.Minecraft.Worker/Services/SquadVillagerService.cs`
+- Modified: `src/Aspire.Hosting.Minecraft.Worker/Program.cs` (DI registration + worker injection)
+- No breaking changes — graceful no-op when env var is absent.
+
+
+# Decision: Replace Creeper Minecarts with TNT Minecarts
+
+**Author:** Rocket (Integration Dev)  
+**Requested by:** Jeffrey T. Fritz  
+**Date:** 2025-07-14
+
+## Context
+
+Error minecarts previously spawned a `minecraft:minecart` carrying a `minecraft:creeper` passenger to visually represent unhealthy resources. This required a workaround for peaceful mode: briefly setting `difficulty peaceful` to clear existing hostiles, then switching to `difficulty easy` with `doMobSpawning false` — because true peaceful mode would despawn the summoned creepers.
+
+## Decision
+
+Replaced `minecraft:minecart` + creeper passenger with `minecraft:tnt_minecart` (Fuse:-1, inert/never explodes). This is a single entity rather than a minecart-with-passenger compound.
+
+Restored simple `difficulty peaceful` since TNT minecarts are entities, not hostile mobs — peaceful mode won't despawn them.
+
+## Changes
+
+- **ErrorBoatService.cs**: Summon command now uses `tnt_minecart` with `Fuse:-1`. Removed creeper cleanup from `CleanupBoatsAsync`. Cleanup now targets `type=minecraft:tnt_minecart` instead of `type=minecraft:minecart`.
+- **Program.cs**: Peaceful mode is now a single `difficulty peaceful` command — no more easy-mode/doMobSpawning workaround.
+
+## Trade-offs
+
+- TNT minecarts are visually distinct (TNT texture) which arguably signals "error" more clearly than a silent creeper
+- `Fuse:-1` ensures no accidental explosions — the TNT is purely decorative
+- Simpler peaceful mode logic reduces RCON chatter by 2 commands at startup
+
+
+# Decision: Squad Detection via WithSquadVillagers()
+
+**Author:** Shuri
+**Date:** 2026-02-27
+**Status:** Implemented
+
+## Context
+
+Jeffrey requested that the Aspire hosting library detect `.squad/team.md` and inject agent names into the worker as an environment variable (`ASPIRE_SQUAD_AGENTS`) so the worker can spawn named villagers.
+
+## Decision
+
+- Created `WithSquadVillagers()` as a standalone opt-in extension method following the existing `With*()` pattern.
+- Added it to the `WithAllFeatures()` chain so it's included when users enable everything.
+- Parsing uses column-index detection from the header row (not regex) — robust to column reordering.
+- Infrastructure agents (Scribe, Ralph) and agents with Silent/Monitor status are excluded by design.
+- File discovery walks up from `AppHostDirectory` to find the repo root — same approach as other file-discovery patterns in the codebase.
+- Graceful fallback: no `.squad/team.md` = no env var, no error.
+
+## Impact
+
+- `WithAllFeatures()` now includes `WithSquadVillagers()` in its chain.
+- Worker needs to read `ASPIRE_SQUAD_AGENTS` env var and spawn villagers (separate task).
+- No breaking changes to existing API surface.
+
+
