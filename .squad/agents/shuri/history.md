@@ -265,6 +265,16 @@
 
 ### Village Redesign Phase 2: World Expansion & Feature Adjustments (2026-02-17)
 
+### Squad Detection and NPC Name Injection (2026-02-27)
+
+- Added `WithSquadVillagers()` extension method to `MinecraftServerBuilderExtensions.cs` — detects `.squad/team.md` in the repo root and injects agent names as `ASPIRE_SQUAD_AGENTS` env var on the worker.
+- `FindSquadTeamFile(string startDirectory)` walks up from AppHostDirectory looking for `.squad/team.md`. Returns full path or null.
+- `ParseSquadAgentNames(string content)` parses the `## Members` markdown table, extracting the Name column. Excludes "Scribe" and "Ralph" by name, and any agent whose Status column contains "Silent" or "Monitor".
+- Added to `WithAllFeatures()` chain — squad villagers are enabled automatically when all features are turned on.
+- Graceful fallback: if `.squad/team.md` doesn't exist, no env var is set, no error, no warning.
+- Design choice: column-index parsing (not regex) for robustness — finds Name and Status columns by header text, so column order doesn't matter.
+- 7 new unit tests covering parsing (active members, excluded statuses, empty content, full team file format) and file discovery (not found, parent directory walk).
+
 - **MAX_WORLD_SIZE** changed from 768 to 29999984 (Minecraft's maximum) in `MinecraftServerBuilderExtensions.cs` — eliminates the invisible wall Jeff was hitting.
 - **VIEW_DISTANCE** increased from 6 to 12, **SIMULATION_DISTANCE** from 4 to 8 — better visibility in the expanded world.
 - **WorldBorderService** diameters increased: NormalDiameter 200→2000, CriticalDiameter 100→1000. Updated XML docs to match.

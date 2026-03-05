@@ -104,4 +104,159 @@ public class MinecraftServerBuilderExtensionTests
             "Expected ASPIRE_FEATURE_REDSTONE_DASHBOARD to be set.");
         Assert.Equal("true", envVars["ASPIRE_FEATURE_REDSTONE_DASHBOARD"]);
     }
+
+    [Fact]
+    public void ParseSquadAgentNames_ExtractsActiveMembers()
+    {
+        var content = """
+            # Team Roster
+
+            ## Members
+
+            | Name | Role | Charter | Status |
+            |------|------|---------|--------|
+            | Rhodey | Lead | charter.md | ✅ Active |
+            | Shuri | Backend Dev | charter.md | ✅ Active |
+            | Rocket | Integration Dev | charter.md | ✅ Active |
+            | Scribe | Session Logger | charter.md | 📋 Silent |
+            | Ralph | Work Monitor | — | 🔄 Monitor |
+            """;
+
+        var names = MinecraftServerBuilderExtensions.ParseSquadAgentNames(content);
+
+        Assert.Equal(3, names.Count);
+        Assert.Contains("Rhodey", names);
+        Assert.Contains("Shuri", names);
+        Assert.Contains("Rocket", names);
+        Assert.DoesNotContain("Scribe", names);
+        Assert.DoesNotContain("Ralph", names);
+    }
+
+    [Fact]
+    public void ParseSquadAgentNames_ExcludesSilentAndMonitorStatus()
+    {
+        var content = """
+            ## Members
+
+            | Name | Role | Charter | Status |
+            |------|------|---------|--------|
+            | Alpha | Dev | c.md | ✅ Active |
+            | Beta | Ops | c.md | 📋 Silent Observer |
+            | Gamma | Test | c.md | 🔄 Monitor Mode |
+            | Delta | Lead | c.md | ✅ Active |
+            """;
+
+        var names = MinecraftServerBuilderExtensions.ParseSquadAgentNames(content);
+
+        Assert.Equal(2, names.Count);
+        Assert.Contains("Alpha", names);
+        Assert.Contains("Delta", names);
+        Assert.DoesNotContain("Beta", names);
+        Assert.DoesNotContain("Gamma", names);
+    }
+
+    [Fact]
+    public void ParseSquadAgentNames_ReturnsEmptyForNoMembersSection()
+    {
+        var content = """
+            # Team Roster
+
+            ## Coordinator
+
+            | Name | Role | Notes |
+            |------|------|-------|
+            | Squad | Coordinator | Routes work. |
+            """;
+
+        var names = MinecraftServerBuilderExtensions.ParseSquadAgentNames(content);
+        Assert.Empty(names);
+    }
+
+    [Fact]
+    public void ParseSquadAgentNames_ReturnsEmptyForEmptyContent()
+    {
+        var names = MinecraftServerBuilderExtensions.ParseSquadAgentNames("");
+        Assert.Empty(names);
+    }
+
+    [Fact]
+    public void ParseSquadAgentNames_HandlesFullTeamFile()
+    {
+        var content = """
+            # Team Roster
+
+            > .NET Aspire integration for Minecraft servers.
+
+            ## Coordinator
+
+            | Name | Role | Notes |
+            |------|------|-------|
+            | Squad | Coordinator | Routes work. |
+
+            ## Members
+
+            | Name | Role | Charter | Status |
+            |------|------|---------|--------|
+            | Rhodey | Lead | `.squad/agents/rhodey/charter.md` | ✅ Active |
+            | Shuri | Backend Dev | `.squad/agents/shuri/charter.md` | ✅ Active |
+            | Rocket | Integration Dev | `.squad/agents/rocket/charter.md` | ✅ Active |
+            | Nebula | Tester | `.squad/agents/nebula/charter.md` | ✅ Active |
+            | Hawkeye | Playwright Expert | `.squad/agents/hawkeye/charter.md` | ✅ Active |
+            | Mantis | Blogger | `.squad/agents/mantis/charter.md` | ✅ Active |
+            | Wong | GitHub Ops | `.squad/agents/wong/charter.md` | ✅ Active |
+            | Vision | Technical Writer | `.squad/agents/vision/charter.md` | ✅ Active |
+            | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
+            | Ralph | Work Monitor | — | 🔄 Monitor |
+
+            ## Issue Source
+
+            | Field | Value |
+            |-------|-------|
+            | **Repository** | csharpfritz/Aspire-Minecraft |
+            """;
+
+        var names = MinecraftServerBuilderExtensions.ParseSquadAgentNames(content);
+
+        Assert.Equal(8, names.Count);
+        var expected = new[] { "Rhodey", "Shuri", "Rocket", "Nebula", "Hawkeye", "Mantis", "Wong", "Vision" };
+        Assert.Equal(expected, names);
+    }
+
+    [Fact]
+    public void FindSquadTeamFile_ReturnsNullWhenNotFound()
+    {
+        // Use a temp directory with no .squad folder
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = MinecraftServerBuilderExtensions.FindSquadTeamFile(tempDir);
+            Assert.Null(result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void FindSquadTeamFile_FindsFileInParentDirectory()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var squadDir = Path.Combine(tempRoot, ".squad");
+        var childDir = Path.Combine(tempRoot, "src", "AppHost");
+        Directory.CreateDirectory(squadDir);
+        Directory.CreateDirectory(childDir);
+        File.WriteAllText(Path.Combine(squadDir, "team.md"), "## Members\n");
+        try
+        {
+            var result = MinecraftServerBuilderExtensions.FindSquadTeamFile(childDir);
+            Assert.NotNull(result);
+            Assert.EndsWith("team.md", result);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }

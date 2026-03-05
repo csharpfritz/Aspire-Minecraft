@@ -890,6 +890,136 @@ public static class MinecraftServerBuilderExtensions
     }
 
     /// <summary>
+    /// Detects a <c>.squad/team.md</c> file in the repository root and injects agent names
+    /// as the <c>ASPIRE_SQUAD_AGENTS</c> environment variable on the worker. The worker uses
+    /// these names to spawn named villagers in the Minecraft world.
+    /// Infrastructure agents (Scribe, Ralph) and agents with Silent or Monitor status are excluded.
+    /// If no <c>.squad/team.md</c> is found, the env var is simply not set — no error, no warning.
+    /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
+    /// </summary>
+    /// <param name="builder">The Minecraft server resource builder.</param>
+    /// <returns>The resource builder for chaining.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when WithAspireWorldDisplay() has not been called first.</exception>
+    public static IResourceBuilder<MinecraftServerResource> WithSquadVillagers(
+        this IResourceBuilder<MinecraftServerResource> builder)
+    {
+        var workerBuilder = builder.Resource.WorkerBuilder
+            ?? throw new InvalidOperationException(
+                "WithSquadVillagers() requires WithAspireWorldDisplay() to be called first.");
+
+        var teamFile = FindSquadTeamFile(builder.ApplicationBuilder.AppHostDirectory);
+        if (teamFile is null)
+            return builder;
+
+        var agents = ParseSquadAgentNames(File.ReadAllText(teamFile));
+        if (agents.Count > 0)
+        {
+            workerBuilder.WithEnvironment("ASPIRE_SQUAD_AGENTS", string.Join(",", agents));
+        }
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Walks up from <paramref name="startDirectory"/> looking for a <c>.squad/team.md</c> file.
+    /// Returns the full path if found, or <c>null</c> if not.
+    /// </summary>
+    internal static string? FindSquadTeamFile(string startDirectory)
+    {
+        var dir = new DirectoryInfo(startDirectory);
+        while (dir is not null)
+        {
+            var candidate = Path.Combine(dir.FullName, ".squad", "team.md");
+            if (File.Exists(candidate))
+                return candidate;
+            dir = dir.Parent;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Parses agent names from the <c>## Members</c> table in a <c>team.md</c> file.
+    /// Excludes infrastructure agents (Scribe, Ralph) and agents whose Status column
+    /// contains "Silent" or "Monitor".
+    /// </summary>
+    internal static List<string> ParseSquadAgentNames(string teamFileContent)
+    {
+        var agents = new List<string>();
+        var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Scribe", "Ralph" };
+
+        var inMembersSection = false;
+        var headerParsed = false;
+        var nameColumnIndex = -1;
+        var statusColumnIndex = -1;
+
+        foreach (var line in teamFileContent.Split('\n'))
+        {
+            var trimmed = line.Trim();
+
+            // Detect section boundaries
+            if (trimmed.StartsWith("## "))
+            {
+                inMembersSection = trimmed.Equals("## Members", StringComparison.OrdinalIgnoreCase);
+                headerParsed = false;
+                continue;
+            }
+
+            if (!inMembersSection)
+                continue;
+
+            // Skip non-table lines
+            if (!trimmed.StartsWith('|'))
+                continue;
+
+            var cells = trimmed.Split('|', StringSplitOptions.None)
+                .Select(c => c.Trim())
+                .ToArray();
+
+            // Parse the header row to find column indices
+            if (!headerParsed)
+            {
+                for (var i = 0; i < cells.Length; i++)
+                {
+                    if (cells[i].Equals("Name", StringComparison.OrdinalIgnoreCase))
+                        nameColumnIndex = i;
+                    else if (cells[i].Equals("Status", StringComparison.OrdinalIgnoreCase))
+                        statusColumnIndex = i;
+                }
+                headerParsed = true;
+                continue;
+            }
+
+            // Skip the separator row (e.g., |------|------|)
+            if (trimmed.Contains("---"))
+                continue;
+
+            if (nameColumnIndex < 0 || nameColumnIndex >= cells.Length)
+                continue;
+
+            var name = cells[nameColumnIndex].Trim();
+            if (string.IsNullOrEmpty(name))
+                continue;
+
+            // Exclude infrastructure agents by name
+            if (excludedNames.Contains(name))
+                continue;
+
+            // Exclude agents with Silent or Monitor status
+            if (statusColumnIndex >= 0 && statusColumnIndex < cells.Length)
+            {
+                var status = cells[statusColumnIndex];
+                if (status.Contains("Silent", StringComparison.OrdinalIgnoreCase) ||
+                    status.Contains("Monitor", StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
+
+            agents.Add(name);
+        }
+
+        return agents;
+    }
+
+    /// <summary>
     /// Enables all opt-in Minecraft world display features at once.
     /// This is a convenience method equivalent to calling:
     /// <see cref="WithParticleEffects"/>, <see cref="WithTitleAlerts"/>, <see cref="WithWeatherEffects"/>,
@@ -898,7 +1028,8 @@ public static class MinecraftServerBuilderExtensions
     /// <see cref="WithDeploymentFanfare"/>, <see cref="WithWorldBorderPulse"/>, <see cref="WithAchievements"/>,
     /// <see cref="WithHeartbeat"/>, <see cref="WithServiceSwitches"/>,
     /// <see cref="WithPeacefulMode"/>, <see cref="WithRedstoneDashboard"/>, <see cref="WithRconDebugLogging"/>,
-    /// <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, <see cref="WithCanals"/>, and <see cref="WithNeighborhoods"/>.
+    /// <see cref="WithMinecartRails"/>, <see cref="WithErrorBoats"/>, <see cref="WithCanals"/>,
+    /// <see cref="WithNeighborhoods"/>, and <see cref="WithSquadVillagers"/>.
     /// Requires <see cref="WithAspireWorldDisplay{TWorkerProject}"/> to be called first.
     /// </summary>
     /// <param name="builder">The Minecraft server resource builder.</param>
@@ -932,7 +1063,8 @@ public static class MinecraftServerBuilderExtensions
             .WithMinecartRails()
             .WithErrorBoats()
             .WithCanals()
-            .WithNeighborhoods();
+            .WithNeighborhoods()
+            .WithSquadVillagers();
     }
 
     /// <summary>
