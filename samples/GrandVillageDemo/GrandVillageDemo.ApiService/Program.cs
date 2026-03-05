@@ -31,9 +31,10 @@ app.MapPost("/trigger-error", async (ILogger<Program> logger, IHttpClientFactory
             await client.PostAsJsonAsync(errorWebhookUrl,
                 new { resourceName = "api", message = "User-triggered error", severityText = "Error" });
         }
-        catch
+        catch (Exception ex)
         {
             // Best-effort notification — don't fail the trigger if worker is unreachable
+            logger.LogWarning(ex, "Failed to send error webhook to {Url}", errorWebhookUrl);
         }
     }
 

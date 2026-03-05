@@ -94,27 +94,45 @@ internal sealed class ErrorBoatService(
     {
         var orderedNames = VillageLayout.ReorderByDependency(monitor.Resources);
         var index = orderedNames.IndexOf(resourceName);
-        if (index < 0) return;
+        if (index < 0)
+        {
+            logger.LogWarning("Cannot spawn error minecart: resource '{Resource}' not found in ordered names [{Names}]",
+                resourceName, string.Join(", ", orderedNames));
+            return;
+        }
 
         // Per-resource cooldown
         if (_lastSpawnTime.TryGetValue(resourceName, out var lastSpawn)
             && DateTime.UtcNow - lastSpawn < SpawnCooldown)
+        {
+            logger.LogDebug("Error minecart cooldown active for {Resource}", resourceName);
             return;
+        }
 
         // Per-resource cap
         _cartsPerResource.TryGetValue(resourceName, out var resourceCarts);
-        if (resourceCarts >= MaxCartsPerResource) return;
+        if (resourceCarts >= MaxCartsPerResource)
+        {
+            logger.LogDebug("Error minecart per-resource cap reached for {Resource} ({Count}/{Max})",
+                resourceName, resourceCarts, MaxCartsPerResource);
+            return;
+        }
 
         // Global cap
-        if (_totalCarts >= MaxTotalCarts) return;
+        if (_totalCarts >= MaxTotalCarts)
+        {
+            logger.LogDebug("Error minecart global cap reached ({Count}/{Max})", _totalCarts, MaxTotalCarts);
+            return;
+        }
 
         var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
 
-        // Spawn minecart on the powered rail — rails provide propulsion, no Motion needed.
-        // Creeper passenger rides through all curves including the trunk junction.
-        await rcon.SendCommandAsync(
-            $"summon minecraft:minecart {cx} {cy} {cz} {{Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_cart\"]}}",
-            CommandPriority.Normal, ct);
+        // Spawn minecart with initial westward Motion so it rides the E-W branch rail
+        // to the N-S trunk line and then south to the lake. Powered rails on flat ground
+        // do NOT push stationary carts — they only accelerate existing motion.
+        var cmd = $"summon minecraft:minecart {cx} {cy} {cz} {{Motion:[-1.0d,0.0d,0.0d],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_cart\"]}}";
+        logger.LogInformation("Summoning error minecart: {Command}", cmd);
+        await rcon.SendCommandAsync(cmd, CommandPriority.Normal, ct);
 
         _cartsPerResource[resourceName] = resourceCarts + 1;
         _totalCarts++;
