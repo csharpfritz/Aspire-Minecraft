@@ -638,3 +638,25 @@ await rcon.SendCommandAsync(
 
 
  Team update (2026-03-02): Minecart rails on ground surface  final architecture locked. Boats cannot autonomously turn corners in vanilla Minecraft; minecarts on rails are sole solution. CanalService no longer excavates or builds infrastructure; rails placed at ground surface (SurfaceY + 1). Junction curves use regular rails for auto-corner-detection. No more blue ice floors or stone brick walls  minecarts handle all routing natively.  decided by Rocket, Jeffrey T. Fritz
+
+## Learnings
+
+### HealthCheckAnnotation.Key is NOT a URL path (2026-03-02)
+- `HealthCheckAnnotation.Key` is the health check registration name (e.g. `"api_HttpHealthCheck"`), NOT a URL path like `/health`.
+- Using it as `HEALTH_PATH` caused `AspireResourceMonitor.CheckHttpHealthAsync` to poll `https://host/api_HttpHealthCheck` → 404 → permanent unhealthy.
+- Fix: removed the `HealthCheckAnnotation` extraction block from `WithMonitoredResource`. Without `HEALTH_PATH`, the worker falls through to check the base URL directly.
+- The API's base URL already returns 200/503 for healthy/unhealthy via `app.MapGet("/", ...)`, so no dedicated health path is needed.
+- Key file: `src/Aspire.Hosting.Minecraft/MinecraftServerBuilderExtensions.cs` lines ~377-383.
+
+### Minecart spawn position verification (2026-03-02)
+- `GetCanalEntrance()` returns `(ox + StructureSize, SurfaceY + 1, oz + StructureSize + 4)` — the easternmost E-W rail position.
+- CanalService's E-W rails start at `canalStartX = ox + StructureSize`, confirming spawn is on an actual rail block.
+- Minecarts ride west on E-W rails, hit the south_east curve junction, then ride south on N-S trunk toward the lake — all autonomous via rail auto-curve.
+
+### Bridge clearance and rail preservation fix (2026-03-03)
+- Bridge deck raised from SurfaceY+2 to SurfaceY+4  gives 3 blocks clearance above rails at SurfaceY+1, enough for minecart (~0.7) + creeper (~1.7).
+- Air clear changed to start at SurfaceY+2 instead of SurfaceY+1  preserves E-W rails that CanalService places at SurfaceY+1 before BridgeService runs.
+- Bridge supports changed from stone_bricks to oak_fence  minecarts pass through fence posts, same principle as boats through fences.
+- Ramps extended from 2-step to 3-step (SurfaceY+1  +2  +3  +4 deck) and bridge Z extent extended by 1 block for the extra step.
+- Support pillars now span from SurfaceY+1 to deckY-1 (3 blocks tall) instead of single-row at SurfaceY+1.
+- N-S rail redstone torches verified correct: placed at (lineX-1, SurfaceY+1, z) every 8 blocks, adjacent to powered rails. No code change needed.
