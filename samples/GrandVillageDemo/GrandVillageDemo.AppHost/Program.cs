@@ -88,6 +88,8 @@ var minecraft = builder.AddMinecraftServer("minecraft", gamePort: 25565, rconPor
     .WithOpenTelemetry()
     .WithAspireWorldDisplay<Projects.Aspire_Hosting_Minecraft_Worker>()
 
+		.WithSquadVillagers()
+
     // Enable every feature (Grand Village buildings are now the default)
     .WithAllFeatures()
 

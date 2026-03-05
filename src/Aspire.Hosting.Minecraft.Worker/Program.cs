@@ -326,16 +326,11 @@ file sealed class MinecraftWorldWorker(
         if (errorBoats is not null)
             await errorBoats.InitializeAsync(stoppingToken);
 
-        // Peaceful mode — eliminate hostile mobs without blocking summoned entities.
-        // Using "difficulty peaceful" would despawn ALL hostile mobs including summoned
-        // creepers in error minecarts. Instead: briefly set peaceful to clear existing hostiles,
-        // then switch to easy with natural mob spawning disabled so /summon still works.
+        // Peaceful mode — no hostile mobs, TNT minecarts are entities not mobs
         if (Environment.GetEnvironmentVariable("ASPIRE_FEATURE_PEACEFUL") == "true")
         {
             await rcon.SendCommandAsync("difficulty peaceful", stoppingToken);
-            await rcon.SendCommandAsync("difficulty easy", stoppingToken);
-            await rcon.SendCommandAsync("gamerule doMobSpawning false", stoppingToken);
-            logger.LogInformation("Peaceful mode enabled — hostile mobs cleared, natural spawning disabled");
+            logger.LogInformation("Peaceful mode enabled");
         }
 
         while (!stoppingToken.IsCancellationRequested)

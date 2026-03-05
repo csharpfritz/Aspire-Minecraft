@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace Aspire.Hosting.Minecraft.Worker.Services;
 
 /// <summary>
-/// Spawns minecarts carrying creeper passengers when resources transition to Unhealthy.
+/// Spawns TNT minecarts when resources transition to Unhealthy.
 /// Minecarts spawn on powered rails behind the erroring building and ride the rail network
 /// through curved junctions to the trunk canal and into the lake.
 /// Anti-pileup caps limit per-resource and global minecart counts.
@@ -137,12 +137,12 @@ internal sealed class ErrorBoatService(
 
         var (cx, cy, cz) = VillageLayout.GetCanalEntrance(resourceName, index);
 
-        // Spawn minecart with initial westward Motion so it rides the E-W branch rail
+        // Spawn TNT minecart with initial westward Motion so it rides the E-W branch rail
         // to the N-S trunk line and then south to the lake. Powered rails on flat ground
         // do NOT push stationary carts — they only accelerate existing motion.
-        // PersistenceRequired prevents distance-based despawning of the creeper passenger.
-        var cmd = $"summon minecraft:minecart {cx} {cy} {cz} " +
-            $"{{Motion:[-1.0d,0.0d,0.0d],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b,PersistenceRequired:1b,Tags:[\"error_creeper\"]}}],Tags:[\"error_cart\"]}}";
+        // Fuse:-1 keeps the TNT inert (visual only, never explodes).
+        var cmd = $"summon minecraft:tnt_minecart {cx} {cy} {cz} " +
+            $"{{Motion:[-1.0d,0.0d,0.0d],Fuse:-1,Tags:[\"error_cart\"]}}";
         logger.LogInformation("Summoning error minecart: {Command}", cmd);
         await rcon.SendCommandAsync(cmd, CommandPriority.Normal, ct);
 
@@ -176,14 +176,9 @@ internal sealed class ErrorBoatService(
             var lakeCenterX = lakeX + VillageLayout.LakeWidth / 2;
             var lakeCenterZ = lakeZ + VillageLayout.LakeLength / 2;
 
-            // Kill error minecarts near the lake
+            // Kill error TNT minecarts near the lake
             await rcon.SendCommandAsync(
-                $"kill @e[type=minecraft:minecart,tag=error_cart,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
-                CommandPriority.Low, ct);
-
-            // Clean up orphaned NoAI creepers ejected when minecarts despawn
-            await rcon.SendCommandAsync(
-                $"kill @e[type=minecraft:creeper,tag=error_creeper,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..200]",
+                $"kill @e[type=minecraft:tnt_minecart,tag=error_cart,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..15]",
                 CommandPriority.Low, ct);
 
             // Periodically reset counters to avoid stale tracking
