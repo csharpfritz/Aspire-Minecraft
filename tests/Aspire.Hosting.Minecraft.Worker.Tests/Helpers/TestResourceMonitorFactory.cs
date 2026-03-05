@@ -41,7 +41,7 @@ internal static class TestResourceMonitorFactory
         dict.Clear();
         foreach (var (name, type, status) in resources)
         {
-            dict[name] = new ResourceInfo(name, type, "", "", 0, status);
+            dict[name] = new ResourceInfo(name, type, "", "", 0, "", status);
         }
     }
 
@@ -57,7 +57,7 @@ internal static class TestResourceMonitorFactory
         dict.Clear();
         foreach (var (name, type, status, dependencies) in resources)
         {
-            dict[name] = new ResourceInfo(name, type, "", "", 0, status, dependencies);
+            dict[name] = new ResourceInfo(name, type, "", "", 0, "", status, dependencies);
         }
     }
 

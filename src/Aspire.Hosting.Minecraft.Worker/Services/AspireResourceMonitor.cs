@@ -43,12 +43,13 @@ internal sealed class AspireResourceMonitor
                 var host = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_HOST") ?? "";
                 var portStr = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_PORT") ?? "";
                 int.TryParse(portStr, out var port);
+                var healthPath = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_HEALTH_PATH") ?? "";
                 var dependsOnStr = Environment.GetEnvironmentVariable($"ASPIRE_RESOURCE_{upperName}_DEPENDS_ON") ?? "";
                 var dependencies = string.IsNullOrWhiteSpace(dependsOnStr)
                     ? Array.Empty<string>()
                     : dependsOnStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-                _resources[name] = new ResourceInfo(name, type, url, host, port, ResourceStatus.Unknown, dependencies);
+                _resources[name] = new ResourceInfo(name, type, url, host, port, healthPath, ResourceStatus.Unknown, dependencies);
 
                 var endpoint = !string.IsNullOrEmpty(url) ? url
                     : !string.IsNullOrEmpty(host) ? $"{host}:{port} (tcp)"
@@ -77,7 +78,10 @@ internal sealed class AspireResourceMonitor
 
             if (!string.IsNullOrEmpty(info.Url))
             {
-                newStatus = await CheckHttpHealthAsync(info.Url, ct);
+                var healthUrl = !string.IsNullOrEmpty(info.HealthPath)
+                    ? info.Url.TrimEnd('/') + "/" + info.HealthPath.TrimStart('/')
+                    : info.Url;
+                newStatus = await CheckHttpHealthAsync(healthUrl, ct);
             }
             else if (!string.IsNullOrEmpty(info.TcpHost) && info.TcpPort > 0)
             {
@@ -144,7 +148,7 @@ internal sealed class AspireResourceMonitor
     public int TotalCount => _resources.Count;
 }
 
-internal record ResourceInfo(string Name, string Type, string Url, string TcpHost, int TcpPort, ResourceStatus Status, IReadOnlyList<string>? Dependencies = null)
+internal record ResourceInfo(string Name, string Type, string Url, string TcpHost, int TcpPort, string HealthPath, ResourceStatus Status, IReadOnlyList<string>? Dependencies = null)
 {
     /// <summary>Gets the resource's dependency list, defaulting to empty.</summary>
     public IReadOnlyList<string> Dependencies { get; init; } = Dependencies ?? Array.Empty<string>();
