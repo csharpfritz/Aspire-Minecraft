@@ -75,6 +75,13 @@ internal sealed class BridgeService(
         const int bridgeWidth = 5;
         var halfW = bridgeWidth / 2;
 
+        // Fruit stand bounds for collision avoidance (1-block buffer on each side)
+        var (fsMinX, fsMinZ, fsMaxX, fsMaxZ) = VillageLayout.GetFruitStandBounds(orderedNames.Count);
+        fsMinX -= 1;
+        fsMinZ -= 1;
+        fsMaxX += 1;
+        fsMaxZ += 1;
+
         // Track unique canal Z values to avoid duplicate boulevard bridges (same-row buildings share Z)
         var bridgedCanalZs = new HashSet<int>();
 
@@ -87,25 +94,41 @@ internal sealed class BridgeService(
 
             foreach (var boulevardCenterX in boulevardCenters)
             {
+                var adjustedCenterX = boulevardCenterX;
+
                 // Compute full bridge extents (deck + ramps)
-                var bridgeWestX = boulevardCenterX - halfW;
-                var bridgeEastX = boulevardCenterX + halfW;
+                var bridgeWestX = adjustedCenterX - halfW;
+                var bridgeEastX = adjustedCenterX + halfW;
                 var wallZSouth = canalCenterZ - VillageLayout.CanalWaterWidth / 2 - 1;
                 var wallZNorth = canalCenterZ + VillageLayout.CanalWaterWidth / 2 + 1;
                 var bridgeZMin = wallZSouth - 3;
                 var bridgeZMax = wallZNorth + 3;
+
+                // Shift bridge east or west if it overlaps the fruit stand
+                if (bridgeWestX <= fsMaxX && bridgeEastX >= fsMinX &&
+                    bridgeZMin <= fsMaxZ && bridgeZMax >= fsMinZ)
+                {
+                    var eastRoom = fMaxX - bridgeEastX;
+                    var westRoom = bridgeWestX - fMinX;
+                    var shift = eastRoom >= westRoom ? 6 : -6;
+                    adjustedCenterX += shift;
+                    bridgeWestX = adjustedCenterX - halfW;
+                    bridgeEastX = adjustedCenterX + halfW;
+                    logger.LogInformation("Shifted bridge {Direction} to avoid fruit stand — new center X={X}, Z={Z}",
+                        shift > 0 ? "east" : "west", adjustedCenterX, canalCenterZ);
+                }
 
                 // Skip bridges that extend past or overlap the fence perimeter
                 if (bridgeWestX <= fMinX || bridgeEastX >= fMaxX ||
                     bridgeZMin <= fMinZ || bridgeZMax >= fMaxZ)
                 {
                     logger.LogInformation("Skipping bridge at X={X}, Z={Z} — outside fence bounds",
-                        boulevardCenterX, canalCenterZ);
+                        adjustedCenterX, canalCenterZ);
                     continue;
                 }
 
-                await BuildNorthSouthBridgeAsync(boulevardCenterX, canalCenterZ, bridgeWidth, ct);
-                logger.LogInformation("Boulevard walkway bridge at X={X}, Z={Z}", boulevardCenterX, canalCenterZ);
+                await BuildNorthSouthBridgeAsync(adjustedCenterX, canalCenterZ, bridgeWidth, ct);
+                logger.LogInformation("Boulevard walkway bridge at X={X}, Z={Z}", adjustedCenterX, canalCenterZ);
             }
         }
     }

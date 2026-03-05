@@ -476,6 +476,19 @@ internal static class VillageLayout
     }
 
     /// <summary>
+    /// Gets the fruit stand bounding box (minX, minZ, maxX, maxZ) at town center.
+    /// The stand is 5 blocks wide (X) × 3 blocks deep (Z), centered on the village X-axis.
+    /// Used by BridgeService and VillagerService to share the canonical fruit stand position.
+    /// </summary>
+    public static (int minX, int minZ, int maxX, int maxZ) GetFruitStandBounds(int resourceCount)
+    {
+        var (fMinX, fMinZ, fMaxX, fMaxZ) = GetVillageBounds(resourceCount);
+        var standX = (fMinX + fMaxX) / 2 - 2;
+        var standZ = (fMinZ + fMaxZ) / 2;
+        return (standX, standZ, standX + 4, standZ + 2);
+    }
+
+    /// <summary>
     /// Gets all building footprint bounding boxes for collision detection.
     /// Each box is (minX, minZ, maxX, maxZ) at surface level.
     /// Used by canal and rail routing to avoid cutting through structures.

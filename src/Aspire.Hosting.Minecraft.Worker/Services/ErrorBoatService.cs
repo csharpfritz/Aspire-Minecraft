@@ -23,6 +23,7 @@ internal sealed class ErrorBoatService(
     private readonly Dictionary<string, int> _cartsPerResource = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _lastSpawnTime = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceStatusChange> _pendingChanges = new();
+    private readonly object _lock = new();
     private int _totalCarts;
     private DateTime _lastCountReset = DateTime.UtcNow;
 
@@ -38,14 +39,18 @@ internal sealed class ErrorBoatService(
     /// <summary>
     /// Spawns an error minecart for a specific resource triggered by an OpenTelemetry error-level log entry.
     /// Applies the same rate limiting and canal readiness gating as health-based spawns.
+    /// Thread-safe: may be called from the HTTP endpoint concurrently with the worker loop.
     /// </summary>
     public async Task SpawnBoatForErrorLogAsync(string resourceName, CancellationToken ct = default)
     {
         // Gate on canal readiness
         if (canals is null || canals.CanalPositions.Count == 0)
         {
-            logger.LogInformation("Buffering error minecart for {Resource} (canals not ready)", resourceName);
-            _pendingChanges.Add(new ResourceStatusChange(resourceName, "unknown", ResourceStatus.Healthy, ResourceStatus.Unhealthy));
+            lock (_lock)
+            {
+                logger.LogInformation("Buffering error minecart for {Resource} (canals not ready)", resourceName);
+                _pendingChanges.Add(new ResourceStatusChange(resourceName, "unknown", ResourceStatus.Healthy, ResourceStatus.Unhealthy));
+            }
             return;
         }
 
@@ -59,29 +64,34 @@ internal sealed class ErrorBoatService(
     /// </summary>
     public async Task SpawnBoatsForChangesAsync(IReadOnlyList<ResourceStatusChange> changes, CancellationToken ct = default)
     {
-        if (changes.Count == 0 && _pendingChanges.Count == 0) return;
+        List<ResourceStatusChange> allChanges;
 
-        // Gate on canal readiness — if canals aren't built yet, buffer the changes for later
-        if (canals is null || canals.CanalPositions.Count == 0)
+        lock (_lock)
         {
-            foreach (var change in changes)
+            if (changes.Count == 0 && _pendingChanges.Count == 0) return;
+
+            // Gate on canal readiness — if canals aren't built yet, buffer the changes for later
+            if (canals is null || canals.CanalPositions.Count == 0)
             {
-                if (change.NewStatus == ResourceStatus.Unhealthy)
+                foreach (var change in changes)
                 {
-                    if (!_pendingChanges.Any(pc => pc.Name.Equals(change.Name, StringComparison.OrdinalIgnoreCase)))
+                    if (change.NewStatus == ResourceStatus.Unhealthy)
                     {
-                        _pendingChanges.Add(change);
-                        logger.LogInformation("Buffering error minecart spawn for {Resource} (canals not ready yet)", change.Name);
+                        if (!_pendingChanges.Any(pc => pc.Name.Equals(change.Name, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            _pendingChanges.Add(change);
+                            logger.LogInformation("Buffering error minecart spawn for {Resource} (canals not ready yet)", change.Name);
+                        }
                     }
                 }
+                return;
             }
-            return;
-        }
 
-        // Canals are ready! Process both new changes and any buffered changes
-        var allChanges = new List<ResourceStatusChange>(_pendingChanges);
-        allChanges.AddRange(changes);
-        _pendingChanges.Clear();
+            // Canals are ready! Snapshot both new changes and any buffered changes, then clear buffer
+            allChanges = new List<ResourceStatusChange>(_pendingChanges);
+            allChanges.AddRange(changes);
+            _pendingChanges.Clear();
+        }
 
         foreach (var change in allChanges)
         {
@@ -130,7 +140,9 @@ internal sealed class ErrorBoatService(
         // Spawn minecart with initial westward Motion so it rides the E-W branch rail
         // to the N-S trunk line and then south to the lake. Powered rails on flat ground
         // do NOT push stationary carts — they only accelerate existing motion.
-        var cmd = $"summon minecraft:minecart {cx} {cy} {cz} {{Motion:[-1.0d,0.0d,0.0d],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b}}],Tags:[\"error_cart\"]}}";
+        // PersistenceRequired prevents distance-based despawning of the creeper passenger.
+        var cmd = $"summon minecraft:minecart {cx} {cy} {cz} " +
+            $"{{Motion:[-1.0d,0.0d,0.0d],Passengers:[{{id:\"minecraft:creeper\",NoAI:1b,Silent:1b,PersistenceRequired:1b,Tags:[\"error_creeper\"]}}],Tags:[\"error_cart\"]}}";
         logger.LogInformation("Summoning error minecart: {Command}", cmd);
         await rcon.SendCommandAsync(cmd, CommandPriority.Normal, ct);
 
@@ -171,7 +183,7 @@ internal sealed class ErrorBoatService(
 
             // Clean up orphaned NoAI creepers ejected when minecarts despawn
             await rcon.SendCommandAsync(
-                $"kill @e[type=minecraft:creeper,nbt={{NoAI:1b,Silent:1b}},x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..200]",
+                $"kill @e[type=minecraft:creeper,tag=error_creeper,x={lakeCenterX},y={VillageLayout.SurfaceY},z={lakeCenterZ},distance=..200]",
                 CommandPriority.Low, ct);
 
             // Periodically reset counters to avoid stale tracking

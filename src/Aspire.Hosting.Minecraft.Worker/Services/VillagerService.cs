@@ -65,9 +65,9 @@ internal sealed class VillagerService(
         if (_standX is null || _standZ is null)
         {
             var resourceCount = _resourceCount ?? 10;
-            var (fMinX, fMinZ, fMaxX, fMaxZ) = VillageLayout.GetVillageBounds(resourceCount);
-            _standX = (fMinX + fMaxX) / 2 - 2; // Center X, offset for 5-wide stand
-            _standZ = (fMinZ + fMaxZ) / 2;      // Center Z — actual village midpoint
+            var (fsMinX, fsMinZ, _, _) = VillageLayout.GetFruitStandBounds(resourceCount);
+            _standX = fsMinX;
+            _standZ = fsMinZ;
         }
         
         var sx = _standX.Value;

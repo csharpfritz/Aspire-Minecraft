@@ -660,3 +660,15 @@ await rcon.SendCommandAsync(
 - Ramps extended from 2-step to 3-step (SurfaceY+1  +2  +3  +4 deck) and bridge Z extent extended by 1 block for the extra step.
 - Support pillars now span from SurfaceY+1 to deckY-1 (3 blocks tall) instead of single-row at SurfaceY+1.
 - N-S rail redstone torches verified correct: placed at (lineX-1, SurfaceY+1, z) every 8 blocks, adjacent to powered rails. No code change needed.
+
+### Peaceful mode vs. creeper spawning fix (2026-03-04)
+- Root cause: `difficulty peaceful` despawns ALL hostile mobs including /summon'd creepers with NoAI:1b. Error minecarts spawned but creeper passengers were immediately removed by the game engine.
+- Fix: Changed peaceful mode setup from single `difficulty peaceful` to a 3-step sequence: `difficulty peaceful` (clear existing hostiles) -> `difficulty easy` (allow summoned hostiles) -> `gamerule doMobSpawning false` (prevent natural spawns). Summoned creepers now persist because difficulty is easy, not peaceful.
+- Added `PersistenceRequired:1b` and `Tags:[error_creeper]` to creeper NBT for distance-despawn protection and targeted cleanup.
+- Thread safety: Added lock around _pendingChanges in ErrorBoatService to prevent race conditions between HTTP endpoint and worker loop.
+- Key files: `Program.cs` (peaceful mode), `ErrorBoatService.cs` (thread safety + NBT).
+
+### Bridge/fruit stand collision avoidance (2026-03-04)
+- Added `VillageLayout.GetFruitStandBounds(resourceCount)` as canonical source for fruit stand position (5x3 blocks).
+- BridgeService checks overlap (with 1-block buffer) before building each bridge. On collision: shifts bridge 6 blocks east or west.
+- Fruit stand position does NOT move. Refactored VillagerService to use GetFruitStandBounds.
