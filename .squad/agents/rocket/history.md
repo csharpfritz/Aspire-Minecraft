@@ -672,3 +672,11 @@ await rcon.SendCommandAsync(
 - Added `VillageLayout.GetFruitStandBounds(resourceCount)` as canonical source for fruit stand position (5x3 blocks).
 - BridgeService checks overlap (with 1-block buffer) before building each bridge. On collision: shifts bridge 6 blocks east or west.
 - Fruit stand position does NOT move. Refactored VillagerService to use GetFruitStandBounds.
+
+### Squad Villager NPC Service (2026-03-05)
+- Created `SquadVillagerService`  reads `ASPIRE_SQUAD_AGENTS` env var (comma-separated agent names injected by Shuri's `WithSquadVillagers()`), spawns named NPC villagers in the village.
+- Villager placement: spreads agents near building entrances first (south side +3 offset), then west sides, then entrance pathway. Avoids fruit stand area with 3-block buffer using `GetFruitStandBounds()`.
+- Each villager: `Invulnerable:1b`, `PersistenceRequired:1b`, `NoAI:0` (wanders), `Silent:0b` (makes sounds), tagged `squad_villager` for cleanup.
+- Registered conditionally in Program.cs (only when `ASPIRE_SQUAD_AGENTS` is set), injected as optional param in MinecraftWorldWorker.
+- Cleanup: kills all `@e[tag=squad_villager]` on service restart to avoid duplicates.
+- Professions cycle through 12 types for visual variety  no overlap with fruit stand NPCs' professions.

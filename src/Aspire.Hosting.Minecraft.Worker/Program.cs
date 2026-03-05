@@ -88,6 +88,12 @@ builder.Services.AddSingleton<GrandObservationTowerService>();
 builder.Services.AddSingleton<HorseSpawnService>();
 builder.Services.AddSingleton<VillagerService>();
 
+// Squad villagers — register when ASPIRE_SQUAD_AGENTS is configured
+if (!string.IsNullOrEmpty(builder.Configuration["ASPIRE_SQUAD_AGENTS"]))
+{
+    builder.Services.AddSingleton<SquadVillagerService>();
+}
+
 // HealthHistoryTracker is always registered (cheap ring buffer used by dashboard if enabled)
 builder.Services.AddSingleton<HealthHistoryTracker>();
 
@@ -218,7 +224,8 @@ file sealed class MinecraftWorldWorker(
     BridgeService? bridges = null,
     ErrorBoatService? errorBoats = null,
     VillagerService? villagers = null,
-    GrandObservationTowerService? observationTower = null) : BackgroundService
+    GrandObservationTowerService? observationTower = null,
+    SquadVillagerService? squadVillagers = null) : BackgroundService
 {
     private static readonly TimeSpan MetricsPollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan DisplayUpdateInterval = TimeSpan.FromSeconds(10);
@@ -378,6 +385,11 @@ file sealed class MinecraftWorldWorker(
                 {
                     villagers.SetResourceCount(actualResourceCount);
                     await villagers.SpawnVillagersAsync(stoppingToken);
+                }
+                if (squadVillagers is not null)
+                {
+                    squadVillagers.SetResourceCount(actualResourceCount);
+                    await squadVillagers.SpawnSquadVillagersAsync(stoppingToken);
                 }
 
                 // Build canals first so CanalPositions is populated for bridge and rail detection,
