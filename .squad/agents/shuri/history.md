@@ -356,3 +356,11 @@ Team update (2026-02-18): Pre-baked Docker image consolidated decision  Wong's i
 - `WithHttpCommand` defaults to POST method — matches the `MapPost` on the API side. No need to set `HttpCommandOptions.Method` explicitly.
 - Icon: `ErrorCircle` (FluentUI), `IconVariant.Filled`, `IsHighlighted = true` for dashboard visibility.
 - Key insight: `WithHttpCommand` is the clean Aspire 13.1 way to add dashboard buttons that call resource endpoints. It handles endpoint resolution, HTTP client creation, and result reporting automatically. Prefer it over `WithCommand` + manual `HttpClient` wiring whenever the command target is an HTTP endpoint on the same resource.
+
+### Issue #102 — WithExternalAccess() Already Implemented (2026-02-27)
+
+- `WithExternalAccess()` was implemented in commit `8a174f4` and is already present in the current branch.
+- Pattern: iterates `EndpointAnnotation` on the resource and sets `IsExternal = true` for game, rcon, and bluemap endpoints.
+- Does NOT add new endpoints — modifies existing ones, avoiding the duplicate endpoint conflict described in the issue.
+- Fluent API works as expected: `.AddMinecraftServer("minecraft").WithExternalAccess().WithBlueMap()`.
+- BlueMap endpoint is included in the external set even if not yet added — `WithExternalAccess()` is safe to call before or after `WithBlueMap()` since it only touches annotations already present.
