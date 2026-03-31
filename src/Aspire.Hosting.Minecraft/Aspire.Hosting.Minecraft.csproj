@@ -12,9 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="13.1.2" />
+    <PackageReference Include="Aspire.Hosting" Version="13.2.1" />
     <!-- Rcon's transitive dependency — required since Rcon is embedded, not a separate package -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
   </ItemGroup>
 
   <ItemGroup>
